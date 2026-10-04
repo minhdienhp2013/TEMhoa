@@ -63,11 +63,14 @@ function settings(){return {richHTML:cleanRichHTML($('temEditor').innerHTML),def
 function number(id,min,max){return Math.max(min,Math.min(max,Number($(id).value)||min))}
 function cv(w,h){let c=document.createElement('canvas');c.width=w;c.height=h;return c}
 function dilate(alpha,w,h,r){
- const out=new Uint8Array(w*h), offsets=[];r=Math.ceil(r);
- for(let dy=-r;dy<=r;dy++)offsets.push([dy,Math.floor(Math.sqrt(r*r-dy*dy))]);
- // Merge horizontal runs before expanding by circular offsets.
- for(let y=0;y<h;y++){let x=0;while(x<w){while(x<w&&!alpha[y*w+x])x++;if(x===w)break;let a=x;while(x<w&&alpha[y*w+x])x++;let b=x;
- for(const [dy,dx] of offsets){let yy=y+dy;if(yy>=0&&yy<h)out.fill(255,yy*w+Math.max(0,a-dx),yy*w+Math.min(w,b+dx));}}}
+ r=Math.ceil(r);if(r<=0)return alpha.slice();const distance=new Uint32Array(w*h),infinity=1000000000;
+ // Exact squared Euclidean distance: row scans, then a parabola envelope per column.
+ for(let y=0;y<h;y++){const row=y*w;let last=-100000;for(let x=0;x<w;x++){if(alpha[row+x])last=x;const d=x-last;distance[row+x]=Math.min(infinity,d*d)}last=w+100000;for(let x=w-1;x>=0;x--){if(alpha[row+x])last=x;const d=last-x;distance[row+x]=Math.min(distance[row+x],d*d)}}
+ const vertices=new Int32Array(h),cuts=new Float64Array(h+1),out=new Uint8Array(w*h),limit=r*r;
+ for(let x=0;x<w;x++){let k=0;vertices[0]=0;cuts[0]=-Infinity;cuts[1]=Infinity;
+  for(let q=1;q<h;q++){let v=vertices[k],cut=(distance[q*w+x]+q*q-distance[v*w+x]-v*v)/(2*(q-v));while(cut<=cuts[k]){k--;v=vertices[k];cut=(distance[q*w+x]+q*q-distance[v*w+x]-v*v)/(2*(q-v))}k++;vertices[k]=q;cuts[k]=cut;cuts[k+1]=Infinity}
+  k=0;for(let y=0;y<h;y++){while(cuts[k+1]<y)k++;let v=vertices[k],d=y-v;if(d*d+distance[v*w+x]<=limit)out[y*w+x]=255}
+ }
  return out;
 }
 function fillHoles(mask,w,h){const seen=new Uint8Array(w*h),q=new Int32Array(w*h);let n=0,k=0;function add(i){if(!mask[i]&&!seen[i]){seen[i]=1;q[n++]=i}}for(let x=0;x<w;x++){add(x);add((h-1)*w+x)}for(let y=0;y<h;y++){add(y*w);add(y*w+w-1)}while(k<n){let i=q[k++],x=i%w;if(x)add(i-1);if(x<w-1)add(i+1);if(i>=w)add(i-w);if(i<(h-1)*w)add(i+w)}for(let i=0;i<mask.length;i++)if(!seen[i])mask[i]=255;return mask}
@@ -317,7 +320,9 @@ function zip(files){let enc=new TextEncoder(),chunks=[],central=[],offset=0;func
  for(let [name,value] of Object.entries(files)){let nameB=enc.encode(name),b=typeof value==='string'?enc.encode(value):value,crc=crc32(b),[a,v]=header(30+nameB.length);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x800,true);v.setUint32(14,crc,true);v.setUint32(18,b.length,true);v.setUint32(22,b.length,true);v.setUint16(26,nameB.length,true);a.set(nameB,30);chunks.push(a,b);let [d,dv]=header(46+nameB.length);dv.setUint32(0,0x02014b50,true);dv.setUint16(4,20,true);dv.setUint16(6,20,true);dv.setUint16(8,0x800,true);dv.setUint32(16,crc,true);dv.setUint32(20,b.length,true);dv.setUint32(24,b.length,true);dv.setUint16(28,nameB.length,true);dv.setUint32(42,offset,true);d.set(nameB,46);central.push(d);offset+=a.length+b.length;}
  let [end,ev]=header(22),centralSize=central.reduce((n,a)=>n+a.length,0);ev.setUint32(0,0x06054b50,true);ev.setUint16(8,central.length,true);ev.setUint16(10,central.length,true);ev.setUint32(12,centralSize,true);ev.setUint32(16,offset,true);return new Blob([...chunks,...central,end],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
-async function word(){let {c,cm,heightCm}=render(true),land=$('page').value==='landscape';let cx=Math.round(cm*360000),cy=Math.round(heightCm*360000),png=await pngBytes(c);
+let exportPNGCache=null;
+async function exportPNG(){const key=JSON.stringify([settings(),[...loadedFonts]]);if(exportPNGCache?.key===key)return exportPNGCache.promise;const entry={key,promise:null};entry.promise=(async()=>{const {c,cm,heightCm}=render(true);return {png:await pngBytes(c),cm,heightCm}})();exportPNGCache=entry;try{return await entry.promise}catch(error){if(exportPNGCache===entry)exportPNGCache=null;throw error}}
+async function word(){let {png,cm,heightCm}=await exportPNG(),land=$('page').value==='landscape';let cx=Math.round(cm*360000),cy=Math.round(heightCm*360000);
  let files={
  '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
  '_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
@@ -327,7 +332,7 @@ async function word(){let {c,cm,heightCm}=render(true),land=$('page').value==='l
 }
 async function action(fn,message){closeFontPicker();$('status').textContent='Đang tạo tệp…';try{await ensureActiveFonts();await fn();$('status').textContent=message}catch(e){$('status').textContent=e.message}}
 ids.forEach(id=>$(id).addEventListener(id==='size'?'change':'input',()=>{if(['font','size','bold','italic','underline'].includes(id)){applyToolbar(id);return}if(id==='page'&&$('page').value==='portrait'&&+$('width').value>19)$('width').value=19;clearTimeout(timer);timer=setTimeout(preview,100)}));$('zoom').oninput=zoom;
-$('png').onclick=()=>action(async()=>download(new Blob([await pngBytes(render(true).c)],{type:'image/png'}),'Tem-Hoa-Minh-Dien.png'),'Đã tạo ảnh PNG. Kiểm tra thư mục Tải về.');$('word').onclick=()=>action(word,'Đã tạo Word. Kiểm tra thư mục Tải về.');
+$('png').onclick=()=>action(async()=>download(new Blob([(await exportPNG()).png],{type:'image/png'}),'Tem-Hoa-Minh-Dien.png'),'Đã tạo ảnh PNG. Kiểm tra thư mục Tải về.');$('word').onclick=()=>action(word,'Đã tạo Word. Kiểm tra thư mục Tải về.');
 let currentTemplateName='';
 async function templateAPI(query='',payload){
  if(!window.TEMHOA_TOKEN)throw Error('Hãy mở phần mềm bằng Mo-TemHoa-Windows.bat hoặc Mo-TemHoa-Mac.command để dùng thư mục mẫu cố định.');
