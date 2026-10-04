@@ -73,7 +73,7 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 ## In trực tiếp đúng kích thước
 
 - Bấm **In** hoặc **Ctrl + P** (Mac: **Command + P**).
-- Bản in dùng khổ A4/A3/A5 đang chọn, vị trí tem trên trang và kích thước cả viền trong preview. Zoom màn hình không đổi kích thước in. Bản in bảo vệ toàn bộ viền bằng khoảng sát mép 0,3 mm; tem vượt trang được dịch vào trong, chỉ thu nhỏ khi kích thước vượt vùng in.
+- Bản in dùng khổ A4/A3/A5 đang chọn, vị trí tem trên trang và kích thước cả viền trong preview. Zoom màn hình không đổi kích thước in. Khoảng bảo vệ mặc định: trên/phải 1 mm, dưới/trái 0,3 mm. Có thể chỉnh từng mép 0–10 mm trong cửa sổ In; được ghi nhớ trên trình duyệt. Tem vượt vùng in được dịch vào trong, chỉ thu nhỏ khi không đủ chỗ; nhiều tem giữ nguyên vị trí tương đối. Đây là khoảng bảo vệ thử nghiệm, cần căn theo máy thật; không thay đổi trang làm việc hoặc các file xuất PNG/Word/SVG.
 - Mặc định **In màu**, tỷ lệ **100%**, trang ảnh **600 DPI**. Có lựa chọn trắng đen.
 - Windows: mở bằng `Mo-TemHoa-Windows.bat`, chọn máy in và bấm **Properties** để mở Printing Preferences của đúng driver. Chọn số bản rồi bấm **In…** trong phần mềm để gửi lệnh in trực tiếp, không mở hộp thoại Print hoặc tiến trình in mặc định của Windows.
 - Cập nhật đầy đủ `Print-TemHoa-Windows.ps1` cùng các file ứng dụng. Không cần cài thêm Python để in trên Windows.
