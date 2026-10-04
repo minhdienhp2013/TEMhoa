@@ -99,7 +99,14 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 
 - Bấm chọn hình; giữ **Shift** và bấm các hình khác trong cùng tem để chọn nhiều hình. Shift+bấm lại để bỏ chọn. Bấm **Nhóm** trên thanh trên cùng hoặc **Ctrl/Command+G** trong vùng làm việc.
 - Nhóm có một khung chọn chung: kéo để di chuyển tất cả, kéo góc để phóng/thu theo cùng tỷ lệ, kéo nút tròn để xoay quanh tâm chung. Hai nút xoay 15° và lật hình áp dụng cho cả nhóm. Ô thông số từng hình và công cụ cắt/xóa nền bị khóa khi nhóm đang chọn; bỏ nhóm để chỉnh riêng.
-- **Bỏ nhóm** hoặc **Ctrl/Command+Shift+G** giữ nguyên vị trí, kích thước và góc của các hình. Nhân đôi/xóa hình và lên/xuống lớp áp dụng cho cả nhóm. Nhóm được lưu trong mẫu, giữ khi sao chép tem và hỗ trợ undo/redo. Hiện tính năng nhóm áp dụng cho emoji/ảnh bên trong một tem, không gộp các tem độc lập.
+- **Bỏ nhóm** hoặc **Ctrl/Command+Shift+G** giữ nguyên vị trí, kích thước và góc của các hình. Nhân đôi/xóa hình và lên/xuống lớp áp dụng cho cả nhóm. Nhóm được lưu trong mẫu, giữ khi sao chép tem và hỗ trợ undo/redo.
+
+## Nhóm các tem trên trang
+
+- Giữ **Shift** và bấm các tem để chọn nhiều tem, rồi bấm **Nhóm** hoặc Ctrl/Command+G. Nhóm/Bỏ nhóm cũng có trong menu chuột phải.
+- Khung chung có nút di chuyển ở giữa và bốn tay kéo góc: di chuyển cùng nhau, phóng/thu đồng tỷ lệ, giữ khoảng cách tương đối. Các tem vẫn giữ chữ, phông, viền, emoji và ảnh riêng; có thể bấm trực tiếp vào chữ để sửa. Tem chưa có chức năng xoay cả tem.
+- Bấm **Bỏ nhóm** hoặc Ctrl/Command+Shift+G để tách, không thay đổi vị trí/kích thước. Lưu/mở mẫu và undo/redo giữ nhóm.
+- Lên/xuống lớp di chuyển cả nhóm. Sao chép/dán hoặc nhân đôi tem thuộc nhóm tạo bản sao của cả nhóm với mã nhóm mới, không nối với nhóm cũ. Tối đa 20 tem/trang.
 
 ## Sắp xếp lớp
 
