@@ -9,12 +9,15 @@ import subprocess
 import tempfile
 import threading
 import webbrowser
+from background_ai import AIJobs, MAX_REQUEST
 
 ROOT = Path(__file__).resolve().parent
 HTML = ROOT / 'TemHoa-MinhDien.html'
 TEMPLATES = ROOT / 'Mau-Tem-Hoa'
 TOKEN = secrets.token_hex(24)
 MAX_BYTES = 32 * 1024 * 1024
+AI_JOBS = AIJobs()
+AI_LOCK = threading.Lock()
 
 def template_path(name):
     if not isinstance(name, str) or not name.strip() or len(name) > 80:
@@ -52,6 +55,15 @@ class Handler(BaseHTTPRequestHandler):
         if route.path in ('/', '/TemHoa-MinhDien.html'):
             html = HTML.read_text(encoding='utf-8').replace('<script>', '<script>window.TEMHOA_TOKEN=' + json.dumps(TOKEN) + ';</script><script>', 1)
             self.reply(200, html.encode('utf-8'), 'text/html; charset=utf-8')
+        elif route.path == '/api/background':
+            if not self.api_allowed():
+                self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return
+            try:
+                with AI_LOCK:
+                    result = AI_JOBS.status(parse_qs(route.query).get('job', [None])[0])
+                self.reply(200, result)
+            except ValueError as error:
+                self.reply(400, {'error': str(error)})
         elif route.path == '/api/templates':
             if not self.api_allowed():
                 self.reply(403, {'error':'Không có quyền truy cập mẫu.'}); return
@@ -74,6 +86,22 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(404, {'error':'Không tìm thấy.'})
 
     def do_POST(self):
+        if urlsplit(self.path).path == '/api/background':
+            if not self.api_allowed():
+                self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return
+            try:
+                size = int(self.headers.get('Content-Length', '0'))
+                if not 0 < size <= MAX_REQUEST:
+                    raise ValueError('Ảnh quá lớn hoặc rỗng.')
+                request = json.loads(self.rfile.read(size))
+                if not isinstance(request, dict):
+                    raise ValueError('Yêu cầu không hợp lệ.')
+                with AI_LOCK:
+                    result = AI_JOBS.start(request)
+                self.reply(200, result)
+            except (ValueError, OSError, TypeError) as error:
+                self.reply(400, {'error': str(error)})
+            return
         if urlsplit(self.path).path != '/api/templates' or not self.api_allowed():
             self.reply(403, {'error':'Không có quyền lưu mẫu.'}); return
         try:
@@ -116,3 +144,4 @@ if __name__ == '__main__':
         print('Tem Hoa:', url, '\nMau luu trong:', TEMPLATES, '\nGiu cua so nay mo khi su dung.')
         try: server.serve_forever()
         except KeyboardInterrupt: pass
+        finally: AI_JOBS.close()
