@@ -93,3 +93,13 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Lưu/mở mẫu giữ cả danh sách tem và tem đang chọn; mẫu một tem cũ vẫn mở được. Undo/redo giữ trạng thái cả trang, bao gồm nhân đôi/xóa tem.
 - Khi có nhiều tem, In và xuất PNG/Word/SVG lấy đủ các tem trên cùng trang. PNG giữ nền ngoài tem trong suốt; SVG vẫn là đường vector. Word tiếp tục dùng ảnh 600 DPI với chiều cao 50% theo thiết lập trước. Khi chỉ có một tem, cách xuất cũ được giữ nguyên.
 - Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
+
+
+## Icon nhanh và ảnh trang trí
+
+- Bấm **♥ Icon / Ảnh** trên thanh trên cùng: có tim đặc, tim nét gạch, hai trái tim, sao, hoa, lá, nơ và bóng bay. Chọn chèn bên trái hoặc bên phải chữ.
+- Icon/ảnh thuộc tem đang chọn; đường viền mây bao theo cả chữ và hình. Mỗi tem tối đa 12 hình.
+- Bấm hình để chọn, kéo hình để di chuyển, kéo góc để đổi kích thước, kéo nút tròn để xoay. Bảng hình hỗ trợ kích thước cm, vị trí, góc xoay, màu icon, khóa tỷ lệ, lật ngang/dọc, nhân đôi và xóa.
+- **Thêm ảnh từ máy…** nhận PNG/JPG/WebP. Có thể chọn vùng cắt trên ảnh nhỏ, chọn màu nền bằng cách bấm vào ảnh và bật **Xóa nền ảnh**; chỉ phần nền nối với mép ảnh được xóa để giữ chi tiết bên trong. PNG trong suốt dùng trực tiếp.
+- Ảnh được nhúng vào mẫu; không cần giữ đường dẫn ảnh gốc. Lưu/mở mẫu và sao chép tem giữ các hình và thông số. Mẫu một/nhiều tem cũ vẫn mở được. Mẫu có ảnh tối đa 32 MB; lịch sử giới hạn theo bộ nhớ.
+- Preview, bản in, PNG và Word đều có hình trang trí. SVG giữ chữ, icon có sẵn và viền dưới dạng vector; ảnh nhập từ máy vẫn là ảnh bitmap nhúng trong SVG, không tự biến thành vector.
