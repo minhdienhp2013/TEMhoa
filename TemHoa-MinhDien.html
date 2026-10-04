@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tem Hoa Minh Điến</title>
+<style>
+
+*{box-sizing:border-box}body{margin:0;background:#f4f3f0;color:#272323;font:15px Arial,sans-serif}header{background:#941d2a;color:white;padding:20px 28px}h1{font-size:23px;margin:0 0 5px}header p{margin:0;opacity:.85}main{display:grid;grid-template-columns:350px 1fr;gap:20px;padding:20px;max-width:1500px;margin:auto}.panel{background:white;border:1px solid #dedad5;border-radius:14px;padding:20px}.panel h2{font-size:18px;margin:0 0 16px}label{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}input,select,textarea,button{font:inherit}textarea,input[type=text],input[type=number],select{width:100%;border:1px solid #c9c3be;border-radius:7px;padding:9px;background:white;color:#242020}textarea{resize:vertical;min-height:114px;line-height:1.5}input[type=color]{width:100%;height:35px;border:1px solid #ccc;background:white;border-radius:6px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.checks{display:flex;gap:18px;margin:14px 0}.checks label{margin:0;font-size:15px}.checks input{accent-color:#aa2030}button{border:1px solid #d3c8c4;border-radius:8px;padding:11px 14px;background:#fff;cursor:pointer;color:#342c2c}button:hover{background:#fff0ef}.primary{background:#a31c2c;color:white;border-color:#a31c2c}.primary:hover{background:#811522}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.note{font-size:12px;color:#6d6662;line-height:1.6}.preview{overflow:auto;min-height:400px;display:flex;align-items:center;justify-content:center;background-color:#e5e2de;background-image:linear-gradient(45deg,#f6f4f1 25%,transparent 25%),linear-gradient(-45deg,#f6f4f1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#f6f4f1 75%),linear-gradient(-45deg,transparent 75%,#f6f4f1 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;border-radius:10px;padding:24px}canvas{max-width:none;height:auto;flex-shrink:0}.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.toolbar input{width:130px}#status{min-height:22px;color:#842333;font-size:13px}details{margin-top:20px;line-height:1.65}summary{cursor:pointer;font-weight:bold}a{color:#941d2a}@media(max-width:800px){main{grid-template-columns:1fr;padding:10px}.preview{min-height:230px}header{padding:18px}}
+
+.panel{min-width:0}.preview{justify-content:flex-start}.previewStage{display:grid;grid-template-columns:32px minmax(0,1fr);grid-template-rows:32px auto;flex-shrink:0;align-items:start}.previewStage #canvas{display:block;width:100%;grid-column:2;grid-row:2}.rulerCorner{background:#fff9eb;height:32px;border-right:1px solid #b7b1a9;border-bottom:1px solid #b7b1a9;font-size:11px;display:grid;place-items:center}.previewStage #rulerTop{height:32px;width:100%;display:block}.previewStage #rulerLeft{width:32px;display:block}.lineFontCard{border:1px solid #e4ded8;border-radius:8px;padding:10px;margin:10px 0;background:#faf9f7}.lineFontCard label{margin:0 0 7px}.lineFontCard input[type=file]{max-width:100%;font-size:11px;margin-top:8px}.lineFontCard input[type=text]{margin-top:7px}.lineFontCard small{display:block;margin-top:5px;color:#716964;font-size:11px}
+
+body{background:#e6e9ed;color:#252b34;font-family:Arial,sans-serif;padding-bottom:48px}.wordTitle{padding:10px 18px;background:#215a99;color:white;display:flex;align-items:center;justify-content:space-between;gap:15px}.wordTitle strong{font-size:17px}.wordTitle span{font-size:12px;margin-left:16px;color:#dceaff}.quickActions{display:flex;gap:6px}.quickActions button{background:#ffffff14;color:white;border-color:#ffffff35;padding:7px 12px;font-size:12px}.wordTabs{background:#f8f9fb;border-bottom:1px solid #d1d6dd;display:flex;align-items:center;gap:22px;padding:0 18px;height:34px}.tabActive{font-weight:bold;font-size:13px;color:#215a99;border-bottom:3px solid #215a99;height:34px;padding-top:9px}.documentName{font-size:12px;color:#687582}.wordRibbon{display:flex;gap:0;background:#f7f9fc;border-bottom:1px solid #bcc5cf;padding:9px 14px 5px;flex-wrap:wrap;position:relative;z-index:1;box-shadow:0 2px 3px #0000000b}.ribbonGroup{padding:0 13px;border-right:1px solid #d0d7df;display:flex;flex-direction:column;gap:7px}.ribbonRow{display:flex;align-items:center;gap:5px;min-height:30px}.ribbonRow label{margin:0;font-size:12px;font-weight:normal}.ribbonRow input[type=number]{padding:5px;width:66px;border-radius:3px;height:30px}.ribbonRow select{padding:5px 8px;border-radius:3px;height:30px}.fontGroup #font{width:260px}.fontGroup #size{width:76px}.fontGroup #customFont{max-width:185px;height:30px;border-radius:3px}.ribbonCaption{font-size:10px;color:#6e7a88;text-align:center;margin-top:auto;padding:0 0 3px}.ribbonHint{font-size:11px;color:#687582;padding-top:9px}.toolButton{height:30px;min-width:31px;padding:3px 7px;border:1px solid transparent;border-radius:3px;background:transparent;font-family:Georgia,serif;font-size:17px}.toolButton:hover,.smallButton:hover{background:#e2edfa;border-color:#b8cde8}.toolButton[aria-pressed=true]{background:#ffdd91;border-color:#cf9e37}.sup{font-size:11px;vertical-align:super}.styleToggle{display:inline-flex;position:relative;width:31px;height:30px;cursor:pointer}.styleToggle input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}.styleToggle span{display:grid;place-items:center;width:100%;height:100%;font:18px Georgia,serif;border:1px solid transparent;border-radius:3px}.styleToggle input:checked+span{background:#ffdd91;border-color:#cf9e37}.styleToggle input:focus-visible+span{outline:2px solid #286bb9}.smallButton{padding:6px 9px;font-size:11px;border-radius:3px}.exportGroup button{border-radius:4px;padding:8px 11px;font-size:12px}.exportWord{background:#215a99;color:white;border-color:#215a99}.exportWord:hover{background:#174372}.alignGlyph{width:20px;display:flex;flex-direction:column;gap:3px}.alignGlyph i{display:block;height:2px;width:20px;background:#37465a}.alignGlyph i:nth-child(even){width:13px}.centerGlyph{align-items:center}.rightGlyph{align-items:flex-end}.fontInfo{padding:4px 25px;background:#eef3f9;border-bottom:1px solid #d6dce4}.fontInfo p{margin:0;color:#596c81;font-size:11px;line-height:1.45}.wordWorkspace{max-width:1600px;grid-template-columns:minmax(0,1fr) 280px;gap:18px;padding:20px;align-items:start}.documentColumn{min-width:0}.editorCard{border:1px solid #d6dde5;background:#fff;border-radius:5px;padding:12px 16px;box-shadow:0 1px 3px #00000006}.editorCard label{margin:0 0 7px;color:#405366}.editorCard textarea{font-size:18px;min-height:90px;border:1px solid #d4dce6;padding:9px 11px;border-radius:3px}.editorCard p{font-size:11px;color:#718092;margin:7px 0 0;line-height:1.5}.documentTop{display:flex;justify-content:space-between;font-size:11px;color:#667589;margin:17px 2px 8px}.preview{background:#d8dde4;background-image:none;min-height:380px;border:1px solid #c9d0da;border-radius:4px;padding:26px;align-items:flex-start}.previewStage{box-shadow:0 3px 13px #1d2a3f35;background:white}.previewStage #canvas{background:white}.previewStage #rulerTop,.previewStage #rulerLeft{background:#fff}.rulerCorner{background:#f3f5f8;color:#52647a}.wordInspector{background:#f9fafc;border:1px solid #cfd7e2;border-radius:5px;padding:15px}.wordInspector h2{font-size:15px;color:#355478;margin:0 0 15px}.wordInspector details{margin-top:12px;padding-top:12px;border-top:1px solid #dde3eb}.wordInspector details:first-of-type{margin-top:0}.wordInspector summary{font-size:13px;color:#354a62}.lineFontCard{background:white;border-color:#d6dfe8;padding:8px;margin:9px 0}.lineFontCard label{font-size:11px}.lineFontCard select{font-size:12px;padding:7px}.wordInspector label{font-size:11px}.wordInspector input[type=number],.wordInspector select{font-size:12px;padding:7px}.wordInspector .note{font-size:11px}.wordStatus{position:fixed;bottom:0;left:0;right:0;background:#f6f8fb;border-top:1px solid #c9d2dd;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:6px 18px;z-index:5;min-height:40px;font-size:11px;color:#596c80}.zoomTools{display:flex;align-items:center;gap:6px;flex-shrink:0}.zoomTools button{padding:2px 7px;background:transparent;border:0}.zoomTools input{width:110px;accent-color:#215a99}.zoomTools span{width:38px;text-align:right}#status{padding:8px 0 0;color:#215a99}#fontNotice{margin-top:4px}.wordWorkspace .row{gap:8px}
+@media(max-width:950px){.wordWorkspace{grid-template-columns:1fr 240px;padding:12px;gap:12px}.fontGroup #font{width:205px}.wordRibbon{padding:8px}.ribbonGroup{padding:0 8px}.exportGroup{border-right:0}}@media(max-width:720px){.wordWorkspace{grid-template-columns:1fr}.wordInspector{order:2}.wordRibbon{gap:12px}.ribbonGroup{border-right:0}.wordTitle span{display:none}.documentName{font-size:10px}.fontGroup #font{width:195px}.wordStatus #dimensions{max-width:50%;line-height:1.4}.preview{padding:16px}.wordStatus{padding:5px 10px}.zoomTools input{width:80px}}
+
+
+[hidden]{display:none!important}.wordTabs{gap:8px}.wordTabs button{border:0;border-radius:0;background:transparent;height:34px;padding:6px 14px;color:#53677e;font-size:13px}.wordTabs button.tabActive{border-bottom:3px solid #215a99;color:#215a99;font-weight:bold}.wordTabs button:hover{background:#e7eef8}.wordTabs .documentName{margin-left:14px}.wordWorkspace{grid-template-columns:minmax(0,1fr);max-width:1450px}.designMenu{display:grid;grid-template-columns:minmax(230px,1fr) minmax(230px,1fr) minmax(220px,1fr) minmax(200px,1fr);gap:18px;padding:12px 22px;background:#f7f9fc;border:0;border-bottom:1px solid #bcc5cf;border-radius:0;box-shadow:0 2px 3px #0000000b}.designMenu details,.designMenu details:first-of-type{margin:0;padding:0 16px 0 0;border-top:0;border-right:1px solid #d0d7df}.designMenu details:last-of-type{border-right:0}.designMenu summary{font-size:12px;line-height:22px}.designMenu .note{margin:5px 0}.designMenu input[type=color]{height:28px}.designMenu label{margin:7px 0 3px}.designMenu #lineFonts{max-height:240px;overflow:auto}.designMenu input[type=number]{max-width:120px}.designMenu .row{gap:10px}.designMenu .lineFontCard label{margin-bottom:5px}.designMenu details[open]>summary{color:#215a99}.documentColumn{width:100%}
+@media(max-width:1000px){.designMenu{grid-template-columns:1fr 1fr}.wordWorkspace{grid-template-columns:1fr}.designMenu details:nth-child(2){border-right:0}}@media(max-width:600px){.designMenu{grid-template-columns:1fr;padding:12px 16px;gap:12px}.designMenu details{border-right:0}.wordTabs .documentName{display:none}}
+
+.fontPickerButton{width:260px;height:30px;padding:4px 8px;text-align:left;display:flex;justify-content:space-between;align-items:center;border-radius:3px;background:#fff;font-size:13px}.lineFontCard .fontPickerButton{width:100%;font-size:12px}.fontPickerMenu{position:fixed;z-index:50;width:300px;background:#fff;border:1px solid #b8c8dd;border-radius:5px;box-shadow:0 6px 22px #23334b33;padding:6px}.fontPickerHelp{font-size:11px;color:#61738a;padding:4px 7px 8px}.fontPickerList{max-height:280px;overflow:auto}.fontPickerOption{display:block;width:100%;text-align:left;border:0;border-radius:2px;padding:7px 9px;font-size:14px}.fontPickerOption[aria-selected=true]{background:#e4edfa;color:#174372}.fontPickerOption:hover,.fontPickerOption:focus{background:#fff0c9;outline:1px solid #dfa94c}
+.previewStage{position:relative}.temEditor{position:absolute;left:32px;top:32px;transform-origin:0 0;outline:none;white-space:pre;min-width:120px;cursor:text;caret-color:#12243e;text-align:center;line-height:1.35;overflow:visible}.temEditor,.temEditor *{color:transparent!important}.temEditor::selection,.temEditor *::selection{background:#4384cf88;color:transparent}.temEditor div,.temEditor p{margin:0;padding:0;line-height:inherit}.editorHelp{font-size:13px;color:#405a78;padding:10px 3px}.measureEditor{pointer-events:none;visibility:hidden}.ribbonCaption{white-space:nowrap}
+</style>
+<header class="wordTitle"><div><strong>Tem Hoa Minh Điến</strong><span>Soạn tem hoa</span></div><div class="quickActions"><button id="save" title="Lưu mẫu">Lưu mẫu</button><button id="load" title="Mở mẫu">Mở mẫu</button><input id="template" type="file" accept=".json" hidden></div></header>
+<div class="wordTabs"><button id="tabHome" class="tabActive" type="button" aria-selected="true">Trang đầu</button><button id="tabDesign" type="button" aria-selected="false">Thiết kế tem</button><span class="documentName">Tem mới · Unicode · 600 DPI</span></div>
+<div class="wordRibbon" id="homeRibbon" role="toolbar" aria-label="Thanh công cụ định dạng">
+ <div class="ribbonGroup fontGroup"><div class="ribbonRow"><select id="font" aria-label="Phông trên máy tính"><option value="">Bấm Lấy phông trên máy…</option></select><input id="size" aria-label="Cỡ chữ" type="number" min="12" max="200" value="64" list="fontSizes"><datalist id="fontSizes"><option value="24"><option value="36"><option value="48"><option value="64"><option value="72"><option value="96"><option value="120"><option value="144"></datalist><button id="sizeUp" class="toolButton" title="Tăng cỡ chữ" aria-label="Tăng cỡ chữ">A<span class="sup">＋</span></button><button id="sizeDown" class="toolButton" title="Giảm cỡ chữ" aria-label="Giảm cỡ chữ">A<span class="sup">−</span></button></div><div class="ribbonRow"><label class="styleToggle" title="In đậm"><input id="bold" type="checkbox" checked><span><b>B</b></span></label><label class="styleToggle" title="In nghiêng"><input id="italic" type="checkbox"><span><i>I</i></span></label><label class="styleToggle" title="Gạch chân"><input id="underline" type="checkbox"><span><u>U</u></span></label><input id="customFont" type="text" placeholder="Tên phông trên máy" hidden><button id="scanFonts" class="smallButton">Lấy phông trên máy</button></div><div class="ribbonRow"><label for="inputEncoding">Bảng mã bộ gõ</label><select id="inputEncoding" style="width:175px"><option value="unicode">Unicode</option><option value="tcvn3">TCVN3 (ABC)</option></select></div><div class="ribbonCaption">Phông chữ · chữ bôi đen / toàn bộ</div></div>
+ <div class="ribbonGroup"><div class="ribbonRow alignTools"><button data-align="left" class="toolButton" title="Căn trái" aria-label="Căn trái"><span class="alignGlyph leftGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="center" class="toolButton" title="Căn giữa" aria-label="Căn giữa"><span class="alignGlyph centerGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="right" class="toolButton" title="Căn phải" aria-label="Căn phải"><span class="alignGlyph rightGlyph"><i></i><i></i><i></i><i></i></span></button><select id="align" hidden><option value="center">Giữa</option><option value="left">Trái</option><option value="right">Phải</option></select></div><div class="ribbonRow"><label for="spacing">Giãn dòng</label><input id="spacing" type="number" min="0.8" max="2" step="0.05" value="1.1"></div><div class="ribbonCaption">Đoạn văn</div></div>
+ <div class="ribbonGroup exportGroup"><div class="ribbonRow"><button class="exportWord" id="word">Xuất Word</button><button id="png">Ảnh PNG</button><button id="svg">Vector SVG</button></div><div class="ribbonHint">Word và PNG · 600 DPI</div><div class="ribbonCaption">Xuất tem</div></div>
+</div>
+<section class="wordInspector designMenu" id="designRibbon" hidden aria-label="Thiết kế tem"><details><summary>Phông riêng từng dòng</summary><p class="note">Dòng trên và dòng dưới có thể dùng phông khác nhau.</p><div id="lineFonts"></div></details><details open><summary>Màu sắc & viền mây</summary><div class="row"><div><label for="fill">Màu chữ</label><input id="fill" type="color" value="#ffffff"></div><div><label for="body">Nền tem</label><input id="body" type="color" value="#df071b"></div></div><div class="row"><div><label for="padding">Độ bo viền</label><input id="padding" type="number" min="4" max="60" value="20"></div><div><label for="border">Dày viền</label><input id="border" type="number" min="0" max="20" value="3"></div></div><label for="edge">Màu viền</label><input id="edge" type="color" value="#ffffff"></details><details open><summary>Kích thước in</summary><label for="width">Rộng tem (cm)</label><input id="width" type="number" min="3" max="27.7" step="0.1" value="27"><label for="page">Khổ giấy Word</label><select id="page"><option value="landscape">A4 ngang</option><option value="portrait">A4 dọc</option></select><p class="note">Thước theo kích thước khi in, không theo kích thước thực trên màn hình. Thước không xuất vào tệp.</p></details><details><summary>Hướng dẫn</summary><p class="note">Lấy phông trên máy trong Chrome/Edge. Phông luôn được lấy từ máy. Phông .Vn/TCVN3 được xử lý để nhập Unicode khi đã nạp tệp phông trên máy. Nếu bộ gõ xuất TCVN3, chọn đúng Bảng mã bộ gõ trên thanh công cụ.</p><p class="note">Sửa nội dung rồi xuất Word, PNG hoặc SVG. SVG chuyển chữ thành đường; sửa chữ trong phần mềm này rồi xuất lại.</p><p class="note">Lưu mẫu để dùng lại. Khi mở mẫu, nên nạp danh sách phông trên máy trước.</p></details></section>
+<div class="fontInfo"><p id="scanStatus" role="status">Bấm Lấy phông trên máy → Cho phép để nạp danh sách.</p></div>
+<main class="wordWorkspace"><section class="documentColumn"><textarea id="text" hidden></textarea><p class="editorHelp">Bấm vào tem để nhập chữ · Enter xuống dòng · Bôi đen chữ rồi chọn phông, cỡ chữ, B/I/U · Ctrl/Cmd+Z hoàn tác</p><div class="documentTop"><span>Trang xem trước</span><span>Thước đo theo cm</span></div><div class="preview" id="previewArea"><div class="previewStage" id="previewStage"><div class="rulerCorner">cm</div><canvas id="rulerTop" aria-label="Thước ngang centimet"></canvas><canvas id="rulerLeft" aria-label="Thước dọc centimet"></canvas><canvas id="canvas"></canvas><div id="temEditor" class="temEditor" contenteditable="true" role="textbox" aria-label="Nội dung tem, nhập trực tiếp" aria-multiline="true" spellcheck="false"></div></div></div><div id="status" role="status"></div><p id="fontNotice" class="note" role="status"></p></section>
+</main>
+<footer class="wordStatus"><span id="dimensions"></span><div class="zoomTools"><button id="zoomOut" title="Thu nhỏ">−</button><input id="zoom" aria-label="Thu phóng xem trước" type="range" min="30" max="150" value="100"><button id="zoomIn" title="Phóng lớn">＋</button><span id="zoomValue">100%</span></div></footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), ids=['text','font','customFont','size','spacing','bold','italic','underline','align','fill','body','padding','border','edge','width','page','inputEncoding'];
+let uploadedFont='', timer, revision=0, lineStyles=[], previewSize=null, machineFonts=[], fontRecords=new Map(), loadedFonts=new Map(), fontLoads=new Map(), previewRevision=0, hoverFont=null, openFontPicker=null, savedSelection=null, composing=false;
+let defaultTextStyle={size:64,bold:true,italic:false,underline:false},history=[],historyIndex=-1;
+
+function syncAlign(){document.querySelectorAll('[data-align]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.align===$('align').value)))}
+document.querySelectorAll('[data-align]').forEach(button=>button.onclick=()=>{$('align').value=button.dataset.align;preview()});
+function adjustSize(delta){$('size').value=Math.max(12,Math.min(200,number('size',12,200)+delta));applyToolbar('size')}
+$('sizeUp').onclick=()=>adjustSize(4);$('sizeDown').onclick=()=>adjustSize(-4);
+$('zoomOut').onclick=()=>{$('zoom').value=Math.max(30,+$('zoom').value-10);zoom()};$('zoomIn').onclick=()=>{$('zoom').value=Math.min(150,+$('zoom').value+10);zoom()};
+
+
+function switchMenu(design){closeFontPicker();
+ $('homeRibbon').hidden=design;$('designRibbon').hidden=!design;
+ $('tabHome').className=design?'':'tabActive';$('tabDesign').className=design?'tabActive':'';
+ $('tabHome').setAttribute('aria-selected',String(!design));$('tabDesign').setAttribute('aria-selected',String(design));
+ requestAnimationFrame(zoom);
+}
+$('tabHome').onclick=()=>switchMenu(false);$('tabDesign').onclick=()=>switchMenu(true);
+
+function settings(){return {richHTML:cleanRichHTML($('temEditor').innerHTML),defaultTextStyle:{...defaultTextStyle},...Object.fromEntries(ids.map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value])),lineStyles:lineStyles.map(v=>({choice:v.choice||'',custom:v.custom||''}))}}
+function number(id,min,max){return Math.max(min,Math.min(max,Number($(id).value)||min))}
+function cv(w,h){let c=document.createElement('canvas');c.width=w;c.height=h;return c}
+function dilate(alpha,w,h,r){
+ const out=new Uint8Array(w*h), offsets=[];r=Math.ceil(r);
+ for(let dy=-r;dy<=r;dy++)offsets.push([dy,Math.floor(Math.sqrt(r*r-dy*dy))]);
+ // Merge horizontal runs before expanding by circular offsets.
+ for(let y=0;y<h;y++){let x=0;while(x<w){while(x<w&&!alpha[y*w+x])x++;if(x===w)break;let a=x;while(x<w&&alpha[y*w+x])x++;let b=x;
+ for(const [dy,dx] of offsets){let yy=y+dy;if(yy>=0&&yy<h)out.fill(255,yy*w+Math.max(0,a-dx),yy*w+Math.min(w,b+dx));}}}
+ return out;
+}
+function fillHoles(mask,w,h){const seen=new Uint8Array(w*h),q=new Int32Array(w*h);let n=0,k=0;function add(i){if(!mask[i]&&!seen[i]){seen[i]=1;q[n++]=i}}for(let x=0;x<w;x++){add(x);add((h-1)*w+x)}for(let y=0;y<h;y++){add(y*w);add(y*w+w-1)}while(k<n){let i=q[k++],x=i%w;if(x)add(i-1);if(x<w-1)add(i+1);if(i>=w)add(i-w);if(i<(h-1)*w)add(i+w)}for(let i=0;i<mask.length;i++)if(!seen[i])mask[i]=255;return mask}
+function maskCanvas(mask,w,h,color){let c=cv(w,h),ctx=c.getContext('2d'),im=ctx.createImageData(w,h);let rgb=color.match(/\w\w/g).map(x=>parseInt(x,16));for(let i=0;i<mask.length;i++){im.data[i*4]=rgb[0];im.data[i*4+1]=rgb[1];im.data[i*4+2]=rgb[2];im.data[i*4+3]=mask[i]}ctx.putImageData(im,0,0);return c}
+
+let fontWarnings=[], fontLoadNotes=new Map();
+// CSS can use installed fonts without permission to enumerate their files.
+function detectSystemFonts(){
+ const ctx=cv(1,1).getContext('2d'),sample='mmmmWWWWiiii 0123 Áệộ';
+ const candidates=['Arial','Times New Roman','Calibri','Cambria','Verdana','Tahoma','Georgia','Courier New','Helvetica','Helvetica Neue','Menlo','Segoe UI'];
+ return candidates.filter(name=>['serif','sans-serif','monospace'].some(base=>{ctx.font='32px '+base;let width=ctx.measureText(sample).width;ctx.font='32px '+JSON.stringify(name)+', '+base;return Math.abs(ctx.measureText(sample).width-width)>.01}));
+}
+function cssFamily(family){return /^(serif|sans-serif|monospace|system-ui)$/.test(family)?family:JSON.stringify(family)}
+const vietnameseChars=["â", "Â", "ă", "Ă", "đ", "Đ", "ê", "Ê", "ô", "Ô", "ơ", "Ơ", "ư", "Ư", "á", "Á", "à", "À", "ả", "Ả", "ã", "Ã", "ạ", "Ạ", "ấ", "Ấ", "ầ", "Ầ", "ẩ", "Ẩ", "ẫ", "Ẫ", "ậ", "Ậ", "ắ", "Ắ", "ằ", "Ằ", "ẳ", "Ẳ", "ẵ", "Ẵ", "ặ", "Ặ", "é", "É", "è", "È", "ẻ", "Ẻ", "ẽ", "Ẽ", "ẹ", "Ẹ", "ế", "Ế", "ề", "Ề", "ể", "Ể", "ễ", "Ễ", "ệ", "Ệ", "í", "Í", "ì", "Ì", "ỉ", "Ỉ", "ĩ", "Ĩ", "ị", "Ị", "ó", "Ó", "ò", "Ò", "ỏ", "Ỏ", "õ", "Õ", "ọ", "Ọ", "ố", "Ố", "ồ", "Ồ", "ổ", "Ổ", "ỗ", "Ỗ", "ộ", "Ộ", "ớ", "Ớ", "ờ", "Ờ", "ở", "Ở", "ỡ", "Ỡ", "ợ", "Ợ", "ú", "Ú", "ù", "Ù", "ủ", "Ủ", "ũ", "Ũ", "ụ", "Ụ", "ứ", "Ứ", "ừ", "Ừ", "ử", "Ử", "ữ", "Ữ", "ự", "Ự", "ỳ", "Ỳ", "ỷ", "Ỷ", "ỹ", "Ỹ", "ỵ", "Ỵ", "ý", "Ý"];
+const tcvnChars=["©", "¢", "¨", "¡", "®", "§", "ª", "£", "«", "¤", "¬", "¥", "­", "¦", "¸", "¸", "µ", "µ", "¶", "¶", "·", "·", "¹", "¹", "Ê", "Ê", "Ç", "Ç", "È", "È", "É", "É", "Ë", "Ë", "¾", "¾", "»", "»", "¼", "¼", "½", "½", "Æ", "Æ", "Ð", "Ð", "Ì", "Ì", "Î", "Î", "Ï", "Ï", "Ñ", "Ñ", "Õ", "Õ", "Ò", "Ò", "Ó", "Ó", "Ô", "Ô", "Ö", "Ö", "Ý", "Ý", "×", "×", "Ø", "Ø", "Ü", "Ü", "Þ", "Þ", "ã", "ã", "ß", "ß", "á", "á", "â", "â", "ä", "ä", "è", "è", "å", "å", "æ", "æ", "ç", "ç", "é", "é", "í", "í", "ê", "ê", "ë", "ë", "ì", "ì", "î", "î", "ó", "ó", "ï", "ï", "ñ", "ñ", "ò", "ò", "ô", "ô", "ø", "ø", "õ", "õ", "ö", "ö", "÷", "÷", "ù", "ù", "ú", "ú", "û", "û", "ü", "ü", "þ", "þ", "ý", "ý"];
+const vniChars=["aâ", "AÂ", "aê", "AÊ", "ñ", "Ñ", "eâ", "EÂ", "oâ", "OÂ", "ô", "Ô", "ö", "Ö", "aù", "AÙ", "aø", "AØ", "aû", "AÛ", "aõ", "AÕ", "aï", "AÏ", "aá", "AÁ", "aà", "AÀ", "aå", "AÅ", "aã", "AÃ", "aä", "AÄ", "aé", "AÉ", "aè", "AÈ", "aú", "AÚ", "aü", "AÜ", "aë", "AË", "eù", "EÙ", "eø", "EØ", "eû", "EÛ", "eõ", "EÕ", "eï", "EÏ", "eá", "EÁ", "eà", "EÀ", "eå", "EÅ", "eã", "EÃ", "eä", "EÄ", "í", "Í", "ì", "Ì", "æ", "Æ", "ó", "Ó", "ò", "Ò", "où", "OÙ", "oø", "OØ", "oû", "OÛ", "oõ", "OÕ", "oï", "OÏ", "oá", "OÁ", "oà", "OÀ", "oå", "OÅ", "oã", "OÃ", "oä", "OÄ", "ôù", "ÔÙ", "ôø", "ÔØ", "ôû", "ÔÛ", "ôõ", "ÔÕ", "ôï", "ÔÏ", "uù", "UÙ", "uø", "UØ", "uû", "UÛ", "uõ", "UÕ", "uï", "UÏ", "öù", "ÖÙ", "öø", "ÖØ", "öû", "ÖÛ", "öõ", "ÖÕ", "öï", "ÖÏ", "yø", "YØ", "yû", "YÛ", "yõ", "YÕ", "î", "Î", "yù", "YÙ"];
+function decodeInput(text,encoding=$('inputEncoding').value){
+ if(encoding==='unicode')return text.normalize('NFC');
+ let codes=encoding==='tcvn3'?tcvnChars:vniChars,map=new Map();codes.forEach((code,i)=>{if(!map.has(code))map.set(code,vietnameseChars[i])});
+ let keys=[...map.keys()].sort((a,b)=>b.length-a.length),out='';for(let i=0;i<text.length;){let key=keys.find(k=>text.startsWith(k,i));if(key){out+=map.get(key);i+=key.length}else out+=text[i++]}return out.normalize('NFC');
+}
+function isTCVNFont(family){return /^(\.vn|tcvn[- _]?vn)/i.test(family)}
+// Give a local TCVN3 face a Unicode cmap without altering its outlines.
+function adaptTCVNFont(buffer){
+ const src=new Uint8Array(buffer),view=new DataView(buffer),count=view.getUint16(4),tables=[];if(view.getUint32(0)===0x74746366)throw Error('Phông TTC cần dùng bản TTF riêng');
+ for(let i=0;i<count;i++){let p=12+i*16,tag=String.fromCharCode(...src.slice(p,p+4)),offset=view.getUint32(p+8),length=view.getUint32(p+12);if(offset+length>src.length)throw Error('Tệp phông không hợp lệ');tables.push({tag,data:src.slice(offset,offset+length)})}
+ let cmap=tables.find(t=>t.tag==='cmap');if(!cmap)throw Error('Phông thiếu bảng ký tự');let cv=new DataView(cmap.data.buffer),maps=[];
+ for(let i=0;i<cv.getUint16(2);i++){let p=4+i*8,platform=cv.getUint16(p),enc=cv.getUint16(p+2),off=cv.getUint32(p+4);if(platform===0||platform===3){let map=new Map(),format=cv.getUint16(off);
+  if(format===4){let n=cv.getUint16(off+6)/2,end=off+14,start=end+2*n+2,delta=start+2*n,range=delta+2*n;for(let j=0;j<n;j++){let a=cv.getUint16(start+j*2),b=cv.getUint16(end+j*2),d=cv.getInt16(delta+j*2),r=cv.getUint16(range+j*2);for(let c=a;c<=b&&c<65535;c++){let g;if(!r)g=(c+d)&65535;else{let address=range+j*2+r+(c-a)*2;if(address+2>cmap.data.length)continue;g=cv.getUint16(address);if(g)g=(g+d)&65535}if(g)map.set(c,g)}}}
+  else if(format===12){let groups=cv.getUint32(off+12);for(let j=0;j<groups;j++){let p=off+16+j*12,a=cv.getUint32(p),b=Math.min(65534,cv.getUint32(p+4)),g=cv.getUint32(p+8);for(let c=a;c<=b;c++)map.set(c,g+c-a)}}
+  if(map.size)maps.push({map,rank:platform===3&&enc===1?0:platform===0?1:2})
+ }}maps.sort((a,b)=>a.rank-b.rank);let original=new Map();for(let {map}of maps.reverse())for(let [c,g]of map)original.set(c,g);
+ // Some installed .Vn faces have already been converted to Unicode.
+ if(vietnameseChars.filter(c=>c.codePointAt(0)>255&&original.has(c.codePointAt(0))).length>70)return buffer;
+ let map=new Map(original);for(let [c,g]of original)if(c>=0xf020&&c<=0xf0ff&&!map.has(c-0xf000))map.set(c-0xf000,g);
+ vietnameseChars.forEach((c,i)=>{let g=original.get(tcvnChars[i].codePointAt(0))||original.get(0xf000+tcvnChars[i].codePointAt(0));if(g)map.set(c.codePointAt(0),g)});
+ let entries=[...map].filter(([c,g])=>c<65535&&g>0).sort((a,b)=>a[0]-b[0]);entries.push([65535,0]);let n=entries.length,len=16+n*8,format=new Uint8Array(len),f=new DataView(format.buffer),power=2**Math.floor(Math.log2(n));f.setUint16(0,4);f.setUint16(2,len);f.setUint16(6,n*2);f.setUint16(8,power*2);f.setUint16(10,Math.log2(power));f.setUint16(12,n*2-power*2);entries.forEach(([c,g],i)=>{f.setUint16(14+2*i,c);f.setUint16(16+2*n+2*i,c);f.setUint16(16+4*n+2*i,(g-c)&65535)});
+ let cm=new Uint8Array(20+len),v=new DataView(cm.buffer);v.setUint16(2,2);v.setUint16(4,0);v.setUint16(6,3);v.setUint32(8,20);v.setUint16(12,3);v.setUint16(14,1);v.setUint32(16,20);cm.set(format,20);cmap.data=cm;
+ let total=12+count*16;for(let t of tables)total+=(t.data.length+3)&~3;let out=new Uint8Array(total),o=new DataView(out.buffer);out.set(src.slice(0,12));let position=12+count*16,head=0;
+ const checksum=data=>{let sum=0;for(let i=0;i<data.length;i+=4)sum=(sum+(((data[i]||0)*16777216)+((data[i+1]||0)<<16)+((data[i+2]||0)<<8)+(data[i+3]||0)))>>>0;return sum};
+ tables.forEach((t,i)=>{if(t.tag==='head'){new DataView(t.data.buffer).setUint32(8,0);head=position}let p=12+i*16;out.set([...t.tag].map(c=>c.charCodeAt(0)),p);o.setUint32(p+4,checksum(t.data));o.setUint32(p+8,position);o.setUint32(p+12,t.data.length);out.set(t.data,position);position+=(t.data.length+3)&~3});if(head)o.setUint32(head+8,(0xb1b0afba-checksum(out))>>>0);return out.buffer;
+}
+function normalizeInsertedText(event){
+ if($('inputEncoding').value==='unicode'||!event.data)return;
+ const selection=window.getSelection();if(!selection.rangeCount)return;let caret=selection.getRangeAt(0);if(caret.startContainer.nodeType!==Node.TEXT_NODE)return;
+ let node=caret.startContainer,end=caret.startOffset,start=Math.max(0,end-event.data.length);if(node.data.slice(start,end)!==event.data)return;
+ let converted=decodeInput(event.data);if(converted===event.data)return;node.replaceData(start,end-start,converted);caret.setStart(node,start+converted.length);caret.collapse(true);selection.removeAllRanges();selection.addRange(caret);captureSelection();
+}
+
+async function loadComputerFont(family){
+ if(loadedFonts.has(family))return loadedFonts.get(family);if(fontLoads.has(family))return fontLoads.get(family);
+ let records=fontRecords.get(family);if(!records?.length){if(isTCVNFont(family))fontLoadNotes.set(family,'Bấm Lấy phông trên máy → Cho phép để xử lý đúng phông TCVN3 này.');return family;}
+ const promise=(async()=>{let alias='ComputerFont'+(++revision),chosen=new Map();
+  function classify(r){let style=(r.style+' '+r.fullName).toLowerCase();return {italic:/italic|oblique/.test(style),bold:/bold|black|heavy|semibold|demibold/.test(style),regular:/regular|normal|book|roman/.test(style)}}
+  for(let italic of [false,true])for(let bold of [false,true]){let sorted=[...records].sort((a,b)=>{let rank=r=>{let c=classify(r);return (c.italic===italic?0:20)+(c.bold===bold?0:10)+(c.regular&&!bold?0:1)};return rank(a)-rank(b)}),r=sorted[0];chosen.set(r.postscriptName||r.fullName,r)}
+  let faces=[];try{for(let r of chosen.values()){let c=classify(r),bytes=await (await r.blob()).arrayBuffer(),face=new FontFace(alias,isTCVNFont(family)?adaptTCVNFont(bytes):bytes,{style:c.italic?'italic':'normal',weight:c.bold?'700':'400'});let timeout;try{await Promise.race([face.load(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Quá thời gian đọc phông')),3000)})])}finally{clearTimeout(timeout)};document.fonts.add(face);faces.push(face)}
+   loadedFonts.set(family,alias);fontLoadNotes.delete(family);if(isTCVNFont(family))fontLoadNotes.set(family,'Phông TCVN3 dùng cùng bảng ký tự đã xử lý cho nhập, preview và xuất.');return alias;
+  }catch(e){for(let face of faces)document.fonts.delete(face);fontLoadNotes.set(family,'Đang dùng '+family+' trực tiếp qua hệ điều hành vì trình duyệt không đọc được tệp phông.');loadedFonts.set(family,family);return family}
+ })();fontLoads.set(family,promise);try{return await promise}finally{fontLoads.delete(family)}
+}
+async function ensureActiveFonts(){
+ let base=$('font').value,lines=editorText().split('\n'),families=new Set([base]);$('temEditor').querySelectorAll('[data-family]').forEach(n=>families.add(n.dataset.family));lines.forEach((_,i)=>{if(lineStyles[i]?.choice)families.add(lineStyles[i].choice)});
+ if(hoverFont)families.add(hoverFont.family||base);await Promise.all([...families].filter(Boolean).map(loadComputerFont));
+}
+function computerFamily(family){return loadedFonts.get(family)||family||'sans-serif'}
+
+function textNodes(root){let walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),out=[],n;while(n=walker.nextNode())out.push(n);return out}
+function editorText(){return $('temEditor').innerText.replace(/\r/g,'').replace(/\n$/, '').normalize('NFC')}
+function plainHTML(text){let root=document.createElement('div');for(let line of text.split('\n')){let d=document.createElement('div');if(line)d.textContent=line;else d.append(document.createElement('br'));root.append(d)}return root.innerHTML}
+function cleanRichHTML(html){let root=document.createElement('div');root.innerHTML=html;let allowed=new Set(['DIV','P','SPAN','B','STRONG','I','EM','U','BR']);for(let n of [...root.querySelectorAll('*')]){if(['SCRIPT','STYLE','IFRAME','OBJECT','IMG','SVG'].includes(n.tagName)){n.remove();continue}if(!allowed.has(n.tagName)){n.replaceWith(...n.childNodes);continue}let style=n.style,values={fontSize:style.fontSize,fontWeight:style.fontWeight,fontStyle:style.fontStyle,textDecoration:style.textDecoration,fontFamily:style.fontFamily},family=n.dataset.family;for(let a of [...n.attributes])n.removeAttribute(a.name);for(let [key,value]of Object.entries(values))if(value)n.style[key]=value;if(family)n.dataset.family=family}return root.innerHTML}
+function hasUnderline(node,root){for(let n=node.parentElement;n&&n!==root.parentElement;n=n.parentElement){if(n.style.textDecoration)return n.style.textDecoration.includes('underline');if(n.tagName==='U')return true}return false}
+function syncEditorStyle(){let e=$('temEditor');e.dataset.baseFamily=$('font').value;Object.assign(e.style,{fontSize:defaultTextStyle.size*96/72+'px',fontFamily:cssFamily(computerFamily($('font').value)),fontWeight:defaultTextStyle.bold?'700':'400',fontStyle:defaultTextStyle.italic?'italic':'normal',textDecoration:defaultTextStyle.underline?'underline':'none',textAlign:$('align').value,lineHeight:String(1.35*number('spacing',.8,2)/1.1)});[...e.children].forEach((n,i)=>{if(n.tagName==='DIV'||n.tagName==='P')n.style.fontFamily=cssFamily(computerFamily(lineStyles[i]?.choice||$('font').value))});e.querySelectorAll('[data-family]').forEach(n=>n.style.fontFamily=cssFamily(computerFamily(n.dataset.family)))}
+function captureSelection(){let sel=window.getSelection();if(sel.rangeCount&&$('temEditor').contains(sel.anchorNode)&&$('temEditor').contains(sel.focusNode))savedSelection=sel.getRangeAt(0).cloneRange()}
+function selectionOffsets(){if(!savedSelection||!$('temEditor').contains(savedSelection.commonAncestorContainer))return null;let r=document.createRange();r.selectNodeContents($('temEditor'));r.setEnd(savedSelection.startContainer,savedSelection.startOffset);let start=r.toString().length;r.setEnd(savedSelection.endContainer,savedSelection.endOffset);return {start,end:r.toString().length}}
+function rangeOffsets(root,offsets){let nodes=textNodes(root),r=document.createRange(),count=0;for(let n of nodes){if(offsets.start>=count&&offsets.start<=count+n.length){r.setStart(n,offsets.start-count);break}count+=n.length}count=0;for(let n of nodes){if(offsets.end>=count&&offsets.end<=count+n.length){r.setEnd(n,offsets.end-count);break}count+=n.length}return r}
+function formatOffsets(root,offsets,style,family){if(!offsets||offsets.start===offsets.end)return;let count=0;for(let n of textNodes(root)){let start=Math.max(0,offsets.start-count),end=Math.min(n.length,offsets.end-count),len=n.length;count+=len;if(start>=end)continue;let target=n;if(end<len)n.splitText(end);if(start>0)target=n.splitText(start);let span=document.createElement('span');Object.assign(span.style,style);if(family)span.dataset.family=family;target.replaceWith(span);span.append(target)}}
+function applyToolbar(id){
+ let offsets=selectionOffsets(),selected=offsets&&offsets.start!==offsets.end,style={},value;
+ if(id==='font'){value=$('font').value;style.fontFamily=cssFamily(computerFamily(value))}else if(id==='size'){value=number('size',12,200);style.fontSize=value*96/72+'px'}else{value=$(id).checked;style[id==='bold'?'fontWeight':id==='italic'?'fontStyle':'textDecoration']=id==='bold'?(value?'700':'400'):id==='italic'?(value?'italic':'normal'):(value?'underline':'none')}
+ if(selected){let oldFamily=$('temEditor').dataset.baseFamily;if(id==='font'&&oldFamily)$('font').value=oldFamily;formatOffsets($('temEditor'),offsets,style,id==='font'?value:null);savedSelection=rangeOffsets($('temEditor'),offsets);$('temEditor').focus({preventScroll:true});let sel=window.getSelection();sel.removeAllRanges();sel.addRange(savedSelection)}else{if(id==='font'){lineStyles=lineStyles.map(()=>({choice:'',custom:''}));$('temEditor').querySelectorAll('[data-family]').forEach(n=>{delete n.dataset.family;n.style.fontFamily=''})}else{defaultTextStyle[id]=value;let property=Object.keys(style)[0];$('temEditor').querySelectorAll('span').forEach(n=>n.style[property]='')}}
+ updateFontPicker($('font'));$('text').value=editorText();recordHistory();lineControls();preview();
+}
+function recordHistory(){let snapshot=JSON.stringify({html:$('temEditor').innerHTML,defaults:defaultTextStyle,font:$('font').value,lines:lineStyles});if(history[historyIndex]===snapshot)return;history.splice(historyIndex+1);history.push(snapshot);if(history.length>80)history.shift();historyIndex=history.length-1}
+function restoreHistory(delta){let index=historyIndex+delta;if(index<0||index>=history.length)return;historyIndex=index;let t=JSON.parse(history[index]);$('temEditor').innerHTML=t.html;defaultTextStyle=t.defaults;$('font').value=t.font;lineStyles=t.lines;savedSelection=null;$('text').value=editorText();updateFontPicker($('font'));lineControls();preview()}
+function initEditor(){let e=$('temEditor');e.innerHTML=plainHTML('Công ty Hòa Thịnh\nChúc Mừng Sinh Nhật');$('text').value=editorText();lineControls();recordHistory();
+ document.addEventListener('selectionchange',()=>{captureSelection();if(document.activeElement!==e||!savedSelection||savedSelection.collapsed)return;let node=savedSelection.startContainer;if(node.nodeType!==Node.TEXT_NODE)node=node.childNodes[savedSelection.startOffset]||node;let element=node.nodeType===Node.TEXT_NODE?node.parentElement:node,style=getComputedStyle(element);$('size').value=Math.round(parseFloat(style.fontSize)*.75*10)/10;$('bold').checked=parseInt(style.fontWeight)>=600;$('italic').checked=style.fontStyle!=='normal';$('underline').checked=hasUnderline(node.nodeType===Node.TEXT_NODE?node:element.firstChild||element,e)});
+ e.addEventListener('compositionstart',()=>composing=true);e.addEventListener('compositionend',event=>{composing=false;normalizeInsertedText(event);e.dispatchEvent(new Event('input'))});
+ e.addEventListener('input',event=>{if(composing)return;if(event.inputType!=='insertCompositionText')normalizeInsertedText(event);$('text').value=editorText();captureSelection();lineControls();recordHistory();clearTimeout(timer);timer=setTimeout(preview,100)});
+ e.addEventListener('paste',event=>{event.preventDefault();let text=decodeInput(event.clipboardData.getData('text/plain'));document.execCommand('insertHTML',false,plainHTML(text));e.dispatchEvent(new Event('input'))});
+ e.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();restoreHistory(event.shiftKey?1:-1)}else if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='y'){event.preventDefault();restoreHistory(1)}else if((event.ctrlKey||event.metaKey)&&['b','i','u'].includes(event.key.toLowerCase())){event.preventDefault();captureSelection();let id={b:'bold',i:'italic',u:'underline'}[event.key.toLowerCase()];$(id).checked=!$(id).checked;applyToolbar(id)}});
+ for(let id of ['sizeUp','sizeDown'])$(id).addEventListener('mousedown',event=>{captureSelection();event.preventDefault()});
+}
+function layout(){
+ syncEditorStyle();let text=editorText();if(text.length>2000||text.split('\n').length>20)throw Error('Tem tối đa 2.000 ký tự và 20 dòng.');
+ let pad=number('padding',4,60),border=number('border',0,20),size=defaultTextStyle.size*96/72;
+ const mirror=$('temEditor').cloneNode(true);mirror.removeAttribute('id');mirror.removeAttribute('contenteditable');mirror.classList.add('measureEditor');Object.assign(mirror.style,{left:'-30000px',top:'0',transform:'none',width:'max-content',height:'auto',padding:'0',minWidth:'0'});document.body.append(mirror);
+ try{
+  if(hoverFont){if(hoverFont.line===null&&savedSelection&&!savedSelection.collapsed){formatOffsets(mirror,selectionOffsets(),{fontFamily:cssFamily(computerFamily(hoverFont.family))})}else{let target=hoverFont.line===null?mirror:mirror.children[hoverFont.line];if(target){target.style.fontFamily=cssFamily(computerFamily(hoverFont.family||$('font').value));target.querySelectorAll('[data-family]').forEach(n=>n.style.fontFamily=target.style.fontFamily)}}}
+  let nodes=textNodes(mirror),m=cv(1,1).getContext('2d'),maxSize=size;for(let n of nodes)maxSize=Math.max(maxSize,parseFloat(getComputedStyle(n.parentElement).fontSize));
+  let margin=pad+border+maxSize*.45+4,natural=mirror.getBoundingClientRect(),width=Math.ceil(Math.max(120,natural.width)+margin*2);mirror.style.width=width+'px';mirror.style.padding=margin+'px';let origin=mirror.getBoundingClientRect(),runs=[];
+  for(let n of nodes){if(!n.textContent)continue;let style=getComputedStyle(n.parentElement),font=style.fontStyle+' '+style.fontWeight+' '+style.fontSize+' '+style.fontFamily,marker=document.createElement('span');Object.assign(marker.style,{display:'inline-block',width:'0',height:'0',padding:'0',margin:'0',verticalAlign:'baseline'});n.after(marker);let range=document.createRange();range.selectNodeContents(n);let rect=range.getBoundingClientRect(),baseline=marker.getBoundingClientRect().top-origin.top;m.font=font;
+   runs.push({text:n.textContent,font,x:rect.left-origin.left,y:baseline,width:rect.width,size:parseFloat(style.fontSize),underline:hasUnderline(n,mirror)});marker.remove();
+  }
+  let height=Math.ceil(mirror.getBoundingClientRect().height),lines=text.split('\n');if(width>12000||height>12000)throw Error('Tem quá lớn. Hãy giảm cỡ chữ hoặc xuống dòng.');
+  return {lines,size,pad,border,margin,width,height,runs,font:runs[0]?.font||getComputedStyle(mirror).font,fonts:runs.map(r=>r.font)};
+ }finally{mirror.remove()}
+}
+function drawText(ctx,L,scale,color){ctx.save();ctx.scale(scale,scale);ctx.fillStyle=color;ctx.textAlign='left';ctx.textBaseline='alphabetic';for(let r of L.runs){ctx.font=r.font;ctx.fillText(r.text,r.x,r.y);if(r.underline&&r.text.trim())ctx.fillRect(r.x,r.y+r.size*.1,r.width,Math.max(1,r.size/22))}ctx.restore()}
+function render(high=false){
+ let L=layout(),cm=number('width',3,$('page').value==='portrait'?19:27.7),outW=high?Math.round(cm/2.54*600):Math.ceil(L.width*Math.min(1,1400/L.width,900/L.height)),outH=Math.round(outW/L.width*L.height);
+ if(outH>13000||outW*outH>40000000)throw Error('Tem quá lớn để xuất 600 DPI. Hãy giảm số dòng hoặc chiều rộng tem.');
+ let s=outW/L.width,w=outW,h=outH,text=cv(w,h),tc=text.getContext('2d');drawText(tc,L,s,'#ffffff');let data=tc.getImageData(0,0,w,h).data,alpha=new Uint8Array(w*h);for(let i=0;i<alpha.length;i++)alpha[i]=data[i*4+3]>30?255:0;
+ let inner=fillHoles(dilate(alpha,w,h,L.pad*s),w,h),outer=fillHoles(dilate(inner,w,h,L.border*s),w,h);
+ let c=cv(outW,outH),ctx=c.getContext('2d');ctx.drawImage(maskCanvas(outer,w,h,$('edge').value),0,0);ctx.drawImage(maskCanvas(inner,w,h,$('body').value),0,0);drawText(ctx,L,s,$('fill').value);return {c,cm,heightCm:cm*outH/outW};
+}
+async function preview(){let version=++previewRevision;$('status').textContent='Đang tải phông từ máy…';try{await ensureActiveFonts();if(version!==previewRevision)return;syncAlign();let {c,cm,heightCm}=render();$('canvas').width=c.width;$('canvas').height=c.height;$('canvas').getContext('2d').drawImage(c,0,0);previewSize={cm,heightCm,L:layout()};$('fontNotice').textContent='Phông dùng: '+[...new Set([...layout().lines.map((_,i)=>activeFamily(i)),...Array.from($('temEditor').querySelectorAll('[data-family]'),n=>n.dataset.family)])].join(' · ')+' (từ máy tính). '+[...new Set(layout().lines.map((_,i)=>fontLoadNotes.get(activeFamily(i))).filter(Boolean))].join(' ');zoom();$('dimensions').textContent=`Kích thước in: ${cm.toFixed(1)} × ${heightCm.toFixed(1)} cm. Ảnh PNG và ảnh trong Word xuất 600 DPI theo chiều rộng đã chọn.`;$('status').textContent='';}catch(e){if(version!==previewRevision)return;$('canvas').getContext('2d').clearRect(0,0,$('canvas').width,$('canvas').height);$('fontNotice').textContent='';$('dimensions').textContent='Chưa có bản xem trước.';$('status').textContent=e.message}}
+function ruler(canvas,length,cm,vertical=false){
+ let px=Math.max(1,Math.round(length)),dpr=Math.min(2,window.devicePixelRatio||1);canvas.width=Math.round((vertical?32:px)*dpr);canvas.height=Math.round((vertical?px:32)*dpr);canvas.style.width=(vertical?32:px)+'px';canvas.style.height=(vertical?px:32)+'px';let ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.fillStyle='#fff9eb';ctx.fillRect(0,0,vertical?32:px,vertical?px:32);ctx.strokeStyle='#7d766b';ctx.fillStyle='#413a32';ctx.font='10px Arial';ctx.lineWidth=1;let unit=length/cm;
+ for(let tenth=0;tenth<=Math.floor(cm*10);tenth++){let pos=tenth/10*unit,major=tenth%10===0,half=tenth%5===0;if(unit<45&&!major&&!half)continue;let tick=major?13:half?9:5;ctx.beginPath();if(vertical){ctx.moveTo(32,pos);ctx.lineTo(32-tick,pos)}else{ctx.moveTo(pos,32);ctx.lineTo(pos,32-tick)}ctx.stroke();if(major){if(vertical)ctx.fillText(String(tenth/10),2,Math.min(length-2,Math.max(10,pos+4)));else ctx.fillText(String(tenth/10),pos+3,11)}}
+}
+function zoom(){
+ $('zoomValue').textContent=$('zoom').value+'%';if(!previewSize)return;let available=Math.max(220,($('previewArea').clientWidth||860)-82),width=available*number('zoom',30,150)/100,height=width*$('canvas').height/$('canvas').width;
+ $('previewStage').style.width=(width+32)+'px';$('canvas').style.width=width+'px';$('canvas').style.height=height+'px';ruler($('rulerTop'),width,previewSize.cm);ruler($('rulerLeft'),height,previewSize.heightCm,true);let L=previewSize.L;Object.assign($('temEditor').style,{width:L.width+'px',height:L.height+'px',padding:L.margin+'px',transform:'scale('+width/L.width+')'});
+}
+window.addEventListener('resize',zoom);
+
+function activeFamily(index){
+ if(hoverFont&&(hoverFont.line===null||hoverFont.line===index))return hoverFont.family||$('font').value;
+ return lineStyles[index]?.choice||$('font').value||'sans-serif';
+}
+function closeFontPicker(){
+ if(openFontPicker){openFontPicker.menu.remove();openFontPicker.button.setAttribute('aria-expanded','false');openFontPicker=null}
+ if(hoverFont){hoverFont=null;preview()}
+}
+function updateFontPicker(select){
+ if(select.pickerButton){let option=Array.from(select.options).find(o=>o.value===select.value);select.pickerButton.textContent=(option?.textContent||select.value||'Theo phông trên thanh công cụ')+' ▾'}
+}
+function enhanceFontSelect(select,line=null){
+ if(select.pickerButton){updateFontPicker(select);return}
+ let button=document.createElement('button');button.type='button';button.className='fontPickerButton';button.setAttribute('aria-label',line===null?'Chọn phông chữ':'Chọn phông dòng '+(line+1));button.setAttribute('aria-haspopup','listbox');button.setAttribute('aria-expanded','false');
+ select.hidden=true;select.insertAdjacentElement('afterend',button);select.pickerButton=button;updateFontPicker(select);
+ button.onclick=()=>{
+  if(openFontPicker?.button===button){closeFontPicker();return}closeFontPicker();
+  let menu=document.createElement('div');menu.className='fontPickerMenu';let help=document.createElement('div');help.className='fontPickerHelp';help.textContent='Rê chuột để xem thử · Bấm để chọn · Esc để hủy';menu.append(help);
+  let list=document.createElement('div');list.className='fontPickerList';list.setAttribute('role','listbox');list.setAttribute('aria-label','Danh sách phông chữ');menu.append(list);
+  const rows=Array.from(select.options).map(option=>{let row=document.createElement('button');row.type='button';row.className='fontPickerOption';row.textContent=option.textContent;row.style.fontFamily=cssFamily(option.value||$('font').value);row.setAttribute('role','option');row.setAttribute('aria-selected',String(option.value===select.value));
+   const tryFont=()=>{hoverFont={line,family:option.value};preview()};row.onmouseenter=tryFont;row.onfocus=tryFont;
+   row.onclick=()=>{hoverFont=null;select.value=option.value;closeFontPicker();if(line===null){select.dispatchEvent(new Event('input',{bubbles:true}))}else{select.onchange()}updateFontPicker(select);if(savedSelection&&!savedSelection.collapsed)$('temEditor').focus({preventScroll:true});else button.focus()};list.append(row);return row});
+  menu.onmouseleave=()=>{if(hoverFont){hoverFont=null;preview()}};
+  menu.onkeydown=e=>{let index=rows.indexOf(document.activeElement);if(e.key==='Escape'){e.preventDefault();closeFontPicker();button.focus()}else if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();rows[(index+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length]?.focus()}};
+  document.body.append(menu);openFontPicker={menu,button};button.setAttribute('aria-expanded','true');let r=button.getBoundingClientRect();menu.style.width=Math.min(340,window.innerWidth-16)+'px';menu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.max(8,Math.min(r.bottom+3,window.innerHeight-menu.offsetHeight-8))+'px';
+ };
+ button.onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();button.onclick();openFontPicker?.menu.querySelector('button')?.focus()}};
+}
+document.addEventListener('pointerdown',e=>{if(openFontPicker&&!openFontPicker.menu.contains(e.target)&&!openFontPicker.button.contains(e.target))closeFontPicker()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFontPicker()});
+window.addEventListener('resize',closeFontPicker);
+
+function populateFontSelect(select,perLine=false,selected=''){
+ select.replaceChildren();function option(parent,value,text){let o=document.createElement('option');o.value=value;o.textContent=text;parent.append(o)}
+ if(perLine)option(select,'','Theo phông trên thanh công cụ');
+ option(select,'sans-serif','Phông mặc định của hệ điều hành');
+ for(let name of machineFonts)option(select,name,name);
+ if(selected!=='sans-serif'&&selected&&!machineFonts.includes(selected))option(select,selected,selected+' — chưa tìm thấy trên máy');
+ select.value=selected||(!perLine?(machineFonts.includes('Times New Roman')?'Times New Roman':machineFonts.includes('Arial')?'Arial':machineFonts[0]||'sans-serif'):'');
+ updateFontPicker(select);
+}
+
+function scanError(e){
+ if(e?.name==='NotAllowedError')return 'Chưa được cấp quyền đọc phông. Bấm lại nút và chọn Cho phép trong thông báo của trình duyệt.';
+ if(e?.name==='SecurityError')return 'Trình duyệt đang chặn quyền đọc phông cho tệp này. Hãy kiểm tra quyền phông của trang; nếu vẫn bị chặn, cần mở phần mềm qua localhost hoặc HTTPS.';
+ return 'Không đọc được danh sách phông: '+(e?.message||'Hãy thử lại bằng Chrome hoặc Edge trên máy tính.');
+}
+$('scanFonts').onclick=async()=>{
+ if(typeof window.queryLocalFonts!=='function'){$('scanStatus').textContent='Trình duyệt này chưa hỗ trợ lấy phông trên máy. Hãy mở tệp bằng Chrome hoặc Edge trên máy Mac/Windows. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';return}
+ $('scanFonts').disabled=true;$('scanStatus').textContent='Đang đọc danh sách phông…';
+ try{
+  // Invoke immediately inside the click handler to retain browser user activation.
+  const records=await window.queryLocalFonts();
+  fontRecords.clear();for(let r of records){if(typeof r.family!=='string'||!r.family.trim())continue;let group=fontRecords.get(r.family)||[];group.push(r);fontRecords.set(r.family,group)}
+  machineFonts=[...new Set(records.map(v=>v.family).filter(v=>typeof v==='string'&&v.trim()))].sort((a,b)=>a.localeCompare(b,'vi'));
+  if(!machineFonts.length){$('scanStatus').textContent='Trình duyệt không trả về phông nào. Bấm lại nút để thử lại.';return}
+  let chosen=$('font').value;populateFontSelect($('font'),false,chosen);lineControls();await preview();
+  $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
+ }catch(e){$('scanStatus').textContent=scanError(e)}finally{$('scanFonts').disabled=false}
+};
+
+function lineControls(){
+ let lines=editorText().split('\n').slice(0,20);lineStyles.length=lines.length;let host=$('lineFonts');host.replaceChildren();
+ lines.forEach((line,i)=>{let v=lineStyles[i]||(lineStyles[i]={choice:'',custom:''}),card=document.createElement('div');card.className='lineFontCard';let label=document.createElement('label');label.textContent=`Dòng ${i+1}: ${line.trim().slice(0,35)||'(trống)'}`;card.append(label);let select=document.createElement('select');select.setAttribute('aria-label',`Phông chữ dòng ${i+1}`);
+ populateFontSelect(select,true,v.choice);
+ select.value=v.choice;card.append(select);
+ let custom=document.createElement('input');custom.type='text';custom.placeholder='Tên phông đã cài trên máy';custom.setAttribute('aria-label',`Tên phông riêng dòng ${i+1}`);custom.value=v.custom;custom.hidden=true;card.append(custom);
+ select.onchange=()=>{updateFontPicker(select);v.choice=select.value;let block=$('temEditor').children[i];if(block)block.querySelectorAll('[data-family]').forEach(n=>{delete n.dataset.family;n.style.fontFamily='' });v.uploaded='';custom.hidden=true;preview()};custom.oninput=()=>{v.custom=custom.value;v.uploaded='';clearTimeout(timer);timer=setTimeout(preview,180)};host.append(card);enhanceFontSelect(select,i);
+ });
+}
+
+function download(blob,name){let a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+async function pngBytes(c){
+ let blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));if(!blob)throw Error('Không tạo được ảnh. Hãy giảm kích thước tem.');
+ let raw=new Uint8Array(await blob.arrayBuffer()),chunk=new Uint8Array(21),v=new DataView(chunk.buffer);v.setUint32(0,9);chunk.set([112,72,89,115],4);v.setUint32(8,23622);v.setUint32(12,23622);chunk[16]=1;v.setUint32(17,crc32(chunk.slice(4,17)));let out=new Uint8Array(raw.length+21);out.set(raw.slice(0,33));out.set(chunk,33);out.set(raw.slice(33),54);return out;
+}
+// Standard ZIP with stored entries; no network or third-party scripts.
+const crcTable=Array.from({length:256},(_,n)=>{for(let i=0;i<8;i++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0});
+function crc32(a){let c=0xffffffff;for(let v of a)c=crcTable[(c^v)&255]^(c>>>8);return(c^0xffffffff)>>>0}
+function zip(files){let enc=new TextEncoder(),chunks=[],central=[],offset=0;function header(n){let a=new Uint8Array(n),v=new DataView(a.buffer);return [a,v]}
+ for(let [name,value] of Object.entries(files)){let nameB=enc.encode(name),b=typeof value==='string'?enc.encode(value):value,crc=crc32(b),[a,v]=header(30+nameB.length);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x800,true);v.setUint32(14,crc,true);v.setUint32(18,b.length,true);v.setUint32(22,b.length,true);v.setUint16(26,nameB.length,true);a.set(nameB,30);chunks.push(a,b);let [d,dv]=header(46+nameB.length);dv.setUint32(0,0x02014b50,true);dv.setUint16(4,20,true);dv.setUint16(6,20,true);dv.setUint16(8,0x800,true);dv.setUint32(16,crc,true);dv.setUint32(20,b.length,true);dv.setUint32(24,b.length,true);dv.setUint16(28,nameB.length,true);dv.setUint32(42,offset,true);d.set(nameB,46);central.push(d);offset+=a.length+b.length;}
+ let [end,ev]=header(22),centralSize=central.reduce((n,a)=>n+a.length,0);ev.setUint32(0,0x06054b50,true);ev.setUint16(8,central.length,true);ev.setUint16(10,central.length,true);ev.setUint32(12,centralSize,true);ev.setUint32(16,offset,true);return new Blob([...chunks,...central,end],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+async function word(){let {c,cm,heightCm}=render(true),land=$('page').value==='landscape',maxH=land?18.5:27.2;if(heightCm>maxH)throw Error(`Tem cao ${heightCm.toFixed(1)} cm, vượt trang. Giảm rộng tem, giảm giãn dòng hoặc chọn A4 dọc.`);let cx=Math.round(cm*360000),cy=Math.round(heightCm*360000),png=await pngBytes(c);
+ let files={
+ '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+ '_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+ 'word/_rels/document.xml.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImage" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/tem.png"/></Relationships>',
+ 'word/media/tem.png':png,
+ 'word/document.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="1" name="Tem hoa"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="tem.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImage"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p><w:sectPr><w:pgSz w:w="${land?16838:11906}" w:h="${land?11906:16838}"${land?' w:orient="landscape"':''}/><w:pgMar w:top="567" w:right="567" w:bottom="567" w:left="567" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>`};download(zip(files),'Tem-Hoa-Minh-Dien.docx');
+}
+async function action(fn,message){closeFontPicker();$('status').textContent='Đang tạo tệp…';try{await ensureActiveFonts();await fn();$('status').textContent=message}catch(e){$('status').textContent=e.message}}
+ids.forEach(id=>$(id).addEventListener(id==='size'?'change':'input',()=>{if(['font','size','bold','italic','underline'].includes(id)){applyToolbar(id);return}if(id==='page'&&$('page').value==='portrait'&&+$('width').value>19)$('width').value=19;clearTimeout(timer);timer=setTimeout(preview,100)}));$('zoom').oninput=zoom;
+$('png').onclick=()=>action(async()=>download(new Blob([await pngBytes(render(true).c)],{type:'image/png'}),'Tem-Hoa-Minh-Dien.png'),'Đã tạo ảnh PNG. Kiểm tra thư mục Tải về.');$('word').onclick=()=>action(word,'Đã tạo Word. Kiểm tra thư mục Tải về.');
+$('save').onclick=()=>download(new Blob([JSON.stringify({version:1,settings:settings()},null,2)],{type:'application/json'}),'Mau-Tem-Hoa.json');$('load').onclick=()=>$('template').click();$('template').onchange=async()=>{try{await (async()=>{let f=$('template').files[0];if(!f)return;let t=JSON.parse(await f.text());if(t.version!==1||!t.settings||typeof t.settings.text!=='string')throw Error('Tệp mẫu không hợp lệ.');for(let id of ids){let v=t.settings[id];if(v!==undefined){if($(id).type==='checkbox')$(id).checked=v===true;else {if(id==='font'&&v!=='custom'&&!machineFonts.includes(String(v))){let option=document.createElement('option');option.value=String(v);option.textContent=String(v)+' — phông từ mẫu, chưa kiểm tra';$('font').append(option)}$(id).value=String(v)}}}uploadedFont='';defaultTextStyle=t.settings.defaultTextStyle||{size:+$('size').value,bold:$('bold').checked,italic:$('italic').checked,underline:$('underline').checked};$('temEditor').innerHTML=t.settings.richHTML?cleanRichHTML(t.settings.richHTML):plainHTML(t.settings.text);savedSelection=null;recordHistory();lineStyles=Array.isArray(t.settings.lineStyles)?t.settings.lineStyles.slice(0,20).map(v=>({choice:typeof v?.choice==='string'?v.choice:'',custom:typeof v?.custom==='string'?v.custom:''})):[];lineControls();$('customFont').hidden=true;await preview();$('template').value=''})();$('status').textContent='Đã mở mẫu.'}catch(e){$('status').textContent=e.message}};
+// Trace closed silhouette contours; holes retain their own subpaths.
+function traceContours(mask,w,h){
+ const stride=w+1,edges=[],outgoing=new Map();
+ function edge(a,b,d){let i=edges.length;edges.push({a,b,d,used:false});let list=outgoing.get(a);if(!list)outgoing.set(a,list=[]);list.push(i)}
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){let i=y*w+x;if(!mask[i])continue;let a=y*stride+x;
+ if(y===0||!mask[i-w])edge(a,a+1,0);
+ if(x===w-1||!mask[i+1])edge(a+1,a+stride+1,1);
+ if(y===h-1||!mask[i+w])edge(a+stride+1,a+stride,2);
+ if(x===0||!mask[i-1])edge(a+stride,a,3);
+ }
+ const rings=[];
+ for(let start=0;start<edges.length;start++){if(edges[start].used)continue;let cur=start,ring=[],steps=0;
+ while(true){let e=edges[cur];if(e.used)throw Error('Không khép được đường viền vector.');e.used=true;ring.push([e.a%stride,Math.floor(e.a/stride)]);if(e.b===edges[start].a)break;
+ let candidates=(outgoing.get(e.b)||[]).filter(i=>!edges[i].used);if(!candidates.length)throw Error('Đường viền vector bị hở.');
+ // At a diagonal touch, keep the contour on the right of the directed edge.
+ let priority=[1,0,3,2];candidates.sort((a,b)=>priority.indexOf((edges[a].d-e.d+4)%4)-priority.indexOf((edges[b].d-e.d+4)%4));cur=candidates[0];if(++steps>edges.length)throw Error('Đường viền vector quá phức tạp.');
+ }
+ if(ring.length>=4)rings.push(ring);
+ }
+ return rings;
+}
+function simplifyOpen(points,epsilon){
+ if(points.length<3)return points;const keep=new Uint8Array(points.length);keep[0]=keep[points.length-1]=1;const stack=[[0,points.length-1]],limit=epsilon*epsilon;
+ while(stack.length){let [a,b]=stack.pop(),p=points[a],q=points[b],dx=q[0]-p[0],dy=q[1]-p[1],den=dx*dx+dy*dy,far=-1,best=limit;
+ for(let i=a+1;i<b;i++){let t=den?Math.max(0,Math.min(1,((points[i][0]-p[0])*dx+(points[i][1]-p[1])*dy)/den)):0;let ex=points[i][0]-p[0]-t*dx,ey=points[i][1]-p[1]-t*dy,d=ex*ex+ey*ey;if(d>best){far=i;best=d}}
+ if(far>=0){keep[far]=1;stack.push([a,far],[far,b])}}
+ return points.filter((_,i)=>keep[i]);
+}
+function simplifyRing(p,epsilon){let split=1,best=0;for(let i=1;i<p.length;i++){let d=(p[i][0]-p[0][0])**2+(p[i][1]-p[0][1])**2;if(d>best){best=d;split=i}}return [...simplifyOpen(p.slice(0,split+1),epsilon).slice(0,-1),...simplifyOpen([...p.slice(split),p[0]],epsilon).slice(0,-1)]}
+function contourPath(mask,w,h,round=false){
+ const f=n=>Math.round(n*100)/100;
+ return traceContours(mask,w,h).map(raw=>{let p=simplifyRing(raw,round?1:.55);if(p.length<3)p=raw;
+ if(!round)return 'M'+p.map(v=>f(v[0])+','+f(v[1])).join('L')+'Z';
+ // Short quadratic corners soften raster stair steps on the outer cloud.
+ let entries=[],exits=[];for(let i=0;i<p.length;i++){let a=p[(i+p.length-1)%p.length],b=p[i],c=p[(i+1)%p.length],d1=Math.hypot(a[0]-b[0],a[1]-b[1]),d2=Math.hypot(c[0]-b[0],c[1]-b[1]),r=Math.min(2,d1*.2,d2*.2);entries.push([b[0]+(a[0]-b[0])*r/d1,b[1]+(a[1]-b[1])*r/d1]);exits.push([b[0]+(c[0]-b[0])*r/d2,b[1]+(c[1]-b[1])*r/d2])}
+ let d=`M${f(exits[p.length-1][0])},${f(exits[p.length-1][1])}`;for(let i=0;i<p.length;i++)d+=`L${f(entries[i][0])},${f(entries[i][1])}Q${f(p[i][0])},${f(p[i][1])} ${f(exits[i][0])},${f(exits[i][1])}`;return d+'Z';
+ }).join('');
+}
+function vectorSVG(){
+ let L=layout(),s=Math.min(4,5000/L.width,2600/L.height),w=Math.ceil(L.width*s),h=Math.ceil(L.height*s),c=cv(w,h),ctx=c.getContext('2d');drawText(ctx,L,s,'#ffffff');let rgba=ctx.getImageData(0,0,w,h).data;
+ const text=new Uint8Array(w*h),silhouette=new Uint8Array(w*h);for(let i=0;i<text.length;i++){text[i]=rgba[i*4+3]>=128?255:0;silhouette[i]=rgba[i*4+3]>30?255:0}
+ let inner=fillHoles(dilate(silhouette,w,h,L.pad*s),w,h),outer=fillHoles(dilate(inner,w,h,L.border*s),w,h),cm=number('width',3,$('page').value==='portrait'?19:27.7);
+ const color=id=>/^#[0-9a-f]{6}$/i.test($(id).value)?$(id).value:'#000000';
+ let paths=[['vien-ngoai',outer,color('edge'),true],['nen-tem',inner,color('body'),true],['chu',text,color('fill'),false]].map(([id,mask,fill,round])=>`<path id="${id}" fill="${fill}" fill-rule="evenodd" d="${contourPath(mask,w,h,round)}"/>`).join('\n');
+ return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${cm}cm" height="${(cm*h/w).toFixed(4)}cm" viewBox="0 0 ${w} ${h}"><title>Tem Hoa Minh Điến</title><desc>Chữ và viền được chuyển thành đường vector từ nét hiển thị. Không cần phông chữ khi mở tệp. Các đường là xấp xỉ biên chữ, không phải đường glyph gốc của phông.</desc>\n${paths}\n</svg>`;
+}
+$('svg').onclick=()=>action(async()=>{await new Promise(resolve=>requestAnimationFrame(resolve));download(new Blob([vectorSVG()],{type:'image/svg+xml;charset=utf-8'}),'Tem-Hoa-Minh-Dien.svg')},'Đã tạo SVG vector. Chữ đã chuyển thành đường, không cần cài phông khi mở tệp.');
+
+machineFonts=detectSystemFonts();
+populateFontSelect($('font'),false,'');
+$('scanStatus').textContent='Có thể dùng ngay phông hệ thống. Bấm Lấy phông trên máy để đọc danh sách đầy đủ.';
+if(typeof window.queryLocalFonts!=='function')$('scanStatus').textContent='Mở bằng Chrome hoặc Edge trên máy tính để lấy danh sách phông đã cài. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';
+lineControls();
+enhanceFontSelect($('font'));
+initEditor();
+preview();
+</script></html>

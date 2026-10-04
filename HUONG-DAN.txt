@@ -1,0 +1,53 @@
+TEM HOA MINH ĐIẾN — GIAO DIỆN KIỂU WORD
+
+Thanh công cụ trên cùng: phông chữ, cỡ chữ, tăng/giảm cỡ chữ, B/I/U,
+căn trái/giữa/phải và xuất tệp. Bấm vào chữ trên tem để nhập trực tiếp trong trang xem trước.
+Phông riêng từng dòng, màu/viền và kích thước in nằm trong menu Thiết kế tem
+trên cùng. Bấm Trang đầu để trở lại thanh phông/cỡ chữ/B/I/U.
+Thanh thu/phóng nằm dưới cùng.
+
+1. Giải nén toàn bộ ZIP vào một thư mục.
+2. Windows: bấm đúp Mo-TemHoa-Windows.bat (không cần Python).
+   Mac: bấm đúp Mo-TemHoa-Mac.command (cần Python 3).
+   Nếu Mac báo không có quyền thực thi, mở Terminal trong thư mục này,
+   chạy: bash Mo-TemHoa-Mac.command
+3. Giữ cửa sổ vừa mở trong khi dùng phần mềm.
+4. Tem hiển thị ngay và có thể xuất PNG/Word/SVG.
+   Trong Chrome/Edge, bấm “Lấy phông trên máy” → Cho phép để có danh sách đầy đủ.
+5. Chọn phông ở Phông mặc định hoặc riêng từng dòng.
+
+Danh sách chỉ gồm các phông trình duyệt cho phép truy cập, gộp theo họ phông.
+Đậm/nghiêng điều chỉnh bằng nút B/I. Phông VNI/TCVN3 không phù hợp với
+nội dung Unicode; nếu thiếu dấu, hãy chọn phông Unicode khác đã cài trên máy.
+
+Không cần cấp quyền đọc danh sách phông để xem và xuất PNG/Word 600 DPI hoặc SVG.
+Mở trực tiếp HTML vẫn dùng được phông mặc định của hệ điều hành.
+Danh sách ban đầu gồm các phông phổ biến kiểm tra được trên máy.
+Nếu không đọc được tệp phông, phần mềm dùng cùng tên phông qua hệ điều hành.
+Nếu trình duyệt chặn quyền phông khi mở HTML trực tiếp, dùng bộ mở ở trên.
+Safari/Firefox vẫn xem và xuất tệp; cần Chrome/Edge để đọc danh sách phông đầy đủ.
+Phông lấy từ máy qua hệ điều hành hoặc quyền trình duyệt; không dùng phông nhúng.
+Chọn phông trên thanh công cụ áp dụng toàn bộ tem. Chọn riêng từng dòng
+trong Thiết kế tem nếu cần. 
+Phần mềm chỉ phục vụ trên máy của bạn (localhost), không mở truy cập mạng LAN.
+
+XEM THỬ PHÔNG: Mở danh sách phông, rê chuột vào tên phông để xem tem đổi.
+Bấm tên phông để chọn. Rời danh sách hoặc bấm Esc để trở lại phông đã chọn.
+Áp dụng cả phông trên thanh công cụ và phông riêng từng dòng.
+
+NHẬP TRỰC TIẾP NHƯ WORD
+Bấm vào chữ trên tem để đặt con trỏ; Enter xuống dòng.
+Kéo chuột bôi đen chữ cần sửa rồi chọn phông, cỡ chữ hoặc B/I/U.
+Chỉ các chữ được bôi đen thay đổi, các chữ còn lại giữ nguyên.
+Không bôi đen: thanh phông/cỡ chữ/B/I/U áp dụng toàn bộ tem.
+Ctrl/Cmd+Z hoàn tác; Ctrl/Cmd+Shift+Z làm lại. Dán chỉ lấy nội dung chữ.
+Lưu mẫu giữ cả định dạng từng chữ. PNG/Word/SVG giữ định dạng khi xuất.
+
+SỬA PHÔNG .VN / TCVN3
+Bấm Lấy phông trên máy → Cho phép, rồi chọn .VnFree hoặc phông .Vn cần dùng.
+Giữ bộ gõ UniKey/EVKey ở Unicode; Bảng mã bộ gõ trong phần mềm cũng để Unicode.
+Phần mềm dùng nét của phông trên máy và xử lý bảng ký tự TCVN3 để nhập Unicode.
+Nếu UniKey/EVKey đang để TCVN3 (ABC), chọn TCVN3 ở Bảng mã bộ gõ trong phần mềm.
+Thiết lập này áp dụng chữ nhập/dán từ lúc chọn; không chuyển lại chữ đã có.
+Phông .Vn đã được chuyển sang Unicode sẵn được giữ nguyên bảng ký tự.
+Phông TCVN3 cần quyền đọc phông trên Chrome/Edge để xử lý đúng bảng ký tự.
