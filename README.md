@@ -79,7 +79,7 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Cập nhật đầy đủ `Print-TemHoa-Windows.ps1` cùng các file ứng dụng. Không cần cài thêm Python để in trên Windows.
 - Mac hoặc khi mở HTML trực tiếp: dùng hộp thoại in của trình duyệt/hệ thống. Chọn đúng khổ giấy, Scale 100%, không lề và tắt header/footer.
 - Với máy in màu: chọn đúng loại giấy, Color và chất lượng phù hợp trong driver. In sát mép cần driver hỗ trợ Borderless; đặt Expansion/mở rộng ảnh về 0 hoặc thấp nhất để hạn chế thay đổi kích thước. Máy không hỗ trợ Borderless vẫn có lề phần cứng.
-- Windows kiểm tra `PrintableArea` của driver theo đúng khổ giấy và chiều giấy. Tem sát lề phần cứng được dịch vào vùng in, giữ kích thước khi đủ chỗ; tem quá lớn được thu nhỏ đồng đều để không mất viền. Cách này có thể thay đổi vị trí hoặc kích thước bản in so với trang làm việc.
+- Windows tải đầy đủ cấu hình DEVMODE của đúng máy in, giữ dữ liệu riêng của driver Canon (Borderless, khoảng mở rộng, loại giấy, chất lượng), rồi để driver xác nhận khổ/chiều giấy trước khi in. Tọa độ và vùng in lấy trực tiếp từ HDC của lệnh in theo DPI và PHYSICALOFFSETX/Y, tránh bù lề sai khi xoay ngang. Tem sát lề phần cứng được dịch vào vùng in, giữ kích thước khi đủ chỗ; tem quá lớn được thu nhỏ đồng đều để không mất viền. Cách này có thể thay đổi vị trí hoặc kích thước bản in so với trang làm việc.
 - In trực tiếp giữ bố cục trang khi nằm đủ trong vùng in; xuất Word/PNG/SVG vẫn giữ cách xuất hiện có.
 
 Đã kiểm tra bằng trình duyệt/PDF cho đủ năm lựa chọn khổ giấy và kiểm tra cú pháp PowerShell. Hộp thoại driver Windows và chất lượng màu cần kiểm tra thêm trên máy in thật.
