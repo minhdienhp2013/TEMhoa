@@ -5,7 +5,7 @@ if (!(Test-Path -LiteralPath $taskHtml)) { throw 'TemHoa-MinhDien.html is missin
 $taskToken = [Guid]::NewGuid().ToString('N')
 $taskTemplateRoot = Join-Path $taskRoot 'Mau-Tem-Hoa'
 $taskHtmlText = [System.IO.File]::ReadAllText($taskHtml, [System.Text.Encoding]::UTF8)
-$taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';</script><script>")
+$taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;</script><script>")
 $taskBytes = [System.Text.Encoding]::UTF8.GetBytes($taskHtmlText)
 function Get-TemplatePath([string]$name) {
     $name = $name.Trim()
@@ -67,6 +67,47 @@ try {
             $taskStatus = '200 OK'; $taskMime = 'application/json; charset=utf-8'; $taskResult = $null
             if ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/' -or $taskRoute -eq '/TemHoa-MinhDien.html')) {
                 $taskBody = $taskBytes; $taskMime = 'text/html; charset=utf-8'
+            } elseif ($taskRoute -in @('/api/printers','/api/printer-properties','/api/print') -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                try {
+                    Add-Type -AssemblyName System.Drawing
+                    $taskPrinterNames = @([System.Drawing.Printing.PrinterSettings]::InstalledPrinters | ForEach-Object { [string]$_ })
+                    if ($taskRoute -eq '/api/printers' -and $taskParts[0] -eq 'GET') {
+                        $taskPrinterSettings = [System.Drawing.Printing.PrinterSettings]::new()
+                        $taskResult = @{ names = $taskPrinterNames; default = $taskPrinterSettings.PrinterName }
+                    } elseif ($taskParts[0] -eq 'POST' -and $taskRoute -ne '/api/printers') {
+                        $taskLength = [int]$taskHeaders['content-length']
+                        $taskLimit = if ($taskRoute -eq '/api/print') { 67108864 } else { 16384 }
+                        if ($taskLength -le 0 -or $taskLength -gt $taskLimit) { throw 'Print request too large or empty.' }
+                        $taskStream.ReadTimeout = 30000
+                        $taskPayload = [byte[]]::new($taskLength); $taskRead = 0
+                        while ($taskRead -lt $taskLength) {
+                            $taskReceived = $taskStream.Read($taskPayload,$taskRead,$taskLength-$taskRead)
+                            if ($taskReceived -le 0) { throw 'Incomplete print request.' }
+                            $taskRead += $taskReceived
+                        }
+                        $taskRequest = [System.Text.Encoding]::UTF8.GetString($taskPayload) | ConvertFrom-Json
+                        if ($taskPrinterNames -notcontains [string]$taskRequest.printer) { throw 'Printer not found.' }
+                        if ($taskRoute -eq '/api/printer-properties') {
+                            # Same native Printing Preferences command used by cat_mdco.
+                            Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\rundll32.exe') -ArgumentList @('printui.dll,PrintUIEntry','/e','/n',('"' + [string]$taskRequest.printer + '"')) | Out-Null
+                        } else {
+                            $taskAllowedPapers = @('29.7x21','21x29.7','42x29.7','29.7x42','21x14.8')
+                            $taskPaperKey = ([double]$taskRequest.widthCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture) + 'x' + ([double]$taskRequest.heightCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture)
+                            if ($taskAllowedPapers -notcontains $taskPaperKey) { throw 'Invalid print paper size.' }
+                            if ($taskRequest.color -isnot [bool] -or $taskRequest.png -isnot [string] -or !$taskRequest.png.StartsWith('iVBORw0KGgo')) { throw 'Invalid print image.' }
+                            $taskPrintHelper = Join-Path $taskRoot 'Print-TemHoa-Windows.ps1'
+                            if (!(Test-Path -LiteralPath $taskPrintHelper)) { throw 'Missing Print-TemHoa-Windows.ps1. Download the complete update.' }
+                            $taskPrintJob = Join-Path ([System.IO.Path]::GetTempPath()) ('TemHoa-print-' + [Guid]::NewGuid().ToString('N') + '.json')
+                            [System.IO.File]::WriteAllText($taskPrintJob,(ConvertTo-Json -InputObject $taskRequest -Depth 10 -Compress),[System.Text.UTF8Encoding]::new($false))
+                            try {
+                                $taskPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+                                Start-Process -FilePath $taskPowerShell -ArgumentList @('-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',('"'+$taskPrintHelper+'"'),'-JobPath',('"'+$taskPrintJob+'"')) -WindowStyle Hidden | Out-Null
+                            } catch { Remove-Item -LiteralPath $taskPrintJob -Force; throw }
+                        }
+                        $taskResult = @{ opened = $true }
+                    } else { throw 'Unsupported print method.' }
+                } catch { $taskStatus = '400 Bad Request'; $taskResult = @{ error = $_.Exception.Message } }
+                $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 20 -Compress))
             } elseif ($taskRoute -eq '/api/templates' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     New-Item -ItemType Directory -Force -Path $taskTemplateRoot | Out-Null
