@@ -95,6 +95,12 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
 
 
+## Nhóm emoji và ảnh
+
+- Bấm chọn hình; giữ **Shift** và bấm các hình khác trong cùng tem để chọn nhiều hình. Shift+bấm lại để bỏ chọn. Bấm **Nhóm** trên thanh trên cùng hoặc **Ctrl/Command+G** trong vùng làm việc.
+- Nhóm có một khung chọn chung: kéo để di chuyển tất cả, kéo góc để phóng/thu theo cùng tỷ lệ, kéo nút tròn để xoay quanh tâm chung. Hai nút xoay 15° và lật hình áp dụng cho cả nhóm. Ô thông số từng hình và công cụ cắt/xóa nền bị khóa khi nhóm đang chọn; bỏ nhóm để chỉnh riêng.
+- **Bỏ nhóm** hoặc **Ctrl/Command+Shift+G** giữ nguyên vị trí, kích thước và góc của các hình. Nhân đôi/xóa hình và lên/xuống lớp áp dụng cho cả nhóm. Nhóm được lưu trong mẫu, giữ khi sao chép tem và hỗ trợ undo/redo. Hiện tính năng nhóm áp dụng cho emoji/ảnh bên trong một tem, không gộp các tem độc lập.
+
 ## Sắp xếp lớp
 
 - Chọn emoji/ảnh rồi bấm **Lên 1 lớp** hoặc **Xuống 1 lớp** trên thanh trên cùng hoặc trong bảng Emoji / Ảnh để đổi thứ tự giữa các hình trang trí trong tem. Hình ở lớp trên che hình ở lớp dưới khi chồng nhau; chữ vẫn nằm dưới nhóm hình trang trí.
