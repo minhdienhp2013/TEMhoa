@@ -73,12 +73,13 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 ## In trực tiếp đúng kích thước
 
 - Bấm **In** hoặc **Ctrl + P** (Mac: **Command + P**).
-- Bản in dùng khổ A4/A3/A5 đang chọn, vị trí tem trên trang và kích thước cả viền trong preview. Zoom màn hình không đổi kích thước in. Phần tem ngoài trang giấy sẽ nằm ngoài bản in.
+- Bản in dùng khổ A4/A3/A5 đang chọn, vị trí tem trên trang và kích thước cả viền trong preview. Zoom màn hình không đổi kích thước in. Bản in bảo vệ toàn bộ viền bằng khoảng sát mép 0,3 mm; tem vượt trang được dịch vào trong, chỉ thu nhỏ khi kích thước vượt vùng in.
 - Mặc định **In màu**, tỷ lệ **100%**, trang ảnh **600 DPI**. Có lựa chọn trắng đen.
 - Windows: mở bằng `Mo-TemHoa-Windows.bat`, chọn máy in và bấm **Properties** để mở Printing Preferences của đúng driver. Chọn số bản rồi bấm **In…** trong phần mềm để gửi lệnh in trực tiếp, không mở hộp thoại Print hoặc tiến trình in mặc định của Windows.
 - Cập nhật đầy đủ `Print-TemHoa-Windows.ps1` cùng các file ứng dụng. Không cần cài thêm Python để in trên Windows.
 - Mac hoặc khi mở HTML trực tiếp: dùng hộp thoại in của trình duyệt/hệ thống. Chọn đúng khổ giấy, Scale 100%, không lề và tắt header/footer.
 - Với máy in màu: chọn đúng loại giấy, Color và chất lượng phù hợp trong driver. In sát mép cần driver hỗ trợ Borderless; đặt Expansion/mở rộng ảnh về 0 hoặc thấp nhất để hạn chế thay đổi kích thước. Máy không hỗ trợ Borderless vẫn có lề phần cứng.
-- In trực tiếp giữ bố cục trang; xuất Word/PNG/SVG vẫn giữ cách xuất hiện có.
+- Windows kiểm tra `PrintableArea` của driver theo đúng khổ giấy và chiều giấy. Tem sát lề phần cứng được dịch vào vùng in, giữ kích thước khi đủ chỗ; tem quá lớn được thu nhỏ đồng đều để không mất viền. Cách này có thể thay đổi vị trí hoặc kích thước bản in so với trang làm việc.
+- In trực tiếp giữ bố cục trang khi nằm đủ trong vùng in; xuất Word/PNG/SVG vẫn giữ cách xuất hiện có.
 
 Đã kiểm tra bằng trình duyệt/PDF cho đủ năm lựa chọn khổ giấy và kiểm tra cú pháp PowerShell. Hộp thoại driver Windows và chất lượng màu cần kiểm tra thêm trên máy in thật.
