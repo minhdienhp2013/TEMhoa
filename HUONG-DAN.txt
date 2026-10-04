@@ -51,3 +51,10 @@ Nếu UniKey/EVKey đang để TCVN3 (ABC), chọn TCVN3 ở Bảng mã bộ gõ
 Thiết lập này áp dụng chữ nhập/dán từ lúc chọn; không chuyển lại chữ đã có.
 Phông .Vn đã được chuyển sang Unicode sẵn được giữ nguyên bảng ký tự.
 Phông TCVN3 cần quyền đọc phông trên Chrome/Edge để xử lý đúng bảng ký tự.
+
+THƯ MỤC MẪU CỐ ĐỊNH
+Lưu mẫu: đặt tên, lưu vào Mau-Tem-Hoa cạnh phần mềm.
+Mở mẫu: chọn trong danh sách mẫu đã lưu. Mẫu cùng tên được cập nhật.
+Mở bằng BAT trên Windows hoặc COMMAND trên Mac để sử dụng thư mục này.
+Mẫu JSON cũ: Mở mẫu → Nhập mẫu JSON cũ → Lưu mẫu để đưa vào thư mục.
+Cập nhật bằng git pull giữ các mẫu. Khi tải ZIP mới, chép thư mục mẫu cũ sang bộ mới.

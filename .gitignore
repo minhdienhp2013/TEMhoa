@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 Thumbs.db
+
+Mau-Tem-Hoa/*.json
+Mau-Tem-Hoa/*.tmp
+Mau-Tem-Hoa/*.bak
