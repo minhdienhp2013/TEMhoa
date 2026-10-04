@@ -105,7 +105,7 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 
 ## Icon nhanh và ảnh trang trí
 
-- Bấm **😁 Emoji / Ảnh** trên thanh trên cùng: bảng icon được thay bằng 😁 😳 😭 😩 😘 🤐 ☺️ 😔 👄 💋. Chọn chèn bên trái hoặc bên phải chữ. Emoji lấy từ phông emoji hệ điều hành, có thể khác kiểu nét giữa Windows và macOS.
+- Bấm **😁 Emoji / Ảnh** trên thanh trên cùng: có 109 emoji, gồm các emoji đã yêu cầu 😁 😳 😭 😩 😘 🤐 ☺️ 😔 👄 💋 và nhiều mẫu cùng kiểu. Có ô tìm kiếm không dấu, lọc 3 nhóm **Khuôn mặt**, **Tình cảm**, **Chúc mừng**. Chọn chèn bên trái hoặc bên phải chữ. Emoji lấy từ phông emoji hệ điều hành, có thể khác kiểu nét giữa Windows và macOS.
 - Icon/ảnh thuộc tem đang chọn; đường viền mây bao theo cả chữ và hình. Mỗi tem tối đa 12 hình.
 - Bấm hình để chọn, kéo hình để di chuyển, kéo góc để đổi kích thước, kéo nút tròn để xoay. Bảng hình hỗ trợ kích thước cm, vị trí, góc xoay, khóa tỷ lệ, lật ngang/dọc, nhân đôi và xóa. Emoji giữ màu nguyên bản, không đổi thành màu chữ. Icon kiểu cũ trong mẫu và kho chủ đề cũng được hiển thị thành emoji tương ứng.
 - **Thêm ảnh từ máy…** nhận PNG/JPG/WebP. Có thể chọn vùng cắt trên ảnh nhỏ, chọn màu nền bằng cách bấm vào ảnh và bật **Xóa nền ảnh**; chỉ phần nền nối với mép ảnh được xóa để giữ chi tiết bên trong. PNG trong suốt dùng trực tiếp.
