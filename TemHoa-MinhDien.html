@@ -694,6 +694,21 @@ async function useOccasionPreset(preset){
 }
 occasionButton.onclick=()=>{captureSelection();$('occasionMessage').textContent='';renderOccasionGallery();occasionDialog.showModal()};$('closeOccasions').onclick=()=>{if(!occasionBusy)occasionDialog.close()};occasionDialog.addEventListener('cancel',event=>{if(occasionBusy)event.preventDefault()});$('occasionSearch').oninput=renderOccasionGallery;
 
+// Paint order is the saved array order: last object is in front.
+function layerTarget(){const graphic=selectedGraphic();return graphic?{items:decorations,index:decorations.indexOf(graphic),kind:'graphic'}:{items:labels,index:labels.findIndex(label=>label.id===activeLabelId),kind:'label'}}
+let layerBusy=false;
+async function moveObjectLayer(delta,graphicOnly=false){if(layerBusy||labelOperation||graphicDrag||labelDrag)return;const target=layerTarget();if(graphicOnly&&target.kind!=='graphic')return;const next=target.index+delta;if(target.index<0||next<0||next>=target.items.length)return;layerBusy=true;try{recordHistory();const [item]=target.items.splice(target.index,1);target.items.splice(next,0,item);await preview();recordHistory();syncLayerButtons();$('status').textContent=(target.kind==='graphic'?'Hình trang trí':'Tem')+' đã '+(delta>0?'lên':'xuống')+' 1 lớp.'}finally{layerBusy=false;syncLayerButtons()}}
+const layerButtons=document.createElement('div');layerButtons.className='graphicActions';layerButtons.style.margin='0';
+for(const [id,title,delta] of [['layerUp','Lên 1 lớp',1],['layerDown','Xuống 1 lớp',-1]]){const button=document.createElement('button');button.id=id;button.textContent=(delta>0?'↑ ':'↓ ')+title;button.title=title+' · '+(delta>0?'Alt + PageUp':'Alt + PageDown');button.onclick=()=>moveObjectLayer(delta).catch(error=>$('status').textContent=error.message);layerButtons.append(button)}document.querySelector('.quickActions').append(layerButtons);
+const graphicLayerButtons=document.createElement('div');graphicLayerButtons.className='graphicActions';for(const [id,title,delta] of [['graphicLayerUp','↑ Lên 1 lớp',1],['graphicLayerDown','↓ Xuống 1 lớp',-1]]){const button=document.createElement('button');button.id=id;button.textContent=title;button.onclick=()=>moveObjectLayer(delta,true).catch(error=>$('graphicMessage').textContent=error.message);graphicLayerButtons.append(button)}$('graphicList').after(graphicLayerButtons);
+for(const [id,title,delta] of [['menuLayerUp','Lên 1 lớp',1],['menuLayerDown','Xuống 1 lớp',-1]]){const button=document.createElement('button');button.id=id;button.textContent=title;button.setAttribute('role','menuitem');button.onclick=()=>{labelMenu.hidden=true;moveObjectLayer(delta).catch(error=>$('status').textContent=error.message)};labelMenu.append(button)}
+function syncLayerButtons(){const target=layerTarget(),graphic=selectedGraphic(),index=decorations.indexOf(graphic);for(const prefix of ['layer','menuLayer']){ $(prefix+'Up').disabled=layerBusy||target.index<0||target.index>=target.items.length-1;$(prefix+'Down').disabled=layerBusy||target.index<=0} $('graphicLayerUp').disabled=layerBusy||!graphic||index>=decorations.length-1;$('graphicLayerDown').disabled=layerBusy||!graphic||index<=0}
+const beforeLayerControls=syncGraphicControls;syncGraphicControls=function(){beforeLayerControls();syncLayerButtons()};const beforeLayerZoom=zoom;zoom=function(){beforeLayerZoom();syncLayerButtons()};
+$('temEditor').addEventListener('pointerdown',syncLayerButtons);
+$('previewArea').addEventListener('contextmenu',event=>{const graphicId=event.target.closest('.graphicOverlay')?.dataset.graphicId;selectedGraphicId=graphicId||null;syncGraphicControls();positionGraphicOverlays()},true);
+$('previewArea').addEventListener('contextmenu',()=>{syncLayerButtons();labelMenu.style.top=Math.max(0,Math.min(parseFloat(labelMenu.style.top)||0,innerHeight-labelMenu.offsetHeight-8))});
+document.addEventListener('keydown',event=>{if(!event.altKey||event.ctrlKey||event.metaKey||!['PageUp','PageDown'].includes(event.key)||!$('previewArea').contains(event.target))return;event.preventDefault();moveObjectLayer(event.key==='PageUp'?1:-1).catch(error=>$('status').textContent=error.message)});
+
 machineFonts=detectSystemFonts();
 populateFontSelect($('font'),false,'');
 $('scanStatus').textContent='Có thể dùng ngay phông hệ thống. Bấm Lấy phông trên máy để đọc danh sách đầy đủ.';
