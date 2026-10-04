@@ -33,7 +33,7 @@ public static class TemHoaPrinter {
         doc.DefaultPageSettings.Margins=new Margins(0,0,0,0);
         doc.OriginAtMargins=false;
     }
-    public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies) {
+    public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies, double inkX, double inkY, double inkWidth, double inkHeight) {
         using(MemoryStream stream=new MemoryStream(bytes))
         using(Image image=Image.FromStream(stream))
         using(PrintDocument doc=new PrintDocument()) {
@@ -48,7 +48,28 @@ public static class TemHoaPrinter {
                 e.Graphics.PageUnit=GraphicsUnit.Inch;
                 e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX/100f,-e.PageSettings.HardMarginY/100f);
                 e.Graphics.InterpolationMode=InterpolationMode.HighQualityBicubic;
-                e.Graphics.DrawImage(image,new RectangleF(0,0,(float)(width/2.54),(float)(height/2.54)));
+                float pageW=(float)(width/2.54), pageH=(float)(height/2.54);
+                // PrintableArea includes the driver's physical limits and landscape orientation.
+                RectangleF printable=e.PageSettings.PrintableArea;
+                const float guard=0.03f/2.54f; // 0.3 mm for edge interpolation / paper feed tolerance.
+                float left=Math.Max(0,printable.Left/100f)+guard;
+                float top=Math.Max(0,printable.Top/100f)+guard;
+                float right=Math.Min(pageW,printable.Right/100f)-guard;
+                float bottom=Math.Min(pageH,printable.Bottom/100f)-guard;
+                if(right<=left || bottom<=top) throw new Exception("Vung in cua may in khong hop le.");
+                RectangleF source=new RectangleF(0,0,image.Width,image.Height);
+                if(inkWidth>0 && inkHeight>0) {
+                    if(Double.IsNaN(inkX+inkY+inkWidth+inkHeight) || Double.IsInfinity(inkX+inkY+inkWidth+inkHeight) || inkX<0 || inkY<0 || inkX+inkWidth>image.Width || inkY+inkHeight>image.Height)
+                        throw new Exception("Khung vien ban in khong hop le.");
+                    source=new RectangleF((float)inkX,(float)inkY,(float)inkWidth,(float)inkHeight);
+                }
+                float x=source.X/image.Width*pageW, y=source.Y/image.Height*pageH;
+                float w=source.Width/image.Width*pageW, h=source.Height/image.Height*pageH;
+                float scale=Math.Min(1,Math.Min((right-left)/w,(bottom-top)/h));
+                w*=scale; h*=scale;
+                x=Math.Max(left,Math.Min(x,right-w)); y=Math.Max(top,Math.Min(y,bottom-h));
+                // Move the intact outline instead of allowing the hardware clipping region to cut it.
+                e.Graphics.DrawImage(image,new RectangleF(x,y,w,h),source,GraphicsUnit.Pixel);
                 e.HasMorePages=false;
             };
             doc.Print();
@@ -56,7 +77,7 @@ public static class TemHoaPrinter {
     }
 }
 '@
-    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color,[int]$job.copies)
+    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color,[int]$job.copies,[double]$job.ink.x,[double]$job.ink.y,[double]$job.ink.width,[double]$job.ink.height)
 } catch {
     try { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Tem Hoa - In') | Out-Null } catch { Write-Error $_ }
 } finally {
