@@ -118,7 +118,7 @@ try {
                             $taskName = [Uri]::UnescapeDataString($taskNameMatch.Groups[1].Value)
                             $taskPath = Get-TemplatePath $taskName
                             if (!(Test-Path -LiteralPath $taskPath)) { throw 'Template not found.' }
-                            if ((Get-Item -LiteralPath $taskPath).Length -gt 262144) { throw 'Template too large.' }
+                            if ((Get-Item -LiteralPath $taskPath).Length -gt 33554432) { throw 'Template too large.' }
                             $taskResult = [System.IO.File]::ReadAllText($taskPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
                             Test-Template $taskResult
                         } else {
@@ -127,7 +127,7 @@ try {
                         }
                     } elseif ($taskParts[0] -eq 'POST') {
                         $taskLength = [int]$taskHeaders['content-length']
-                        if ($taskLength -le 0 -or $taskLength -gt 262144) { throw 'Template request too large or empty.' }
+                        if ($taskLength -le 0 -or $taskLength -gt 33554432) { throw 'Template request too large or empty.' }
                         $taskPayload = [byte[]]::new($taskLength); $taskRead = 0
                         while ($taskRead -lt $taskLength) {
                             $taskReceived = $taskStream.Read($taskPayload,$taskRead,$taskLength-$taskRead)
@@ -138,7 +138,7 @@ try {
                         $taskPath = Get-TemplatePath $taskRequest.name
                         Test-Template $taskRequest.template
                         $taskJson = ConvertTo-Json -InputObject $taskRequest.template -Depth 100 -Compress
-                        if ([System.Text.Encoding]::UTF8.GetByteCount($taskJson) -gt 262144) { throw 'Template too large.' }
+                        if ([System.Text.Encoding]::UTF8.GetByteCount($taskJson) -gt 33554432) { throw 'Template too large.' }
                         $taskTemporary = Join-Path $taskTemplateRoot ([Guid]::NewGuid().ToString('N') + '.tmp')
                         try {
                             [System.IO.File]::WriteAllText($taskTemporary,$taskJson,[System.Text.UTF8Encoding]::new($false))
