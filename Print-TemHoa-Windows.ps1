@@ -16,6 +16,7 @@ using System.Drawing.Printing;
 using System.IO;
 using System.Runtime.InteropServices;
 public static class TemHoaPrinter {
+    public static float SafeTop=1f/25.4f, SafeRight=1f/25.4f, SafeBottom=.3f/25.4f, SafeLeft=.3f/25.4f;
     [DllImport("winspool.drv", EntryPoint="OpenPrinterW", CharSet=CharSet.Unicode, SetLastError=true)]
     private static extern bool OpenPrinter(string name,out IntPtr printer,IntPtr defaults);
     [DllImport("winspool.drv", SetLastError=true)] private static extern bool ClosePrinter(IntPtr printer);
@@ -66,9 +67,8 @@ public static class TemHoaPrinter {
     }
     public static float[] CalculatePlacement(float pageW,float pageH,int dpiX,int dpiY,int offsetX,int offsetY,int printableW,int printableH,float imageW,float imageH,float inkX,float inkY,float inkW,float inkH) {
         if(dpiX<=0 || dpiY<=0 || printableW<=0 || printableH<=0) throw new Exception("Driver bao vung in khong hop le.");
-        const float guard=0.03f/2.54f;
-        float left=Math.Max(0,(float)offsetX/dpiX)+guard,top=Math.Max(0,(float)offsetY/dpiY)+guard;
-        float right=Math.Min(pageW,(float)(offsetX+printableW)/dpiX)-guard,bottom=Math.Min(pageH,(float)(offsetY+printableH)/dpiY)-guard;
+        float left=Math.Max(0,(float)offsetX/dpiX)+SafeLeft,top=Math.Max(0,(float)offsetY/dpiY)+SafeTop;
+        float right=Math.Min(pageW,(float)(offsetX+printableW)/dpiX)-SafeRight,bottom=Math.Min(pageH,(float)(offsetY+printableH)/dpiY)-SafeBottom;
         if(right<=left || bottom<=top) throw new Exception("Vung in khong du cho tem.");
         float x=inkX/imageW*pageW,y=inkY/imageH*pageH,w=inkW/imageW*pageW,h=inkH/imageH*pageH;
         float scale=Math.Min(1,Math.Min((right-left)/w,(bottom-top)/h));w*=scale;h*=scale;
@@ -93,7 +93,8 @@ public static class TemHoaPrinter {
         doc.DefaultPageSettings.Margins=new Margins(0,0,0,0);
         doc.OriginAtMargins=false;
     }
-    public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies, double inkX, double inkY, double inkWidth, double inkHeight) {
+    public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies, double inkX, double inkY, double inkWidth, double inkHeight, float topMm, float rightMm, float bottomMm, float leftMm) {
+        SafeTop=topMm/25.4f; SafeRight=rightMm/25.4f; SafeBottom=bottomMm/25.4f; SafeLeft=leftMm/25.4f;
         using(MemoryStream stream=new MemoryStream(bytes))
         using(Image image=Image.FromStream(stream))
         using(PrintDocument doc=new PrintDocument()) {
@@ -142,7 +143,15 @@ public static class TemHoaPrinter {
     }
 }
 '@
-    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color,[int]$job.copies,[double]$job.ink.x,[double]$job.ink.y,[double]$job.ink.width,[double]$job.ink.height)
+    $safeEdges = @{ top = 1.0; right = 1.0; bottom = 0.3; left = 0.3 }
+    foreach ($side in @('top','right','bottom','left')) {
+        if ($null -ne $job.edges.$side) {
+            $value = [double]$job.edges.$side
+            if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0 -or $value -gt 10) { throw 'Invalid print edge protection (0-10 mm).' }
+            $safeEdges[$side] = $value
+        }
+    }
+    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color,[int]$job.copies,[double]$job.ink.x,[double]$job.ink.y,[double]$job.ink.width,[double]$job.ink.height,[float]$safeEdges.top,[float]$safeEdges.right,[float]$safeEdges.bottom,[float]$safeEdges.left)
 } catch {
     try { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Tem Hoa - In') | Out-Null } catch { Write-Error $_ }
 } finally {
