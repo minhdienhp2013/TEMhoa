@@ -216,11 +216,12 @@ document.addEventListener('pointerdown',e=>{if(openFontPicker&&!openFontPicker.m
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFontPicker()});
 window.addEventListener('resize',closeFontPicker);
 
+function sortComputerFonts(fonts){const rank=name=>/^UTM/i.test(name)?0:/^UVN/i.test(name)?1:2;return [...new Set(fonts)].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b,'vi'))}
 function populateFontSelect(select,perLine=false,selected=''){
  select.replaceChildren();function option(parent,value,text){let o=document.createElement('option');o.value=value;o.textContent=text;parent.append(o)}
  if(perLine)option(select,'','Theo phông trên thanh công cụ');
+ for(let name of sortComputerFonts(machineFonts))option(select,name,name);
  option(select,'sans-serif','Phông mặc định của hệ điều hành');
- for(let name of machineFonts)option(select,name,name);
  if(selected!=='sans-serif'&&selected&&!machineFonts.includes(selected))option(select,selected,selected+' — chưa tìm thấy trên máy');
  select.value=selected||(!perLine?(machineFonts.includes('Times New Roman')?'Times New Roman':machineFonts.includes('Arial')?'Arial':machineFonts[0]||'sans-serif'):'');
  updateFontPicker(select);
@@ -238,10 +239,10 @@ $('scanFonts').onclick=async()=>{
   // Invoke immediately inside the click handler to retain browser user activation.
   const records=await window.queryLocalFonts();
   fontRecords.clear();for(let r of records){if(typeof r.family!=='string'||!r.family.trim())continue;let group=fontRecords.get(r.family)||[];group.push(r);fontRecords.set(r.family,group)}
-  machineFonts=[...new Set(records.map(v=>v.family).filter(v=>typeof v==='string'&&v.trim()))].sort((a,b)=>a.localeCompare(b,'vi'));
+  machineFonts=sortComputerFonts(records.map(v=>v.family).filter(v=>typeof v==='string'&&v.trim()));
   if(!machineFonts.length){$('scanStatus').textContent='Trình duyệt không trả về phông nào. Bấm lại nút để thử lại.';return}
   let chosen=$('font').value;populateFontSelect($('font'),false,chosen);lineControls();await preview();
-  $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
+  $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Ưu tiên UTM, UVN ở đầu danh sách. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
  }catch(e){$('scanStatus').textContent=scanError(e)}finally{$('scanFonts').disabled=false}
 };
 
