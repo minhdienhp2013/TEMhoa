@@ -95,6 +95,7 @@ try {
                             $taskPaperKey = ([double]$taskRequest.widthCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture) + 'x' + ([double]$taskRequest.heightCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture)
                             if ($taskAllowedPapers -notcontains $taskPaperKey) { throw 'Invalid print paper size.' }
                             if ($taskRequest.color -isnot [bool] -or $taskRequest.png -isnot [string] -or !$taskRequest.png.StartsWith('iVBORw0KGgo')) { throw 'Invalid print image.' }
+                            if ($null -ne $taskRequest.copies -and ([double]$taskRequest.copies -lt 1 -or [double]$taskRequest.copies -gt 99 -or [double]$taskRequest.copies -ne [Math]::Floor([double]$taskRequest.copies))) { throw 'Invalid number of copies.' }
                             $taskPrintHelper = Join-Path $taskRoot 'Print-TemHoa-Windows.ps1'
                             if (!(Test-Path -LiteralPath $taskPrintHelper)) { throw 'Missing Print-TemHoa-Windows.ps1. Download the complete update.' }
                             $taskPrintJob = Join-Path ([System.IO.Path]::GetTempPath()) ('TemHoa-print-' + [Guid]::NewGuid().ToString('N') + '.json')
