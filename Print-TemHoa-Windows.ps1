@@ -33,7 +33,7 @@ public static class TemHoaPrinter {
         doc.DefaultPageSettings.Margins=new Margins(0,0,0,0);
         doc.OriginAtMargins=false;
     }
-    public static void Run(byte[] bytes, string printer, double width, double height, bool color) {
+    public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies) {
         using(MemoryStream stream=new MemoryStream(bytes))
         using(Image image=Image.FromStream(stream))
         using(PrintDocument doc=new PrintDocument()) {
@@ -42,14 +42,8 @@ public static class TemHoaPrinter {
             if(!doc.PrinterSettings.IsValid) throw new Exception("May in khong kha dung.");
             SetPaper(doc,width,height);
             doc.DefaultPageSettings.Color=color && doc.PrinterSettings.SupportsColor;
-            using(PrintDialog dialog=new PrintDialog()) {
-                dialog.Document=doc;
-                dialog.UseEXDialog=true;
-                dialog.AllowSomePages=false;
-                dialog.AllowSelection=false;
-                if(dialog.ShowDialog()!=DialogResult.OK) return;
-            }
-            SetPaper(doc,width,height);
+            doc.PrinterSettings.Copies=(short)Math.Max(1,Math.Min(99,copies));
+            doc.PrintController=new StandardPrintController();
             doc.PrintPage+=(sender,e)=> {
                 e.Graphics.PageUnit=GraphicsUnit.Inch;
                 e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX/100f,-e.PageSettings.HardMarginY/100f);
@@ -62,7 +56,7 @@ public static class TemHoaPrinter {
     }
 }
 '@
-    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color)
+    [TemHoaPrinter]::Run($bytes,[string]$job.printer,$width,$height,[bool]$job.color,[int]$job.copies)
 } catch {
     try { [System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Tem Hoa - In') | Out-Null } catch { Write-Error $_ }
 } finally {
