@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $taskRoot 'Background-TemHoa-Windows.ps1')
 $taskHtml = Join-Path $taskRoot 'TemHoa-MinhDien.html'
 if (!(Test-Path -LiteralPath $taskHtml)) { throw 'TemHoa-MinhDien.html is missing. Extract the complete ZIP first.' }
 $taskToken = [Guid]::NewGuid().ToString('N')
@@ -67,6 +68,25 @@ try {
             $taskStatus = '200 OK'; $taskMime = 'application/json; charset=utf-8'; $taskResult = $null
             if ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/' -or $taskRoute -eq '/TemHoa-MinhDien.html')) {
                 $taskBody = $taskBytes; $taskMime = 'text/html; charset=utf-8'
+            } elseif ($taskRoute -eq '/api/background' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                try {
+                    $taskRequest = $null
+                    if ($taskParts[0] -eq 'POST') {
+                        $taskLength = [int]$taskHeaders['content-length']
+                        if ($taskLength -le 0 -or $taskLength -gt 16777216) { throw 'AI image too large or empty.' }
+                        $taskStream.ReadTimeout = 30000
+                        $taskPayload = [byte[]]::new($taskLength); $taskRead = 0
+                        while ($taskRead -lt $taskLength) {
+                            $taskReceived = $taskStream.Read($taskPayload,$taskRead,$taskLength-$taskRead)
+                            if ($taskReceived -le 0) { throw 'Incomplete AI request.' }
+                            $taskRead += $taskReceived
+                        }
+                        $taskRequest = [Text.Encoding]::UTF8.GetString($taskPayload) | ConvertFrom-Json
+                    }
+                    $taskQuery = if ($taskRouteParts.Length -gt 1) { $taskRouteParts[1] } else { '' }
+                    $taskResult = Invoke-TemHoaBackground $taskParts[0] $taskQuery $taskRequest
+                } catch { $taskStatus = '400 Bad Request'; $taskResult = @{ error = $_.Exception.Message } }
+                $taskBody = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 10 -Compress))
             } elseif ($taskRoute -in @('/api/printers','/api/printer-properties','/api/print') -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     Add-Type -AssemblyName System.Drawing
@@ -158,4 +178,4 @@ try {
             $taskStream.Flush()
         } catch { } finally { $taskClient.Dispose() }
     }
-} finally { $taskListener.Stop() }
+} finally { $taskListener.Stop(); Close-TemHoaBackground }
