@@ -95,6 +95,12 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
 
 
+## Sắp xếp lớp
+
+- Chọn emoji/ảnh rồi bấm **Lên 1 lớp** hoặc **Xuống 1 lớp** trên thanh trên cùng hoặc trong bảng Emoji / Ảnh để đổi thứ tự giữa các hình trang trí trong tem. Hình ở lớp trên che hình ở lớp dưới khi chồng nhau; chữ vẫn nằm dưới nhóm hình trang trí.
+- Khi không chọn emoji/ảnh, hai nút đổi thứ tự giữa các tem trên trang. Chuột phải vào tem hoặc hình cũng có hai lệnh này. Phím tắt **Alt + PageUp / Alt + PageDown** khi đang làm việc trong preview.
+- Chỉ dịch một bậc mỗi lần, không thay vị trí/kích thước; nút tự khóa khi đã ở lớp cao nhất/thấp nhất. Thứ tự được giữ trong mẫu đã lưu, xuất PNG/Word/SVG và bản in; hỗ trợ undo/redo.
+
 ## Kho mẫu theo chủ đề
 
 - Bấm **Kho mẫu · 60** trên thanh trên cùng để chọn trong 60 mẫu có sẵn, dùng được cả khi không có mạng.
