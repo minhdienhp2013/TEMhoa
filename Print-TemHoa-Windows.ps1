@@ -14,8 +14,68 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
-using System.Windows.Forms;
+using System.Runtime.InteropServices;
 public static class TemHoaPrinter {
+    [DllImport("winspool.drv", EntryPoint="OpenPrinterW", CharSet=CharSet.Unicode, SetLastError=true)]
+    private static extern bool OpenPrinter(string name,out IntPtr printer,IntPtr defaults);
+    [DllImport("winspool.drv", SetLastError=true)] private static extern bool ClosePrinter(IntPtr printer);
+    [DllImport("winspool.drv", EntryPoint="DocumentPropertiesW", CharSet=CharSet.Unicode)]
+    private static extern int DocumentProperties(IntPtr window,IntPtr printer,string name,IntPtr output,IntPtr input,int mode);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint flags,UIntPtr bytes);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalLock(IntPtr memory);
+    [DllImport("kernel32.dll")] private static extern bool GlobalUnlock(IntPtr memory);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalFree(IntPtr memory);
+    [DllImport("gdi32.dll")] private static extern int GetDeviceCaps(IntPtr dc,int index);
+    private static void LoadDriverSettings(PrintDocument doc,string name) {
+        IntPtr printer;
+        if(!OpenPrinter(name,out printer,IntPtr.Zero)) throw new Exception("Khong doc duoc cau hinh may in.");
+        IntPtr memory=IntPtr.Zero;
+        try {
+            int size=DocumentProperties(IntPtr.Zero,printer,name,IntPtr.Zero,IntPtr.Zero,0);
+            if(size<=0) throw new Exception("Driver khong cung cap cau hinh in.");
+            memory=GlobalAlloc(0x42,(UIntPtr)(uint)size);
+            if(memory==IntPtr.Zero) throw new OutOfMemoryException();
+            IntPtr data=GlobalLock(memory);
+            if(data==IntPtr.Zero) throw new Exception("Khong doc duoc bo nho cau hinh in.");
+            int result;
+            try { result=DocumentProperties(IntPtr.Zero,printer,name,data,IntPtr.Zero,2); }
+            finally { GlobalUnlock(memory); }
+            if(result!=1) throw new Exception("Khong tai duoc thiet lap driver.");
+            // Preserve the complete private driver data: Canon Borderless, extension, media and quality.
+            doc.PrinterSettings.SetHdevmode(memory);
+            doc.DefaultPageSettings=doc.PrinterSettings.DefaultPageSettings;
+            doc.DefaultPageSettings.SetHdevmode(memory);
+        } finally { if(memory!=IntPtr.Zero) GlobalFree(memory); ClosePrinter(printer); }
+    }
+    private static void ValidateDriverSettings(PrintDocument doc,string name) {
+        IntPtr printer;
+        if(!OpenPrinter(name,out printer,IntPtr.Zero)) throw new Exception("Khong truy cap duoc driver.");
+        IntPtr memory=IntPtr.Zero;
+        try {
+            memory=doc.PrinterSettings.GetHdevmode(doc.DefaultPageSettings);
+            IntPtr data=GlobalLock(memory);
+            if(data==IntPtr.Zero) throw new Exception("Cau hinh in khong hop le.");
+            int result;
+            // Let the driver reconcile public paper/orientation fields with its private Borderless settings.
+            try { result=DocumentProperties(IntPtr.Zero,printer,name,data,data,10); }
+            finally { GlobalUnlock(memory); }
+            if(result!=1) throw new Exception("Driver tu choi cau hinh kho giay.");
+            doc.PrinterSettings.SetHdevmode(memory);
+            doc.DefaultPageSettings.SetHdevmode(memory);
+        } finally { if(memory!=IntPtr.Zero) GlobalFree(memory); ClosePrinter(printer); }
+    }
+    public static float[] CalculatePlacement(float pageW,float pageH,int dpiX,int dpiY,int offsetX,int offsetY,int printableW,int printableH,float imageW,float imageH,float inkX,float inkY,float inkW,float inkH) {
+        if(dpiX<=0 || dpiY<=0 || printableW<=0 || printableH<=0) throw new Exception("Driver bao vung in khong hop le.");
+        const float guard=0.03f/2.54f;
+        float left=Math.Max(0,(float)offsetX/dpiX)+guard,top=Math.Max(0,(float)offsetY/dpiY)+guard;
+        float right=Math.Min(pageW,(float)(offsetX+printableW)/dpiX)-guard,bottom=Math.Min(pageH,(float)(offsetY+printableH)/dpiY)-guard;
+        if(right<=left || bottom<=top) throw new Exception("Vung in khong du cho tem.");
+        float x=inkX/imageW*pageW,y=inkY/imageH*pageH,w=inkW/imageW*pageW,h=inkH/imageH*pageH;
+        float scale=Math.Min(1,Math.Min((right-left)/w,(bottom-top)/h));w*=scale;h*=scale;
+        x=Math.Max(left,Math.Min(x,right-w));y=Math.Max(top,Math.Min(y,bottom-h));
+        // Returned coordinates are relative to the actual HDC origin, not portrait HardMargin values.
+        return new float[]{x-(float)offsetX/dpiX,y-(float)offsetY/dpiY,w,h,scale};
+    }
     private static void SetPaper(PrintDocument doc, double width, double height) {
         bool landscape = width > height;
         int pw = (int)Math.Round(Math.Min(width,height) / 2.54 * 100);
@@ -40,36 +100,41 @@ public static class TemHoaPrinter {
             doc.DocumentName="Tem Hoa Minh Dien";
             doc.PrinterSettings.PrinterName=printer;
             if(!doc.PrinterSettings.IsValid) throw new Exception("May in khong kha dung.");
+            LoadDriverSettings(doc,printer);
             SetPaper(doc,width,height);
             doc.DefaultPageSettings.Color=color && doc.PrinterSettings.SupportsColor;
             doc.PrinterSettings.Copies=(short)Math.Max(1,Math.Min(99,copies));
+            ValidateDriverSettings(doc,printer);
             doc.PrintController=new StandardPrintController();
             doc.PrintPage+=(sender,e)=> {
+                // Query the live landscape/portrait print DC after the Canon driver has applied DEVMODE.
+                // HardMarginX/Y can describe a different coordinate frame; do not subtract them again.
+                int dpiX,dpiY,offsetX,offsetY,printableW,printableH;
+                IntPtr dc=e.Graphics.GetHdc();
+                try {
+                    dpiX=GetDeviceCaps(dc,88); dpiY=GetDeviceCaps(dc,90);
+                    offsetX=GetDeviceCaps(dc,112); offsetY=GetDeviceCaps(dc,113);
+                    printableW=GetDeviceCaps(dc,8); printableH=GetDeviceCaps(dc,10);
+                } finally { e.Graphics.ReleaseHdc(dc); }
+                e.Graphics.ResetTransform();
                 e.Graphics.PageUnit=GraphicsUnit.Inch;
-                e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX/100f,-e.PageSettings.HardMarginY/100f);
+                e.Graphics.PageScale=1;
                 e.Graphics.InterpolationMode=InterpolationMode.HighQualityBicubic;
                 float pageW=(float)(width/2.54), pageH=(float)(height/2.54);
-                // PrintableArea includes the driver's physical limits and landscape orientation.
-                RectangleF printable=e.PageSettings.PrintableArea;
-                const float guard=0.03f/2.54f; // 0.3 mm for edge interpolation / paper feed tolerance.
-                float left=Math.Max(0,printable.Left/100f)+guard;
-                float top=Math.Max(0,printable.Top/100f)+guard;
-                float right=Math.Min(pageW,printable.Right/100f)-guard;
-                float bottom=Math.Min(pageH,printable.Bottom/100f)-guard;
-                if(right<=left || bottom<=top) throw new Exception("Vung in cua may in khong hop le.");
                 RectangleF source=new RectangleF(0,0,image.Width,image.Height);
                 if(inkWidth>0 && inkHeight>0) {
                     if(Double.IsNaN(inkX+inkY+inkWidth+inkHeight) || Double.IsInfinity(inkX+inkY+inkWidth+inkHeight) || inkX<0 || inkY<0 || inkX+inkWidth>image.Width || inkY+inkHeight>image.Height)
                         throw new Exception("Khung vien ban in khong hop le.");
                     source=new RectangleF((float)inkX,(float)inkY,(float)inkWidth,(float)inkHeight);
                 }
-                float x=source.X/image.Width*pageW, y=source.Y/image.Height*pageH;
-                float w=source.Width/image.Width*pageW, h=source.Height/image.Height*pageH;
-                float scale=Math.Min(1,Math.Min((right-left)/w,(bottom-top)/h));
-                w*=scale; h*=scale;
-                x=Math.Max(left,Math.Min(x,right-w)); y=Math.Max(top,Math.Min(y,bottom-h));
-                // Move the intact outline instead of allowing the hardware clipping region to cut it.
-                e.Graphics.DrawImage(image,new RectangleF(x,y,w,h),source,GraphicsUnit.Pixel);
+                float[] placement=CalculatePlacement(pageW,pageH,dpiX,dpiY,offsetX,offsetY,printableW,printableH,image.Width,image.Height,source.X,source.Y,source.Width,source.Height);
+                // Clamp sampling at the bitmap boundary so interpolation cannot erase the outer outline.
+                using(System.Drawing.Imaging.ImageAttributes attributes=new System.Drawing.Imaging.ImageAttributes()) {
+                    attributes.SetWrapMode(WrapMode.TileFlipXY);
+                    RectangleF target=new RectangleF(placement[0],placement[1],placement[2],placement[3]);
+                    PointF[] corners={new PointF(target.Left,target.Top),new PointF(target.Right,target.Top),new PointF(target.Left,target.Bottom)};
+                    e.Graphics.DrawImage(image,corners,source,GraphicsUnit.Pixel,attributes);
+                }
                 e.HasMorePages=false;
             };
             doc.Print();
