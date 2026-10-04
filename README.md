@@ -83,3 +83,13 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - In trực tiếp giữ bố cục trang khi nằm đủ trong vùng in; xuất Word/PNG/SVG vẫn giữ cách xuất hiện có.
 
 Đã kiểm tra bằng trình duyệt/PDF cho đủ năm lựa chọn khổ giấy và kiểm tra cú pháp PowerShell. Hộp thoại driver Windows và chất lượng màu cần kiểm tra thêm trên máy in thật.
+
+
+## Nhiều tem trên một trang
+
+- Chuột phải trong vùng làm việc → **Sao chép tem**, rồi **Dán tem**; hoặc **Nhân đôi tem** (Ctrl/Command+D). Bản mới lệch 0,7 cm để dễ nhận ra.
+- Bấm vào tem để chọn và nhập trực tiếp. Mỗi tem giữ riêng nội dung, phông từng chữ/dòng, màu/gradient, giãn dòng, bo/dày viền, kích thước, khóa tỷ lệ và vị trí. Các tay kéo và thanh công cụ điều khiển tem đang chọn.
+- Chuột phải → **Xóa tem** khi có ít nhất hai tem. Ctrl/Command+C/V sao chép/dán cả tem khi vùng tem đang được chọn; khi con trỏ đang nhập chữ, các phím này vẫn dùng cho văn bản.
+- Lưu/mở mẫu giữ cả danh sách tem và tem đang chọn; mẫu một tem cũ vẫn mở được. Undo/redo giữ trạng thái cả trang, bao gồm nhân đôi/xóa tem.
+- Khi có nhiều tem, In và xuất PNG/Word/SVG lấy đủ các tem trên cùng trang. PNG giữ nền ngoài tem trong suốt; SVG vẫn là đường vector. Word tiếp tục dùng ảnh 600 DPI với chiều cao 50% theo thiết lập trước. Khi chỉ có một tem, cách xuất cũ được giữ nguyên.
+- Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
