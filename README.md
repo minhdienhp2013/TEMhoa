@@ -122,6 +122,13 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Mẫu là thiết kế nguyên bản, có chữ Unicode, nền trắng và icon có sẵn; sử dụng phông đang chọn trên máy. Có thể sửa từng chữ, đổi phông/màu, kéo/xoay hình, in và xuất như tem thông thường. Hình thu nhỏ chỉ minh họa bố cục.
 - Bấm **Lưu mẫu** để giữ phiên bản đã chỉnh trong Mau-Tem-Hoa. Undo/redo hỗ trợ việc áp dụng mẫu.
 
+## Xóa nền AI cho người và ảnh
+
+- Chọn ảnh → **Emoji / Ảnh → Xóa nền AI…**. Chọn **Nhanh** hoặc **Chất lượng cao**; ảnh được xử lý trên máy bằng rembg/ONNX, không cần API key.
+- So sánh ảnh gốc/kết quả trước khi áp dụng. Có cọ **Xóa thêm**, **Giữ lại chi tiết**, cỡ cọ, hoàn tác nét cọ và **Khôi phục ảnh gốc**. Lưu mẫu và xuất file giữ ảnh PNG trong suốt.
+- Cài một lần trên Mac: `bash Cai-AI-Mac.command`; Windows: chạy `Cai-AI-Windows.bat`. Cần Python 3.12, Internet để tải thư viện/mô hình lần đầu. Sau khi tải mô hình, có thể dùng offline. Mô hình Chất lượng cao tải riêng khi dùng lần đầu.
+- Mở phần mềm bằng launcher Mac/Windows; tính năng AI không chạy khi mở HTML trực tiếp. Xem [AI-NOTES.md](AI-NOTES.md) để biết nguồn mô hình, cách cài và giới hạn xử lý.
+
 ## Icon nhanh và ảnh trang trí
 
 - Bấm **😁 Emoji / Ảnh** trên thanh trên cùng: có 109 emoji, gồm các emoji đã yêu cầu 😁 😳 😭 😩 😘 🤐 ☺️ 😔 👄 💋 và nhiều mẫu cùng kiểu. Có ô tìm kiếm không dấu, lọc 3 nhóm **Khuôn mặt**, **Tình cảm**, **Chúc mừng**. Chọn chèn bên trái hoặc bên phải chữ. Emoji lấy từ phông emoji hệ điều hành, có thể khác kiểu nét giữa Windows và macOS.
