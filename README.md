@@ -105,9 +105,9 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 
 ## Icon nhanh và ảnh trang trí
 
-- Bấm **♥ Icon / Ảnh** trên thanh trên cùng: có tim đặc, tim nét gạch, hai trái tim, sao, hoa, lá, nơ và bóng bay. Chọn chèn bên trái hoặc bên phải chữ.
+- Bấm **😁 Emoji / Ảnh** trên thanh trên cùng: bảng icon được thay bằng 😁 😳 😭 😩 😘 🤐 ☺️ 😔 👄 💋. Chọn chèn bên trái hoặc bên phải chữ. Emoji lấy từ phông emoji hệ điều hành, có thể khác kiểu nét giữa Windows và macOS.
 - Icon/ảnh thuộc tem đang chọn; đường viền mây bao theo cả chữ và hình. Mỗi tem tối đa 12 hình.
-- Bấm hình để chọn, kéo hình để di chuyển, kéo góc để đổi kích thước, kéo nút tròn để xoay. Bảng hình hỗ trợ kích thước cm, vị trí, góc xoay, màu icon, khóa tỷ lệ, lật ngang/dọc, nhân đôi và xóa.
+- Bấm hình để chọn, kéo hình để di chuyển, kéo góc để đổi kích thước, kéo nút tròn để xoay. Bảng hình hỗ trợ kích thước cm, vị trí, góc xoay, khóa tỷ lệ, lật ngang/dọc, nhân đôi và xóa. Emoji giữ màu nguyên bản, không đổi thành màu chữ. Icon kiểu cũ trong mẫu và kho chủ đề cũng được hiển thị thành emoji tương ứng.
 - **Thêm ảnh từ máy…** nhận PNG/JPG/WebP. Có thể chọn vùng cắt trên ảnh nhỏ, chọn màu nền bằng cách bấm vào ảnh và bật **Xóa nền ảnh**; chỉ phần nền nối với mép ảnh được xóa để giữ chi tiết bên trong. PNG trong suốt dùng trực tiếp.
 - Ảnh được nhúng vào mẫu; không cần giữ đường dẫn ảnh gốc. Lưu/mở mẫu và sao chép tem giữ các hình và thông số. Mẫu một/nhiều tem cũ vẫn mở được. Mẫu có ảnh tối đa 32 MB; lịch sử giới hạn theo bộ nhớ.
-- Preview, bản in, PNG và Word đều có hình trang trí. SVG giữ chữ, icon có sẵn và viền dưới dạng vector; ảnh nhập từ máy vẫn là ảnh bitmap nhúng trong SVG, không tự biến thành vector.
+- Preview, bản in, PNG và Word đều có hình trang trí. Emoji được vẽ rồi nhúng dưới dạng PNG trong suốt khi xuất SVG để giữ đúng màu và hình dáng đã thấy trong preview; chữ và viền vẫn là vector. Ảnh nhập từ máy vẫn là bitmap nhúng trong SVG.
