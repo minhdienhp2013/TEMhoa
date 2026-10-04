@@ -95,6 +95,14 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
 
 
+## Kho mẫu theo chủ đề
+
+- Bấm **Kho mẫu · 60** trên thanh trên cùng để chọn trong 60 mẫu có sẵn, dùng được cả khi không có mạng.
+- 15 chủ đề: sinh nhật, 8/3, 20/10, Ngày của bố, Ngày của mẹ, thầy cô 20/11, Valentine, đám cưới, kỷ niệm, khai trương, tốt nghiệp, cảm ơn, Tết, Giáng sinh và thăm hỏi sức khỏe. Mỗi chủ đề có 4 kiểu màu/bố cục: đỏ hồng cổ điển, hồng tím dịu dàng, xanh lá thanh lịch và đỏ tối giản.
+- Lọc theo chủ đề hoặc tìm kiếm không dấu; nhập người nhận và người gửi nếu muốn. Chọn **Thay tem đang chọn** hoặc **Thêm tem mới vào trang** trước khi bấm mẫu. Các tem khác và mẫu đã lưu không bị thay đổi.
+- Mẫu là thiết kế nguyên bản, có chữ Unicode, nền trắng và icon có sẵn; sử dụng phông đang chọn trên máy. Có thể sửa từng chữ, đổi phông/màu, kéo/xoay hình, in và xuất như tem thông thường. Hình thu nhỏ chỉ minh họa bố cục.
+- Bấm **Lưu mẫu** để giữ phiên bản đã chỉnh trong Mau-Tem-Hoa. Undo/redo hỗ trợ việc áp dụng mẫu.
+
 ## Icon nhanh và ảnh trang trí
 
 - Bấm **♥ Icon / Ảnh** trên thanh trên cùng: có tim đặc, tim nét gạch, hai trái tim, sao, hoa, lá, nơ và bóng bay. Chọn chèn bên trái hoặc bên phải chữ.
