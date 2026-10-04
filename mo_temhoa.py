@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent
 HTML = ROOT / 'TemHoa-MinhDien.html'
 TEMPLATES = ROOT / 'Mau-Tem-Hoa'
 TOKEN = secrets.token_hex(24)
-MAX_BYTES = 256 * 1024
+MAX_BYTES = 32 * 1024 * 1024
 
 def template_path(name):
     if not isinstance(name, str) or not name.strip() or len(name) > 80:
