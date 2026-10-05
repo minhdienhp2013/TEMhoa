@@ -147,6 +147,13 @@ try {
                             $taskNames = @(Get-ChildItem -LiteralPath $taskTemplateRoot -File -Filter '*.json' | Where-Object { ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0 } | Sort-Object Name | ForEach-Object { $_.BaseName })
                             $taskResult = @{ names = $taskNames }
                         }
+                    } elseif ($taskParts[0] -eq 'DELETE') {
+                        $taskNameMatch = if ($taskRouteParts.Length -gt 1) { [regex]::Match($taskRouteParts[1], '(?:^|&)name=([^&]*)') } else { $null }
+                        if (!$taskNameMatch -or !$taskNameMatch.Success) { throw 'Missing template name.' }
+                        $taskPath = Get-TemplatePath ([Uri]::UnescapeDataString($taskNameMatch.Groups[1].Value))
+                        if (!(Test-Path -LiteralPath $taskPath -PathType Leaf)) { throw 'Template not found.' }
+                        Remove-Item -LiteralPath $taskPath -ErrorAction Stop
+                        $taskResult = @{ name = [System.IO.Path]::GetFileNameWithoutExtension($taskPath) }
                     } elseif ($taskParts[0] -eq 'POST') {
                         $taskLength = [int]$taskHeaders['content-length']
                         if ($taskLength -le 0 -or $taskLength -gt 33554432) { throw 'Template request too large or empty.' }
