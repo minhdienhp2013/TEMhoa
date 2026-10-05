@@ -1,8 +1,5 @@
 name: Windows installer with offline AI
 on:
-  push:
-    branches: [main]
-    paths: ['desktop/**', '*.ps1', '*.html', 'background_ai.py', '.github/workflows/windows-installer.yml']
   workflow_dispatch:
 permissions:
   contents: read
