@@ -10,7 +10,7 @@ Phần mềm soạn tem hoa trên Windows và macOS, nhập trực tiếp trên 
 - Lấy phông đã cài trên máy qua Chrome/Edge; không kèm phông nhúng.
 - Xử lý bảng ký tự phông .Vn/TCVN3 từ tệp phông trên máy.
 - Thước cm, thu/phóng, lưu/mở mẫu và hoàn tác/làm lại.
-- Xuất PNG và ảnh trong Word ở 600 DPI; SVG chuyển chữ và viền thành đường vector.
+- Xuất toàn trang PNG và ảnh trong Word ở 300/600 DPI theo khổ đích; SVG chuyển chữ và viền thành đường vector.
 
 ## Mở phần mềm
 
@@ -91,7 +91,7 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Bấm vào tem để chọn và nhập trực tiếp. Mỗi tem giữ riêng nội dung, phông từng chữ/dòng, màu/gradient, giãn dòng, bo/dày viền, kích thước, khóa tỷ lệ và vị trí. Các tay kéo và thanh công cụ điều khiển tem đang chọn.
 - Chuột phải → **Xóa tem** khi có ít nhất hai tem. Ctrl/Command+C/V sao chép/dán cả tem khi vùng tem đang được chọn; khi con trỏ đang nhập chữ, các phím này vẫn dùng cho văn bản.
 - Lưu/mở mẫu giữ cả danh sách tem và tem đang chọn; mẫu một tem cũ vẫn mở được. Undo/redo giữ trạng thái cả trang, bao gồm nhân đôi/xóa tem.
-- Khi có nhiều tem, In và xuất PNG/Word/SVG lấy đủ các tem trên cùng trang. PNG giữ nền ngoài tem trong suốt; SVG vẫn là đường vector. Word tiếp tục dùng ảnh 600 DPI với chiều cao 50% theo thiết lập trước. Khi chỉ có một tem, cách xuất cũ được giữ nguyên.
+- Khi có nhiều tem, In và xuất PNG/Word/SVG lấy đủ các tem trên cùng trang. PNG giữ nền ngoài tem trong suốt; SVG vẫn là đường vector. Word xuất toàn trang theo khổ giấy đích đã chọn, không tự giảm chiều cao 50%. Khi chỉ có một tem, cách xuất cũ được giữ nguyên.
 - Khổ giấy và zoom dùng chung. Mỗi trang hỗ trợ tối đa 20 tem.
 
 
@@ -175,3 +175,9 @@ Kho 60 mẫu tự tạo theo chủ đề đã được gỡ bỏ. Trang chủ ch
 - Mẫu Word cũ được giữ ảnh nền và tách từng dòng chữ thành khối riêng khi mở. Bấm **Lưu mẫu mới** để giữ bản thiết kế mới, hoặc **Lưu mẫu** để cập nhật mẫu đang mở.
 - Bảng Lớp, nhóm, nhân đôi, xóa, undo/redo và dữ liệu vị trí dùng chung với cơ chế lưu/xuất hiện có. Hiện tối đa 20 khối/tem trên một trang; chế độ khối chữ chưa có xoay cả khối chữ.
 - Tem mây tiếp tục nhập chữ và tạo viền như trước. Bộ cài Windows chỉ dựng khi chạy workflow thủ công; giai đoạn hiện tại dùng launcher Mac để thử và sửa.
+
+## Khổ thiết kế và khổ in/xuất độc lập
+
+Khổ giấy trên màn hình là khổ thiết kế. Bấm In hoặc PNG/SVG/Word mới chọn khổ đích A5/A4/A3; chiều ngang/dọc theo trang thiết kế. Toàn bộ đối tượng được đổi tỷ lệ cùng trang, giữ bố cục và không sửa dữ liệu thiết kế. PNG giữ nền ngoài thiết kế trong suốt; Word xuất ảnh đầy đủ chiều cao trang, bỏ chế độ 50% cũ. DPI mặc định 300; 600 DPI chỉ dùng khi không vượt giới hạn 40 triệu pixel.
+
+Bảo vệ mép khi in là tùy chọn riêng, mặc định tắt. Bật có thể thu nhỏ thêm bố cục. Các khổ ISO có sai số do làm tròn kích thước mm; phép fit giữ tỷ lệ, không kéo méo hoặc cắt nội dung. In sát mép thực tế còn phụ thuộc lề phần cứng và Borderless của máy in. Trên Mac, hộp thoại hệ thống cần chọn cùng khổ, tỷ lệ 100%, không header/footer.
