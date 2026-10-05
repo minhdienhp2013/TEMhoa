@@ -16,7 +16,7 @@ using System.Drawing.Printing;
 using System.IO;
 using System.Runtime.InteropServices;
 public static class TemHoaPrinter {
-    public static float SafeTop=1f/25.4f, SafeRight=1f/25.4f, SafeBottom=.3f/25.4f, SafeLeft=.3f/25.4f;
+    public static float SafeTop=1.6f/25.4f, SafeRight=1f/25.4f, SafeBottom=.3f/25.4f, SafeLeft=.3f/25.4f;
     [DllImport("winspool.drv", EntryPoint="OpenPrinterW", CharSet=CharSet.Unicode, SetLastError=true)]
     private static extern bool OpenPrinter(string name,out IntPtr printer,IntPtr defaults);
     [DllImport("winspool.drv", SetLastError=true)] private static extern bool ClosePrinter(IntPtr printer);
@@ -143,7 +143,7 @@ public static class TemHoaPrinter {
     }
 }
 '@
-    $safeEdges = @{ top = 1.0; right = 1.0; bottom = 0.3; left = 0.3 }
+    $safeEdges = @{ top = 1.6; right = 1.0; bottom = 0.3; left = 0.3 }
     foreach ($side in @('top','right','bottom','left')) {
         if ($null -ne $job.edges.$side) {
             $value = [double]$job.edges.$side
