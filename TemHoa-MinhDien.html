@@ -923,7 +923,7 @@ function runCurveAction(amount){applyCurveControls(amount).catch(error=>$('statu
 for(const id of ['curveRainbow','curveReset'])$(id).addEventListener('pointerdown',event=>{captureSelection();event.preventDefault()});
 $('curveRainbow').title='Bôi đen: làm cong các dòng được chọn. Không bôi đen: làm cong tất cả dòng trên trang.';
 $('curveReset').title='Đưa các dòng được chọn về thẳng; không bôi đen thì áp dụng cả trang.';
-$('curveRainbow').onclick=()=>runCurveAction(50);$('curveReset').onclick=()=>runCurveAction(0);
+$('curveRainbow').onclick=()=>runCurveAction(20);$('curveReset').onclick=()=>runCurveAction(0);
 $('curveAmount').addEventListener('change',()=>runCurveAction($('curveAmount').value));
 const beforeCurvedLayout=layout;
 layout=function(){
