@@ -85,6 +85,17 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.reply(404, {'error':'Không tìm thấy.'})
 
+    def do_DELETE(self):
+        route = urlsplit(self.path)
+        if route.path != '/api/templates' or not self.api_allowed():
+            self.reply(403, {'error': 'Không có quyền xóa mẫu.'}); return
+        try:
+            path = template_path(parse_qs(route.query).get('name', [''])[0])
+            path.unlink()
+            self.reply(200, {'name': path.stem})
+        except (ValueError, OSError, TypeError) as error:
+            self.reply(400, {'error': str(error)})
+
     def do_POST(self):
         if urlsplit(self.path).path == '/api/background':
             if not self.api_allowed():
