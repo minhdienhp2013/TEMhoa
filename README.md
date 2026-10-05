@@ -124,7 +124,7 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 
 ## Xóa nền AI cho người và ảnh
 
-- Chọn ảnh → **Emoji / Ảnh → Xóa nền AI…**. Chọn **Nhanh** hoặc **Chất lượng cao**; ảnh được xử lý trên máy bằng rembg/ONNX, không cần API key.
+- Chọn ảnh → **Emoji / Ảnh → Xóa nền ảnh · AI**. Xóa nền AI là lựa chọn mặc định, chọn sẵn **Chất lượng cao** mỗi khi mở; có thể chuyển sang **Nhanh**. Xóa theo màu nằm trong mục **Xóa nền theo màu (thủ công)**. Ảnh được xử lý trên máy bằng rembg/ONNX, không cần API key.
 - So sánh ảnh gốc/kết quả trước khi áp dụng. Có cọ **Xóa thêm**, **Giữ lại chi tiết**, cỡ cọ, hoàn tác nét cọ và **Khôi phục ảnh gốc**. Lưu mẫu và xuất file giữ ảnh PNG trong suốt.
 - Cài một lần trên Mac: `bash Cai-AI-Mac.command`; Windows: chạy `Cai-AI-Windows.bat`. Cần Python 3.12, Internet để tải thư viện/mô hình lần đầu. Sau khi tải mô hình, có thể dùng offline. Mô hình Chất lượng cao tải riêng khi dùng lần đầu.
 - Mở phần mềm bằng launcher Mac/Windows; tính năng AI không chạy khi mở HTML trực tiếp. Xem [AI-NOTES.md](AI-NOTES.md) để biết nguồn mô hình, cách cài và giới hạn xử lý.
