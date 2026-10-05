@@ -154,3 +154,11 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Chọn **Lớp chữ** hoặc **Lớp ảnh / emoji** tại thanh Đoạn văn. Ở lớp chữ, ảnh không chặn thao tác nhập liệu. Kéo nút **✥ Chữ**, hoặc chỉnh **X chữ / Y chữ (cm)** để di chuyển riêng chữ mà không đổi ảnh nền.
 - **Khóa ảnh** giữ ảnh tại vị trí và kích thước hiện có. Ảnh khóa không thể kéo, xoay, đổi kích thước hoặc xóa. Bấm **Mở khóa ảnh** để chỉnh lại; trạng thái khóa được lưu cùng mẫu.
 - Mở một mẫu có sẵn rồi bấm **Lưu mẫu** sẽ cập nhật trực tiếp chính file JSON đó trong `Mau-Tem-Hoa`, gồm nội dung, ảnh nền, hai lớp và hình xem trước. **Lưu mẫu mới** tạo một file khác. Mẫu mới chưa có tên vẫn mở hộp đặt tên khi lưu. Chức năng này cập nhật file mẫu ứng dụng, không ghi lại tài liệu Word nguồn.
+
+
+## Cầu vồng cho toàn trang hoặc dòng được bôi đen
+
+- Không bôi đen chữ: **⌒ Cầu vồng**, **Thẳng** và ô **Chữ cong** áp dụng cho tất cả các dòng của tất cả tem trên trang.
+- Bôi đen chữ: áp dụng cho toàn bộ những dòng có chữ được bôi đen trong tem đang sửa, kể cả khi chỉ chọn một phần của dòng. Các dòng khác giữ độ cong hiện có.
+- Có thể làm cong nhiều dòng cùng lúc; không cần chọn Dòng đầu/Dòng thứ 2. **Thẳng** cũng dùng cùng phạm vi chọn.
+- Độ cong riêng của từng dòng được giữ khi lưu/mở mẫu, sao chép tem, hoàn tác/làm lại, in và xuất PNG/Word/SVG. Mẫu cũ vẫn đọc được thiết lập cong từng dòng trước đây.
