@@ -137,3 +137,13 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - **Thêm ảnh từ máy…** nhận PNG/JPG/WebP. Có thể chọn vùng cắt trên ảnh nhỏ, chọn màu nền bằng cách bấm vào ảnh và bật **Xóa nền ảnh**; chỉ phần nền nối với mép ảnh được xóa để giữ chi tiết bên trong. PNG trong suốt dùng trực tiếp.
 - Ảnh được nhúng vào mẫu; không cần giữ đường dẫn ảnh gốc. Lưu/mở mẫu và sao chép tem giữ các hình và thông số. Mẫu một/nhiều tem cũ vẫn mở được. Mẫu có ảnh tối đa 32 MB; lịch sử giới hạn theo bộ nhớ.
 - Preview, bản in, PNG và Word đều có hình trang trí. Emoji được vẽ rồi nhúng dưới dạng PNG trong suốt khi xuất SVG để giữ đúng màu và hình dáng đã thấy trong preview; chữ và viền vẫn là vector. Ảnh nhập từ máy vẫn là bitmap nhúng trong SVG.
+
+
+## Tem thường từ mẫu Word của cửa hàng
+
+- Đã bổ sung 38 mẫu có phần chữ chỉnh sửa được từ tài liệu Word của cửa hàng vào `Mau-Tem-Hoa`, tên bắt đầu bằng `Word-`. Mỗi mẫu giữ khung nền riêng, phông của các dòng và nội dung chuyển sang Unicode; không cần mở Word để đổi lời chúc.
+- Bấm **Lấy phông trên máy** và cho phép truy cập để dùng các phông `.Vn` giống Word. Máy cần có phông tương ứng; ứng dụng không phân phối tệp phông.
+- Bấm **Tem thường · Word**, chọn hình mẫu, rồi bấm **Thay nội dung**. Dòng mới giữ phông, cỡ chữ, đậm/nghiêng của dòng tương ứng. Thêm dòng dùng định dạng dòng cuối. Khung nền giữ nguyên. Dán đè toàn bộ chữ trong preview cũng giữ định dạng theo dòng; dán trong một đoạn dùng định dạng ở vị trí dán.
+- Nền Word là ảnh nhúng, chữ được soạn và xuất riêng. Các đối tượng Word cổ điển đã được chuyển thành nền ảnh; không phải mọi hình Word đều trở thành đối tượng vector chỉnh sửa được. Những ảnh có chữ nằm sẵn trong bitmap không tự biến thành văn bản.
+- **Đọc ảnh mẫu** nhận ảnh PNG/JPEG/WebP, đọc chữ bằng OCR tiếng Việt/Anh trên trình duyệt và cho kiểm tra kết quả trước khi thay nội dung. Lần đầu cần Internet để tải Tesseract.js và dữ liệu OCR. Nếu không tải được hoặc ảnh dùng chữ nghệ thuật khó đọc, có thể nhập/sửa nội dung thủ công. Không cần API AI; ảnh được xử lý trên máy.
+- OCR không biết chính xác tên phông từ ảnh. Nội dung nhận diện được đưa vào tem đang chọn, giữ phông và kích thước của tem đó. Khi lưu mẫu, phần Word và hình xem trước được lưu cùng mẫu.
