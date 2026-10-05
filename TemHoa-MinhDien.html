@@ -378,7 +378,7 @@ function scanError(e){
  if(e?.name==='SecurityError')return 'Trình duyệt đang chặn quyền đọc phông cho tệp này. Hãy kiểm tra quyền phông của trang; nếu vẫn bị chặn, cần mở phần mềm qua localhost hoặc HTTPS.';
  return 'Không đọc được danh sách phông: '+(e?.message||'Hãy thử lại bằng Chrome hoặc Edge trên máy tính.');
 }
-$('scanFonts').onclick=async()=>{
+async function scanComputerFonts(){
  if(typeof window.queryLocalFonts!=='function'){$('scanStatus').textContent='Trình duyệt này chưa hỗ trợ lấy phông trên máy. Hãy mở tệp bằng Chrome hoặc Edge trên máy Mac/Windows. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';return}
  $('scanFonts').disabled=true;$('scanStatus').textContent='Đang đọc danh sách phông…';
  try{
@@ -390,7 +390,8 @@ $('scanFonts').onclick=async()=>{
   let chosen=$('font').value;populateFontSelect($('font'),false,chosen);lineControls();await preview();
   $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Ưu tiên UTM, UVN ở đầu danh sách. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
  }catch(e){$('scanStatus').textContent=scanError(e);$('status').textContent=scanError(e)}finally{$('scanFonts').disabled=false}
-};
+}
+$('scanFonts').onclick=scanComputerFonts;
 
 function lineControls(){
  let lines=editorText().split('\n').slice(0,20);lineStyles.length=lines.length;let host=$('lineFonts');host.replaceChildren();
@@ -831,6 +832,10 @@ const manualBackground=document.createElement('details');manualBackground.id='ma
 const manualLabel=$('graphicWhite').closest('label');manualLabel.lastChild.textContent=' Xóa nền theo màu';manualBackground.append(manualLabel,$('graphicBackground').closest('.graphicFields'),$('pickGraphicBackground'));aiActions.after(manualBackground);
 const openDefaultAI=$('openBackgroundAI').onclick;$('openBackgroundAI').onclick=async()=>{$('aiMode').value='quality';await openDefaultAI()};
 
+if(window.TEMHOA_DESKTOP){
+  $('scanFonts').hidden=true;
+  window.addEventListener('load',()=>scanComputerFonts(),{once:true});
+}
 machineFonts=detectSystemFonts();
 populateFontSelect($('font'),false,'');
 $('scanStatus').textContent='Có thể dùng ngay phông hệ thống. Bấm Lấy phông trên máy để đọc danh sách đầy đủ.';
@@ -1113,3 +1118,4 @@ const beforeUnitOverlays=positionGraphicOverlays;positionGraphicOverlays=functio
 renderLayersPanel();
 
 </script></html>
+

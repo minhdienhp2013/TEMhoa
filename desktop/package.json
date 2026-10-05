@@ -1,0 +1,76 @@
+{
+  "name": "temhoa-desktop",
+  "version": "1.0.0",
+  "description": "TEMhoa Minh Dien - thiet ke tem hoa",
+  "author": "Minh Dien",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64",
+    "test:desktop": "node smoke.cjs"
+  },
+  "devDependencies": {
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.0",
+    "playwright": "^1.58.0"
+  },
+  "build": {
+    "appId": "vn.minhdien.temhoa",
+    "productName": "TEMhoa",
+    "asar": true,
+    "files": [
+      "main.cjs"
+    ],
+    "extraResources": [
+      {
+        "from": "../TemHoa-MinhDien.html",
+        "to": "app/TemHoa-MinhDien.html"
+      },
+      {
+        "from": "../Mo-TemHoa-Windows.ps1",
+        "to": "app/Mo-TemHoa-Windows.ps1"
+      },
+      {
+        "from": "../Background-TemHoa-Windows.ps1",
+        "to": "app/Background-TemHoa-Windows.ps1"
+      },
+      {
+        "from": "../Print-TemHoa-Windows.ps1",
+        "to": "app/Print-TemHoa-Windows.ps1"
+      },
+      {
+        "from": "../Mau-Tem-Hoa",
+        "to": "app/Mau-Tem-Hoa"
+      },
+      {
+        "from": "../build-ai/temhoa-ai",
+        "to": "ai"
+      },
+      {
+        "from": "../build-models",
+        "to": "models"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "TEMhoa-Setup-${version}-${arch}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TEMhoa",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "directories": {
+      "output": "../release"
+    }
+  }
+}

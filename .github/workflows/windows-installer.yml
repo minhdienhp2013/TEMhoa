@@ -1,0 +1,54 @@
+name: Windows installer with offline AI
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', '*.ps1', '*.html', 'background_ai.py', '.github/workflows/windows-installer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install AI build dependencies
+        run: python -m pip install "rembg[cpu]==2.0.67" "pyinstaller>=6.11,<7"
+      - name: Download both offline models
+        shell: pwsh
+        run: |
+          $env:U2NET_HOME = Join-Path $PWD 'build-models'
+          python background_ai.py --prepare fast
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python background_ai.py --prepare quality
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build standalone AI worker
+        run: python -m PyInstaller --noconfirm --onedir --name temhoa-ai --distpath build-ai --workpath build-ai-work --collect-all rembg --collect-all onnxruntime --collect-all pymatting background_ai.py
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install
+      - name: Check app, automatic fonts, uploads and bundled AI
+        working-directory: desktop
+        run: npm run test:desktop
+      - name: Build Windows setup EXE
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:win
+      - name: Check packaged application
+        working-directory: desktop
+        env:
+          TEMHOA_TEST_PACKAGED: '1'
+        run: npm run test:desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TEMhoa-Windows-Setup
+          path: release/*Setup*.exe
+          if-no-files-found: error
+          retention-days: 30

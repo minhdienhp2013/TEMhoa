@@ -4,9 +4,9 @@ $taskRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $taskHtml = Join-Path $taskRoot 'TemHoa-MinhDien.html'
 if (!(Test-Path -LiteralPath $taskHtml)) { throw 'TemHoa-MinhDien.html is missing. Extract the complete ZIP first.' }
 $taskToken = [Guid]::NewGuid().ToString('N')
-$taskTemplateRoot = Join-Path $taskRoot 'Mau-Tem-Hoa'
+$taskTemplateRoot = if ($env:TEMHOA_TEMPLATE_ROOT) { $env:TEMHOA_TEMPLATE_ROOT } else { Join-Path $taskRoot 'Mau-Tem-Hoa' }
 $taskHtmlText = [System.IO.File]::ReadAllText($taskHtml, [System.Text.Encoding]::UTF8)
-$taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;</script><script>")
+$taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;window.TEMHOA_DESKTOP=$($env:TEMHOA_DESKTOP -eq '1' | ConvertTo-Json -Compress);</script><script>")
 $taskBytes = [System.Text.Encoding]::UTF8.GetBytes($taskHtmlText)
 function Get-TemplatePath([string]$name) {
     $name = $name.Trim()
@@ -26,7 +26,7 @@ try { $taskListener.Start() } catch {
     $taskListener.Start()
 }
 $taskPort = $taskListener.LocalEndpoint.Port
-$taskUrl = "http://localhost:$taskPort/"
+$taskUrl = "http://127.0.0.1:$taskPort/"
 $taskBrowsers = @(
     "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
     "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe",
@@ -35,7 +35,9 @@ $taskBrowsers = @(
     "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe"
 )
 $taskBrowser = $taskBrowsers | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if ($taskBrowser) { Start-Process -FilePath $taskBrowser -ArgumentList $taskUrl } else { Start-Process $taskUrl }
+if ($env:TEMHOA_DESKTOP -ne '1') {
+    if ($taskBrowser) { Start-Process -FilePath $taskBrowser -ArgumentList $taskUrl } else { Start-Process $taskUrl }
+}
 Write-Host "Tem Hoa: $taskUrl"
 Write-Host 'Keep this window open while using Tem Hoa. Close it to stop.'
 try {
@@ -179,3 +181,4 @@ try {
         } catch { } finally { $taskClient.Dispose() }
     }
 } finally { $taskListener.Stop(); Close-TemHoaBackground }
+
