@@ -1005,12 +1005,17 @@ const layersStyle=document.createElement('style');layersStyle.textContent=`
 @media(max-width:600px){#layersPanel{position:absolute;right:0;top:0;bottom:0;z-index:15;width:230px;box-shadow:-3px 0 12px #20334d25}.wordWorkspace{position:relative}}
 `;document.head.append(layersStyle);
 let selectedUnitKey='',layerDragData=null;
+const selectedLayerUnits=new Set();
+const layerSelectionId=(labelId,key)=>JSON.stringify([labelId,key]);
 function activeUnitKey(){return selectedGraphicId||selectedUnitKey}
-async function selectLayerUnit(labelId,key){
+async function selectLayerUnit(labelId,key,additive=false,preserve=false){
  if(labelOperation||layerBusy)return;
+ const selectionId=layerSelectionId(labelId,key);
+ if(additive&&!preserve){if(!selectedLayerUnits.size&&activeUnitKey())selectedLayerUnits.add(layerSelectionId(activeLabelId,activeUnitKey()));if(selectedLayerUnits.has(selectionId)){selectedLayerUnits.delete(selectionId);const fallback=[...selectedLayerUnits].at(-1);if(fallback){const [owner,unit]=JSON.parse(fallback);await selectLayerUnit(owner,unit,true,true)}else{selectedUnitKey='';selectedGraphicId=null;selectedGraphicSet.clear();positionGraphicOverlays();syncGraphicControls();renderLayersPanel()}return}}else if(!preserve) selectedLayerUnits.clear();
+ selectedLayerUnits.add(selectionId);
  if(labelId!==activeLabelId)await activateLabel(labelId);
  selectedUnitKey=key;
- if(key.startsWith('graphic-')){const item=decorations.find(item=>item.id===key);if(!item)return;selectGraphicItems(item);$('editLayer').value='image'}
+ if(key.startsWith('graphic-')){const item=decorations.find(item=>item.id===key);if(!item)return;selectGraphicItems(item);selectedGraphicSet=new Set(decorations.filter(graphic=>selectedLayerUnits.has(layerSelectionId(activeLabelId,graphic.id))).map(graphic=>graphic.id));$('editLayer').value='image'}
  else{selectedGraphicId=null;selectedGraphicSet.clear();$('editLayer').value='text';if(key.startsWith('text-')){const runs=(previewSize?.L.runs||[]).filter(run=>(run.layerKey||'text-0')===key);if(runs.length){const start=Math.min(...runs.map(run=>run.textStart)),end=Math.max(...runs.map(run=>run.textEnd));if(Number.isFinite(start)&&Number.isFinite(end)){savedSelection=rangeOffsets($('temEditor'),{start,end});$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}}}}
  positionGraphicOverlays();syncGraphicControls();renderLayersPanel();
 }
@@ -1038,9 +1043,9 @@ function renderLayersPanel(){
   const stack=readLayerStack(label.id===activeLabelId?$('layerStack').value:label.settings.layerStack||'{}');
   for(const unit of orderedLayerUnits(L,stack).reverse()){
    const row=document.createElement('div');row.className='layerRow';row.tabIndex=0;row.setAttribute('role','button');row.dataset.labelId=label.id;row.dataset.unitKey=unit.key;
-   row.classList.toggle('selected',label.id===activeLabelId&&activeUnitKey()===unit.key);
+   const selected=selectedLayerUnits.size?selectedLayerUnits.has(layerSelectionId(label.id,unit.key)):label.id===activeLabelId&&activeUnitKey()===unit.key;row.classList.toggle('selected',selected);row.setAttribute('aria-pressed',String(selected));
    const name=unit.kind==='text'?'Chữ · '+(unit.text.trim()||'Dòng trống'):unit.kind==='background'?unit.text:(unit.item.kind==='image'?'Ảnh':graphicNames[unit.item.kind]||'Emoji');
-   row.title=name;row.setAttribute('aria-label',name);
+   row.title=name+' · Shift + bấm để chọn/bỏ chọn nhiều lớp';row.setAttribute('aria-label',name);
    const grip=document.createElement('span');grip.className='layerGrip';grip.textContent='⋮⋮';grip.draggable=true;grip.title='Kéo để đổi lớp';
    grip.ondragstart=event=>{layerDragData={labelId:label.id,key:unit.key};event.dataTransfer.setData('text/plain',unit.key);event.dataTransfer.effectAllowed='move'};
    grip.ondragend=()=>{layerDragData=null;host.querySelectorAll('.layerRow').forEach(node=>node.classList.remove('dropBefore','dropAfter'))};
@@ -1049,8 +1054,8 @@ function renderLayersPanel(){
    else{const icon=document.createElement('span');icon.className='layerThumb layerIcon';icon.textContent=unit.kind==='text'?'T':unit.kind==='background'?'▱':(emojiIcons[unit.item.kind]?.[0]||legacyEmoji[unit.item.kind]||'✦');row.append(icon)}
    const text=document.createElement('span');text.className='layerName';text.textContent=name;row.append(text);
    if(unit.kind==='graphic'){const lock=document.createElement('button');lock.type='button';lock.className='layerLock';lock.textContent=unit.item.locked?'🔒':'🔓';lock.title=unit.item.locked?'Mở khóa hình':'Khóa hình';lock.onclick=async event=>{event.stopPropagation();await selectLayerUnit(label.id,unit.key);await imageLockButton.onclick();renderLayersPanel()};row.append(lock)}
-   row.onclick=()=>selectLayerUnit(label.id,unit.key).catch(error=>$('status').textContent=error.message);
-   row.onkeydown=event=>{if(event.target!==row)return;if(['Enter',' '].includes(event.key)){event.preventDefault();row.click()}else if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();selectLayerUnit(label.id,unit.key).then(()=>moveObjectLayer(event.key==='ArrowUp'?1:-1)).catch(error=>$('status').textContent=error.message)}};
+   row.onclick=event=>selectLayerUnit(label.id,unit.key,event.shiftKey).catch(error=>$('status').textContent=error.message);
+   row.onkeydown=event=>{if(event.target!==row)return;if(['Enter',' '].includes(event.key)){event.preventDefault();selectLayerUnit(label.id,unit.key,event.shiftKey).catch(error=>$('status').textContent=error.message)}else if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();selectLayerUnit(label.id,unit.key).then(()=>moveObjectLayer(event.key==='ArrowUp'?1:-1)).catch(error=>$('status').textContent=error.message)}};
    row.ondragover=event=>{if(layerDragData?.labelId!==label.id)return;event.preventDefault();const after=event.clientY>row.getBoundingClientRect().top+row.offsetHeight/2;row.classList.toggle('dropBefore',!after);row.classList.toggle('dropAfter',after)};
    row.ondragleave=()=>row.classList.remove('dropBefore','dropAfter');
    row.ondrop=event=>{event.preventDefault();row.classList.remove('dropBefore','dropAfter');const drag=layerDragData;layerDragData=null;if(!drag||drag.labelId!==label.id)return;reorderLayerUnit(label.id,drag.key,unit.key,event.clientY>row.getBoundingClientRect().top+row.offsetHeight/2).catch(error=>$('status').textContent=error.message)};
@@ -1068,6 +1073,7 @@ moveObjectLayer=async function(delta,graphicOnly=false){
 };
 const beforeUnitLayerButtons=syncLayerButtons;syncLayerButtons=function(){beforeUnitLayerButtons();const key=activeUnitKey(),L=previewSize?.L;if(!key||!L)return;const order=orderedLayerUnits(L).map(unit=>unit.key),index=order.indexOf(key);for(const prefix of ['layer','menuLayer']){$(prefix+'Up').disabled=layerBusy||index<0||index===order.length-1;$(prefix+'Down').disabled=layerBusy||index<=0}};
 const beforeUnitPanelZoom=zoom;zoom=function(){beforeUnitPanelZoom();renderLayersPanel()};
+$('previewArea').addEventListener('pointerdown',()=>selectedLayerUnits.clear(),true);
 $('temEditor').addEventListener('pointerup',()=>{captureSelection();const offsets=selectionOffsets(),run=previewSize?.L.runs.find(run=>run.textStart<=offsets?.start&&run.textEnd>offsets?.start);selectedUnitKey=run?.layerKey||'text-0';renderLayersPanel();syncLayerButtons()});
 const beforeUnitOverlays=positionGraphicOverlays;positionGraphicOverlays=function(){beforeUnitOverlays();const order=previewSize?.L?orderedLayerUnits(previewSize.L).map(unit=>unit.key):[];$('labelSurface').querySelectorAll('.graphicOverlay').forEach(box=>box.style.zIndex=6+order.indexOf(box.dataset.graphicId))};
 renderLayersPanel();
