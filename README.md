@@ -141,9 +141,16 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 
 ## Tem thường từ mẫu Word của cửa hàng
 
-- Đã bổ sung 38 mẫu có phần chữ chỉnh sửa được từ tài liệu Word của cửa hàng vào `Mau-Tem-Hoa`, tên bắt đầu bằng `Word-`. Mỗi mẫu giữ khung nền riêng, phông của các dòng và nội dung chuyển sang Unicode; không cần mở Word để đổi lời chúc.
-- Bấm **Lấy phông trên máy** và cho phép truy cập để dùng các phông `.Vn` giống Word. Máy cần có phông tương ứng; ứng dụng không phân phối tệp phông.
+- Đã bổ sung 38 mẫu có phần chữ chỉnh sửa được từ tài liệu Word của cửa hàng vào `Mau-Tem-Hoa`, tên bắt đầu bằng `Word-`. Đã xóa toàn bộ chữ và định dạng phông cũ theo yêu cầu của cửa hàng; chỉ giữ ảnh nền để tự làm lại chữ. Ảnh nền mặc định khóa.
+- Bấm **Lấy phông trên máy**, cho phép truy cập và chọn phông muốn dùng cho phần chữ mới. Ứng dụng không phân phối tệp phông.
 - Bấm **Tem thường · Word**, chọn hình mẫu, rồi bấm **Thay nội dung**. Dòng mới giữ phông, cỡ chữ, đậm/nghiêng của dòng tương ứng. Thêm dòng dùng định dạng dòng cuối. Khung nền giữ nguyên. Dán đè toàn bộ chữ trong preview cũng giữ định dạng theo dòng; dán trong một đoạn dùng định dạng ở vị trí dán.
 - Nền Word là ảnh nhúng, chữ được soạn và xuất riêng. Các đối tượng Word cổ điển đã được chuyển thành nền ảnh; không phải mọi hình Word đều trở thành đối tượng vector chỉnh sửa được. Những ảnh có chữ nằm sẵn trong bitmap không tự biến thành văn bản.
 - **Đọc ảnh mẫu** nhận ảnh PNG/JPEG/WebP, đọc chữ bằng OCR tiếng Việt/Anh trên trình duyệt và cho kiểm tra kết quả trước khi thay nội dung. Lần đầu cần Internet để tải Tesseract.js và dữ liệu OCR. Nếu không tải được hoặc ảnh dùng chữ nghệ thuật khó đọc, có thể nhập/sửa nội dung thủ công. Không cần API AI; ảnh được xử lý trên máy.
 - OCR không biết chính xác tên phông từ ảnh. Nội dung nhận diện được đưa vào tem đang chọn, giữ phông và kích thước của tem đó. Khi lưu mẫu, phần Word và hình xem trước được lưu cùng mẫu.
+
+
+## Lớp chữ, lớp ảnh và lưu vào mẫu gốc
+
+- Chọn **Lớp chữ** hoặc **Lớp ảnh / emoji** tại thanh Đoạn văn. Ở lớp chữ, ảnh không chặn thao tác nhập liệu. Kéo nút **✥ Chữ**, hoặc chỉnh **X chữ / Y chữ (cm)** để di chuyển riêng chữ mà không đổi ảnh nền.
+- **Khóa ảnh** giữ ảnh tại vị trí và kích thước hiện có. Ảnh khóa không thể kéo, xoay, đổi kích thước hoặc xóa. Bấm **Mở khóa ảnh** để chỉnh lại; trạng thái khóa được lưu cùng mẫu.
+- Mở một mẫu có sẵn rồi bấm **Lưu mẫu** sẽ cập nhật trực tiếp chính file JSON đó trong `Mau-Tem-Hoa`, gồm nội dung, ảnh nền, hai lớp và hình xem trước. **Lưu mẫu mới** tạo một file khác. Mẫu mới chưa có tên vẫn mở hộp đặt tên khi lưu. Chức năng này cập nhật file mẫu ứng dụng, không ghi lại tài liệu Word nguồn.
