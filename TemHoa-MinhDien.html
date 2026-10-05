@@ -1110,7 +1110,7 @@ async function deleteHomeEntry(entry){if(homeBusy||homeDeleteBusy)return;homeBus
  if(response.status===501||response.status===405)throw Error('Dịch vụ đang chạy là bản cũ. Nhấn Control+C trong Terminal rồi chạy lại bash Mo-TemHoa-Mac.command.');
  const raw=await response.text();let data;try{data=JSON.parse(raw)}catch{throw Error('Dịch vụ không trả kết quả hợp lệ. Đóng phiên Terminal cũ rồi mở lại phần mềm.')}
  if(!response.ok)throw Error(data.error||'Không xóa được mẫu.');
- entry.card.remove();homeEntries=homeEntries.filter(item=>item!==entry);if(currentTemplateName===entry.fileName)currentTemplateName='';filterHome();homeDeleteDialog.close();$('homeStatus').textContent='Đã xóa mẫu '+entry.name+'.';
+ entry.card.remove();homeEntries=homeEntries.filter(item=>item!==entry);autoContexts.delete(entry.fileName);if(autoContext?.name===entry.fileName)autoContext=null;if(currentTemplateName===entry.fileName)currentTemplateName='';filterHome();homeDeleteDialog.close();$('homeStatus').textContent='Đã xóa mẫu '+entry.name+'.';
  }catch(error){const message=error.name==='AbortError'?'Xóa mẫu quá thời gian chờ. Hãy kiểm tra Terminal rồi thử lại.':error.message;$('homeDeleteError').textContent=message;$('homeStatus').textContent=message;}finally{clearTimeout(timeout);homeBusy=false;homeDeleteBusy=false;remove.disabled=false;$('homeDeleteConfirm').disabled=false;$('homeDeleteCancel').disabled=false;}}
 
 function enterHomeEditor(){home.hidden=true;homeLoadRevision++;$('temEditor').focus({preventScroll:true})}
@@ -1223,7 +1223,7 @@ $('png').onclick=()=>openOutputDialog('png');$('svg').onclick=()=>openOutputDial
 
 /* Autosave uses stable template identity and a serialized write queue. */
 $('save').hidden=true;saveAsButton.hidden=true;
-const autoSaveStatus=document.createElement('span');autoSaveStatus.id='autoSaveStatus';autoSaveStatus.setAttribute('role','status');autoSaveStatus.style.cssText='font-size:12px;align-self:center;padding:6px 9px;border-radius:5px;background:#ffffff18;color:white';autoSaveStatus.textContent='Tự động lưu';document.querySelector('.quickActions').prepend(autoSaveStatus);
+const autoSaveStatus=document.createElement('span');autoSaveStatus.id='autoSaveStatus';autoSaveStatus.setAttribute('role','status');autoSaveStatus.style.cssText='font-size:12px;align-self:center;padding:6px 9px;border-radius:5px;background:#ffffff18;color:white';autoSaveStatus.textContent='Tự động lưu';autoSaveStatus.hidden=true;document.querySelector('.quickActions').prepend(autoSaveStatus);
 let autoContext=null,autoTimer=null,autoSuspended=0,autoWritePromise=null,autoDraftChain=Promise.resolve();
 const autoContexts=new Map();
 function autoMessage(message){autoSaveStatus.textContent=message;autoSaveStatus.title=autoContext?autoContext.name:''}
@@ -1241,12 +1241,12 @@ const autoShowHome=showTemHome;showTemHome=async function(...args){await flushAu
 const autoOpenHome=openHomeEntry;openHomeEntry=async function(...args){await flushAutoSave();autoSuspended++;try{await autoOpenHome(...args);if(home.hidden)beginAutoDocument(currentTemplateName,true)}finally{autoSuspended--;captureAutoChanges()}};
 const autoCreateDesign=createBlankDesign;createBlankDesign=async function(...args){await flushAutoSave();autoSuspended++;try{await autoCreateDesign(...args);if(home.hidden)beginAutoDocument('',false)}finally{autoSuspended--;captureAutoChanges()}};
 const autoCreateCloud=createCloudTemplate;createCloudTemplate=async function(...args){await flushAutoSave();autoSuspended++;try{await autoCreateCloud(...args);if(home.hidden)beginAutoDocument('',false)}finally{autoSuspended--;captureAutoChanges()}};
-const autoApplyTemplate=applyTemplate;applyTemplate=async function(...args){autoSuspended++;try{return await autoApplyTemplate(...args)}finally{autoSuspended--}};
+const autoApplyTemplate=applyTemplate;applyTemplate=async function(...args){if(!autoSuspended)await flushAutoSave();autoSuspended++;try{return await autoApplyTemplate(...args)}finally{autoSuspended--}};
 const autoContinue=$('homeContinue').onclick;$('homeContinue').onclick=async()=>{await autoContinue();if(home.hidden&&!autoContext)beginAutoDocument(currentTemplateName,false)};
 $('save').onclick=()=>flushAutoSave();saveAsButton.onclick=()=>flushAutoSave();
 document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&!event.altKey&&event.key.toLowerCase()==='s'){event.preventDefault();event.stopImmediatePropagation();flushAutoSave()}},true);
 window.addEventListener('online',()=>flushAutoSave());window.addEventListener('pagehide',()=>flushAutoSave());
-window.addEventListener('beforeunload',event=>{if(autoContext&&(autoContext.pending||autoWritePromise)){event.preventDefault();event.returnValue=''}});
+
 async function recoverAutoDrafts(){if(!window.TEMHOA_TOKEN)return;const jobs=await new Promise((resolve,reject)=>{const open=indexedDB.open('temhoa-autosave',1);open.onupgradeneeded=()=>open.result.createObjectStore('pending',{keyPath:'name'});open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,tx=db.transaction('pending'),request=tx.objectStore('pending').getAll();request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);tx.oncomplete=()=>db.close()}});for(const job of jobs){try{await postAutoTemplate(job);await autoDraft('delete',job.name)}catch(error){autoMessage('Có bản nháp chưa lưu');return}}if(jobs.length&&!home.hidden){await homeLoadTask;homeLoadTask=loadHomeSaved()}}
 window.addEventListener('load',()=>recoverAutoDrafts().catch(()=>{}),{once:true});
 
