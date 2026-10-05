@@ -167,3 +167,11 @@ Kho 60 mẫu tự tạo theo chủ đề đã được gỡ bỏ. Trang chủ ch
 - Bấm dòng chữ để chọn nội dung của dòng; bấm ảnh/emoji để chọn hình, dùng nút khóa trên hàng để khóa/mở khóa hình. Lên/Xuống 1 lớp áp dụng cho đơn vị đang chọn.
 - Các tem được phân thành mục riêng theo thứ tự trên trang. Nút Lớp thu gọn/mở lại bảng. Alt + mũi tên lên/xuống trên hàng hỗ trợ đổi lớp bằng bàn phím.
 - Thứ tự được lưu trong mẫu, giữ khi undo/redo và được dùng cho preview, in, PNG/Word/SVG. Không ghi thay đổi vào tài liệu Word nguồn.
+
+## Thiết kế đồ họa cho tem thường
+
+- Trang chủ → **＋ Tem thường mới** tạo thiết kế tự do. **T · Văn bản** thêm một khối chữ độc lập; phím T khi không nhập liệu cũng thêm chữ.
+- Bấm khối chữ để chọn, kéo trực tiếp tới vị trí bất kỳ trên trang. Bấm đúp hoặc **Sửa chữ** để nhập và định dạng; bấm **Xong** để kéo lại. Dùng tay kéo góc để đổi kích thước.
+- Mẫu Word cũ được giữ ảnh nền và tách từng dòng chữ thành khối riêng khi mở. Bấm **Lưu mẫu mới** để giữ bản thiết kế mới, hoặc **Lưu mẫu** để cập nhật mẫu đang mở.
+- Bảng Lớp, nhóm, nhân đôi, xóa, undo/redo và dữ liệu vị trí dùng chung với cơ chế lưu/xuất hiện có. Hiện tối đa 20 khối/tem trên một trang; chế độ khối chữ chưa có xoay cả khối chữ.
+- Tem mây tiếp tục nhập chữ và tạo viền như trước. Bộ cài Windows chỉ dựng khi chạy workflow thủ công; giai đoạn hiện tại dùng launcher Mac để thử và sửa.
