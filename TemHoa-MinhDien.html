@@ -1260,7 +1260,7 @@ const recentSection=document.createElement('section');recentSection.id='homeRece
 function renderHomeRecent(){const query=homeNormalize($('homeSearch').value.trim());const entries=homeEntries.filter(entry=>entry.saved&&homeNormalize(entry.name+' '+(entry.keywords||'')).includes(query)).map(entry=>({entry,time:Math.max(Number(homeRecentTimes[entry.fileName])||0,Number(entry.template?.recentAt)||0)})).filter(item=>item.time>0).sort((a,b)=>b.time-a.time).slice(0,6);recentSection.hidden=homeType!=='all'||!entries.length;$('homeRecentGrid').replaceChildren();for(const {entry} of entries){const card=entry.card.cloneNode(true);card.hidden=false;card.dataset.recentTemplate=entry.fileName;card.querySelector('.homeCardOpen').onclick=()=>openHomeEntry(entry);card.querySelector('.homeDelete').onclick=event=>{event.preventDefault();event.stopPropagation();requestHomeDelete(entry)};card.querySelector('small').textContent='Vừa sửa hoặc in';$('homeRecentGrid').append(card)}}
 const recentFilterHome=filterHome;filterHome=function(...args){recentFilterHome(...args);renderHomeRecent()};
 const recentConfirmPrint=$('confirmPrint').onclick;$('confirmPrint').onclick=async function(...args){if(printPageCanvas&&printSnapshot&&currentTemplateName){const time=Date.now();rememberRecentTemplate(currentTemplateName,time);const context=autoContext;if(context){const template={version:1,settings:copyLabelData(settings()),thumbnail:autoThumbnail(),recentAt:time};const job={name:context.name,revision:++context.revision,template};context.pending=job;autoDraft('put',job).catch(()=>{});flushAutoSave()}renderHomeRecent()}return recentConfirmPrint.apply(this,args)};
-filterHome();
+filterHome();$('homeSearch').oninput=filterHome;
 
 </script></html>
 
