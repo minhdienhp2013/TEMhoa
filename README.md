@@ -114,13 +114,9 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Khi không chọn emoji/ảnh, hai nút đổi thứ tự giữa các tem trên trang. Chuột phải vào tem hoặc hình cũng có hai lệnh này. Phím tắt **Alt + PageUp / Alt + PageDown** khi đang làm việc trong preview.
 - Chỉ dịch một bậc mỗi lần, không thay vị trí/kích thước; nút tự khóa khi đã ở lớp cao nhất/thấp nhất. Thứ tự được giữ trong mẫu đã lưu, xuất PNG/Word/SVG và bản in; hỗ trợ undo/redo.
 
-## Kho mẫu theo chủ đề
+## Mẫu tự thiết kế
 
-- Bấm **Kho mẫu · 60** trên thanh trên cùng để chọn trong 60 mẫu có sẵn, dùng được cả khi không có mạng.
-- 15 chủ đề: sinh nhật, 8/3, 20/10, Ngày của bố, Ngày của mẹ, thầy cô 20/11, Valentine, đám cưới, kỷ niệm, khai trương, tốt nghiệp, cảm ơn, Tết, Giáng sinh và thăm hỏi sức khỏe. Mỗi chủ đề có 4 kiểu màu/bố cục: đỏ hồng cổ điển, hồng tím dịu dàng, xanh lá thanh lịch và đỏ tối giản.
-- Lọc theo chủ đề hoặc tìm kiếm không dấu; nhập người nhận và người gửi nếu muốn. Chọn **Thay tem đang chọn** hoặc **Thêm tem mới vào trang** trước khi bấm mẫu. Các tem khác và mẫu đã lưu không bị thay đổi.
-- Mẫu là thiết kế nguyên bản, có chữ Unicode, nền trắng và icon có sẵn; sử dụng phông đang chọn trên máy. Có thể sửa từng chữ, đổi phông/màu, kéo/xoay hình, in và xuất như tem thông thường. Hình thu nhỏ chỉ minh họa bố cục.
-- Bấm **Lưu mẫu** để giữ phiên bản đã chỉnh trong Mau-Tem-Hoa. Undo/redo hỗ trợ việc áp dụng mẫu.
+Kho 60 mẫu tự tạo theo chủ đề đã được gỡ bỏ. Trang chủ chỉ hiển thị mẫu Word và mẫu cá nhân. Dùng **Tạo tem / Tiếp tục chỉnh sửa** để thiết kế thủ công, rồi **Lưu mẫu mới** để thêm vào kho mẫu của bạn.
 
 ## Xóa nền AI cho người và ảnh
 
