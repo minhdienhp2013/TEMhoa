@@ -20,3 +20,5 @@ jobs:
       - run: node tests/design-smoke.cjs
 
       - run: node tests/delete-template-smoke.cjs
+
+      - run: node tests/output-paper-smoke.cjs
