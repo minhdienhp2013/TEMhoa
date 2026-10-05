@@ -1,0 +1,44 @@
+name: Publish tested Windows installer
+on:
+  workflow_run:
+    workflows: ['Windows installer with offline AI']
+    types: [completed]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: TEMhoa-Windows-Setup
+          path: installer
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Publish installer download
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TESTED_COMMIT: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          $file = Get-ChildItem installer -Filter 'TEMhoa-Setup-*-x64.exe' | Select-Object -First 1
+          if (!$file) { throw 'Installer is missing' }
+          $version = $file.Name -replace '^TEMhoa-Setup-', '' -replace '-x64.exe$', ''
+          $tag = "v$version"
+          @'
+          TEMhoa cho Windows 10/11 x64. Tải file Setup.exe bên dưới và cài một lần, sau đó mở từ Desktop hoặc Start Menu.
+
+          Bao gồm AI tách nền Nhanh và Chất lượng chạy ngoại tuyến. Tự động nạp các phông chữ đã cài trên máy. Không cần chạy BAT, cài Python hoặc trình duyệt riêng.
+
+          Đã kiểm tra khởi động, phông chữ tự động, thêm ảnh và cả hai mô hình AI trên Windows, trước và sau khi đóng gói. Bản dựng chưa ký chứng thư.
+          '@ | Set-Content release-notes.txt -Encoding utf8
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $file.FullName --target $env:TESTED_COMMIT --title "TEMhoa $version cho Windows" --notes-file release-notes.txt
+          } else {
+            gh release upload $tag $file.FullName --clobber
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
