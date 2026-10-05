@@ -782,6 +782,14 @@ $('aiAfter').onpointerdown=event=>{if(aiBusy||!aiResult||event.button!==0)return
 $('aiAfter').onpointermove=event=>{if(!aiBrushPoint)return;const next=aiPoint(event),old=aiBrushPoint,distance=Math.hypot(next.x-old.x,next.y-old.y),steps=Math.max(1,Math.ceil(distance/Math.max(1,next.r/2)));for(let i=1;i<=steps;i++)aiPaint({x:old.x+(next.x-old.x)*i/steps,y:old.y+(next.y-old.y)*i/steps,r:next.r});aiBrushPoint=next};for(const name of ['pointerup','pointercancel','lostpointercapture'])$('aiAfter').addEventListener(name,()=>aiBrushPoint=null);
 $('aiUndo').onclick=async()=>{if(!aiBrushHistory.length||aiBusy)return;const source=aiBrushHistory.pop();aiDraw($('aiAfter'),await loadGraphic(source));syncAIButtons()};$('aiReset').onclick=async()=>{if(!aiResult||aiBusy)return;aiDraw($('aiAfter'),await loadGraphic(aiResult));aiBrushHistory=[];syncAIButtons()};
 const beforeAIControls=syncGraphicControls;syncGraphicControls=function(){beforeAIControls();const item=selectedGraphic(),valid=item?.kind==='image'&&graphicGroupItems(item).length===1;$('openBackgroundAI').disabled=!valid;$('restoreGraphicOriginal').disabled=!valid||!item.original||item.src===item.original};
+// AI is the primary removal action; color removal remains an explicit manual option.
+$('aiMode').value='quality';
+$('openBackgroundAI').textContent='Xóa nền ảnh · AI';
+$('openBackgroundAI').title='Xóa nền bằng AI — mặc định Chất lượng cao';
+Object.assign($('openBackgroundAI').style,{background:'#215a99',color:'#ffffff',borderColor:'#215a99'});
+const manualBackground=document.createElement('details');manualBackground.id='manualBackground';const manualSummary=document.createElement('summary');manualSummary.textContent='Xóa nền theo màu (thủ công)';manualBackground.append(manualSummary);
+const manualLabel=$('graphicWhite').closest('label');manualLabel.lastChild.textContent=' Xóa nền theo màu';manualBackground.append(manualLabel,$('graphicBackground').closest('.graphicFields'),$('pickGraphicBackground'));aiActions.after(manualBackground);
+const openDefaultAI=$('openBackgroundAI').onclick;$('openBackgroundAI').onclick=async()=>{$('aiMode').value='quality';await openDefaultAI()};
 
 machineFonts=detectSystemFonts();
 populateFontSelect($('font'),false,'');
