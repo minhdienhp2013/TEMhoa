@@ -49,6 +49,7 @@ body{height:100dvh;overflow:hidden;padding-bottom:0;display:flex;flex-direction:
 'use strict';
 const $=id=>document.getElementById(id), ids=['text','font','customFont','size','spacing','curveAmount','curveLine','bold','italic','underline','align','fill','body','padding','border','edge','width','page','inputEncoding','labelScaleX','labelScaleY','labelX','labelY','lockRatio'];
 const curveOverridesControl=document.createElement('input');curveOverridesControl.type='hidden';curveOverridesControl.id='curveOverrides';curveOverridesControl.value='{}';document.body.append(curveOverridesControl);ids.push('curveOverrides');
+const layerStackControl=document.createElement('input');layerStackControl.type='hidden';layerStackControl.id='layerStack';layerStackControl.value='{}';document.body.append(layerStackControl);ids.push('layerStack');
 const frameControl=document.createElement('input');frameControl.type='hidden';frameControl.id='wordFrame';frameControl.value='';document.body.append(frameControl);ids.push('wordFrame');
 
 const layerFields=document.createElement('div');layerFields.innerHTML='<label>Chọn lớp <select id="editLayer"><option value="text">Lớp chữ</option><option value="image">Lớp ảnh / emoji</option></select></label><div class="ribbonRow"><label>X chữ (cm)</label><input id="textOffsetX" type="number" step="0.1" value="0"><label>Y chữ (cm)</label><input id="textOffsetY" type="number" step="0.1" value="0"></div>';document.querySelector('.alignTools').closest('.ribbonGroup').append(layerFields);ids.push('editLayer','textOffsetX','textOffsetY');
@@ -246,6 +247,7 @@ function layout(){
    runs.push({textStart:textOffset,textEnd:textOffset+n.length,text:n.textContent,font,x:rect.left-origin.left,y:baseline,width:rect.width,size:parseFloat(style.fontSize),underline:hasUnderline(n,mirror)});textOffset+=n.length;marker.remove();
   }
   let height=Math.ceil(Math.max(size*number('spacing',0,2)+margin*2,mirror.getBoundingClientRect().height)),lines=text.split('\n');if(width>12000||height>12000)throw Error('Tem quá lớn. Hãy giảm cỡ chữ hoặc xuống dòng.');
+  curveGroups(runs).forEach((line,index)=>line.runs.forEach(run=>run.layerKey='text-'+index));
   return {lines,size,pad,border,margin,width,height,runs,font:runs[0]?.font||getComputedStyle(mirror).font,fonts:runs.map(r=>r.font)};
  }finally{mirror.remove()}
 }
@@ -256,7 +258,7 @@ function render(high=false,heightScale=1,pageOutput=true){
  if(outH>13000||outW*outH>40000000)throw Error('Tem quá lớn để xuất 600 DPI. Hãy giảm số dòng hoặc chiều rộng tem.');
  let s=outW/L.width,w=outW,h=outH,text=cv(w,h),tc=text.getContext('2d');drawText(tc,L,s,'#ffffff');let data=tc.getImageData(0,0,w,h).data,alpha=new Uint8Array(w*h);for(let i=0;i<alpha.length;i++)alpha[i]=data[i*4+3]>30?255:0;
  let inner=fillHoles(dilate(alpha,w,h,L.pad*s),w,h),outer=fillHoles(dilate(inner,w,h,L.border*s),w,h);
- let c=cv(outW,outH),ctx=c.getContext('2d');ctx.drawImage(maskCanvas(outer.map((v,i)=>Math.max(0,v-inner[i])),w,h,'edge'),0,0);ctx.drawImage(maskCanvas(inner,w,h,'body'),0,0);drawText(ctx,L,s,'fill');if(high&&pageOutput){let bounds=visibleBounds(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height),page=previewPage(),result=cv(Math.round(page.width/2.54*600),Math.round(page.height*heightScale/2.54*600));result.getContext('2d').drawImage(c,bounds.x,bounds.y,bounds.width,bounds.height,0,0,result.width,result.height);return {c:result,cm:page.width,heightCm:page.height*heightScale}}return {c,cm,heightCm:cm*outH/outW};
+ let c=cv(outW,outH),ctx=c.getContext('2d');paintLayerStack(ctx,L,s,()=>{ctx.drawImage(maskCanvas(outer.map((v,i)=>Math.max(0,v-inner[i])),w,h,'edge'),0,0);ctx.drawImage(maskCanvas(inner,w,h,'body'),0,0)});if(high&&pageOutput){let bounds=visibleBounds(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height),page=previewPage(),result=cv(Math.round(page.width/2.54*600),Math.round(page.height*heightScale/2.54*600));result.getContext('2d').drawImage(c,bounds.x,bounds.y,bounds.width,bounds.height,0,0,result.width,result.height);return {c:result,cm:page.width,heightCm:page.height*heightScale}}return {c,cm,heightCm:cm*outH/outW};
 }
 async function preview(){syncPaperWidth();let version=++previewRevision;$('status').textContent='Đang tải phông từ máy…';try{await ensureActiveFonts();if(version!==previewRevision)return;syncAlign();let {c,cm,heightCm}=render();$('canvas').width=c.width;$('canvas').height=c.height;$('canvas').getContext('2d').drawImage(c,0,0);let ink=null;try{ink=visibleBounds(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height)}catch{}previewSize={cm,heightCm,L:layout(),ink:ink?{x:ink.x/c.width,y:ink.y/c.height,width:ink.width/c.width,height:ink.height/c.height}:null};$('fontNotice').textContent='Phông dùng: '+[...new Set([...layout().lines.map((_,i)=>activeFamily(i)),...Array.from($('temEditor').querySelectorAll('[data-family]'),n=>n.dataset.family)])].join(' · ')+' (từ máy tính). '+[...new Set(layout().lines.map((_,i)=>fontLoadNotes.get(activeFamily(i))).filter(Boolean))].join(' ');updateFontPicker($('font'));zoom();$('dimensions').textContent=`Kích thước in: ${cm.toFixed(1)} × ${heightCm.toFixed(1)} cm. PNG/SVG phủ kín ${previewPage().name}; Word cao 50% trang, ảnh 600 DPI, không lề.`;$('status').textContent='';}catch(e){if(version!==previewRevision)return;$('canvas').getContext('2d').clearRect(0,0,$('canvas').width,$('canvas').height);$('fontNotice').textContent='';$('dimensions').textContent='Chưa có bản xem trước.';$('status').textContent=e.message}}
 function ruler(canvas,length,cm,vertical=false,pageLength=length,origin=0){
@@ -514,7 +516,7 @@ function vectorSVG(){
  const text=new Uint8Array(w*h),silhouette=new Uint8Array(w*h);for(let i=0;i<text.length;i++){text[i]=rgba[i*4+3]>=128?255:0;silhouette[i]=silhouetteRGBA[i*4+3]>30?255:0}
  let inner=fillHoles(dilate(silhouette,w,h,L.pad*s),w,h),outer=fillHoles(dilate(inner,w,h,L.border*s),w,h),bounds=visibleBounds(outer,w,h,true),page=previewPage();
  const defs=[];const color=id=>{const p=safePaint(colorStyles[id]);if(p.type==='clear')return 'none';if(p.type==='solid')return safeHex($(id).value);let gid='paint-'+id,stops=p.colors.map((c,i)=>`<stop offset="${i*100}%" stop-color="${c}"/>`).join('');if(p.type==='radial')defs.push(`<radialGradient id="${gid}" gradientUnits="userSpaceOnUse" cx="${w/2}" cy="${h/2}" r="${Math.hypot(w,h)/2}">${stops}</radialGradient>`);else{const [x1,y1,x2,y2]=gradientPoints(w,h,p.angle);defs.push(`<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">${stops}</linearGradient>`)}return `url(#${gid})`};
- let paths=[['vien-ngoai',outer.map((v,i)=>Math.max(0,v-inner[i])),color('edge'),true],['nen-tem',inner,color('body'),true],['chu',text,color('fill'),false]].map(([id,mask,fill,round])=> (id==='chu'?graphicsSVG(L,s,true):'')+`<path id="${id}" fill="${fill}" fill-rule="evenodd" d="${contourPath(mask,w,h,round)}"/>`).join('\n')+graphicsSVG(L,s,false);
+ let paths=layerStackSVG(L,s,w,h,inner,outer,color);
  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${page.width}cm" height="${page.height}cm" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}" preserveAspectRatio="none"><title>Tem Hoa Minh Điến</title><desc>Chữ và viền được chuyển thành đường vector từ nét hiển thị. Không cần phông chữ khi mở tệp. Các đường là xấp xỉ biên chữ, không phải đường glyph gốc của phông.</desc>\n<defs>${defs.join('')}</defs>\n${paths}\n</svg>`;
 }
 $('svg').onclick=()=>action(async()=>{await new Promise(resolve=>requestAnimationFrame(resolve));download(new Blob([vectorSVG()],{type:'image/svg+xml;charset=utf-8'}),'Tem-Hoa-Minh-Dien.svg')},'Đã tạo SVG vector. Chữ đã chuyển thành đường, không cần cài phông khi mở tệp.');
@@ -561,6 +563,7 @@ function currentLabel(){if(!labels.length){activeLabelId='tem-'+(++labelSequence
 function saveActiveLabel(bitmap=false){const label=currentLabel();label.settings=oneLabelSettings();if(bitmap&&previewSize){label.size=previewSize;label.bitmap=cv($('canvas').width,$('canvas').height);label.bitmap.getContext('2d').drawImage($('canvas'),0,0);label.renderVersion=(label.renderVersion||0)+1}return label}
 function setLabelSettings(value,ui=false){
  for(const id of ['editLayer','textOffsetX','textOffsetY'])$(id).value=value[id]??(id==='editLayer'?'text':0);
+ $('layerStack').value=typeof value.layerStack==='string'?value.layerStack:'{}';
  $('curveOverrides').value=typeof value.curveOverrides==='string'?value.curveOverrides:'{}';
  $('curveAmount').value=value.curveAmount??0;$('curveLine').value=value.curveLine??1;
  $('wordFrame').value=typeof value.wordFrame==='string'?value.wordFrame:'';
@@ -721,7 +724,7 @@ for(const [id,name] of [['all','Tất cả'],...occasionThemes.map(t=>[t[0],t[1]
 async function useOccasionPreset(preset){
  currentTemplateName='';
  if(occasionBusy||labelOperation)return;occasionBusy=true;$('occasionMessage').textContent='Đang tạo mẫu…';const original=copyLabelData(oneLabelSettings());let changed=false;
- try{await preview();saveActiveLabel(true);recordHistory();if($('occasionMode').value==='add'&&labels.length>=20)throw Error('Một trang tối đa 20 tem.');const lines=occasionLines(preset),page=previewPage(),font=$('font').value||'sans-serif',data={...copyLabelData(oneLabelSettings()),text:lines.join('\n'),richHTML:plainHTML(lines.join('\n')),font,customFont:'',inputEncoding:'unicode',size:64,spacing:.8,bold:true,italic:preset.look.italic,underline:false,align:'center',fill:preset.look.fill,body:'#ffffff',edge:preset.look.edge,padding:40,border:.3,width:Math.min(24,page.width-2),labelScaleX:1,labelScaleY:1,lockRatio:false,lineStyles:[],decorations:[],curveAmount:0,curveLine:0,curveOverrides:'{}',wordFrame:'',colorStyles:{},defaultTextStyle:{size:64,bold:true,italic:preset.look.italic,underline:false}};
+ try{await preview();saveActiveLabel(true);recordHistory();if($('occasionMode').value==='add'&&labels.length>=20)throw Error('Một trang tối đa 20 tem.');const lines=occasionLines(preset),page=previewPage(),font=$('font').value||'sans-serif',data={...copyLabelData(oneLabelSettings()),text:lines.join('\n'),richHTML:plainHTML(lines.join('\n')),font,customFont:'',inputEncoding:'unicode',size:64,spacing:.8,bold:true,italic:preset.look.italic,underline:false,align:'center',fill:preset.look.fill,body:'#ffffff',edge:preset.look.edge,padding:40,border:.3,width:Math.min(24,page.width-2),labelScaleX:1,labelScaleY:1,lockRatio:false,lineStyles:[],decorations:[],curveAmount:0,curveLine:0,curveOverrides:'{}',layerStack:'{}',wordFrame:'',colorStyles:{},defaultTextStyle:{size:64,bold:true,italic:preset.look.italic,underline:false}};
  // Keep the active label's placement, but do not inherit mixed character formatting.
  const recipient=$('occasionRecipient').value.trim();data.richHTML=lines.map((line,index)=>'<div><span style="font-size:'+((index===0?64:recipient&&index===1?56:line.startsWith('Từ: ')?36:44)*96/72)+'px">'+esc(line)+'</span></div>').join('');
  if($('occasionMode').value==='add'){data.labelX='';data.labelY=String(Math.max(1,...labels.map(label=>(Number(label.settings.labelY)||1)+(label.size?.heightCm||3)*Number(label.settings.labelScaleY||1)))+.7)}setLabelSettings(data,true);
@@ -994,5 +997,119 @@ const compactRibbonStyle=document.createElement('style');compactRibbonStyle.text
 .labelToolsGrid button:disabled{opacity:.45;cursor:default}
 @media(max-width:720px){.wordRibbon>.ribbonGroup{padding:0 7px}.labelToolsGroup{min-width:210px}}
 `;document.head.append(compactRibbonStyle);
+
+
+/* Per-unit layer stack. Order is bottom-to-top; the panel displays top first. */
+function readLayerStack(value=$('layerStack').value){try{const data=JSON.parse(value);return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}}
+function layerUnits(L){
+ const texts=[...new Set(L.runs.map(run=>run.layerKey||'text-0'))].map(key=>({key,kind:'text',text:L.runs.filter(run=>(run.layerKey||'text-0')===key).map(run=>run.text).join('')}));
+ return [{key:'background',kind:'background',text:'Nền & viền tem'},...(L.graphics||[]).filter(item=>item.behindText).map(item=>({key:item.id,kind:'graphic',item})),...texts,...(L.graphics||[]).filter(item=>!item.behindText).map(item=>({key:item.id,kind:'graphic',item}))];
+}
+function orderedLayerUnits(L,stack=readLayerStack()){
+ const units=layerUnits(L),map=new Map(units.map(unit=>[unit.key,unit])),result=[];
+ for(const key of Array.isArray(stack.order)?stack.order:[]){if(map.has(key)){result.push(map.get(key));map.delete(key)}}
+ return result.concat([...map.values()]);
+}
+function paintLayerUnit(ctx,L,scale,unit,color='fill'){
+ if(unit.kind==='text')textOnlyDraw(ctx,{...L,runs:L.runs.filter(run=>(run.layerKey||'text-0')===unit.key)},scale,color);
+ if(unit.kind==='graphic'){ctx.save();ctx.scale(scale,scale);drawGraphic(ctx,unit.item,color!=='fill');ctx.restore()}
+}
+function paintLayerStack(ctx,L,scale,paintBackground){
+ for(const unit of orderedLayerUnits(L)){if(unit.kind==='background')paintBackground();else paintLayerUnit(ctx,L,scale,unit)}
+}
+function layerStackSVG(L,scale,w,h,inner,outer,color){
+ return orderedLayerUnits(L).map(unit=>{
+  if(unit.kind==='background')return '<path fill="'+color('edge')+'" fill-rule="evenodd" d="'+contourPath(outer.map((v,i)=>Math.max(0,v-inner[i])),w,h,true)+'"/><path fill="'+color('body')+'" fill-rule="evenodd" d="'+contourPath(inner,w,h,true)+'"/>';
+  if(unit.kind==='graphic')return graphicsSVG({...L,graphics:[unit.item]},scale);
+  const canvas=cv(w,h),ctx=canvas.getContext('2d');paintLayerUnit(ctx,L,scale,unit,'#ffffff');const rgba=ctx.getImageData(0,0,w,h).data,mask=new Uint8Array(w*h);for(let i=0;i<mask.length;i++)mask[i]=rgba[i*4+3]>=128?255:0;
+  return '<path fill="'+color('fill')+'" fill-rule="evenodd" d="'+contourPath(mask,w,h,false)+'"/>';
+ }).join('\n');
+}
+const layersPanel=document.createElement('aside');layersPanel.id='layersPanel';layersPanel.setAttribute('aria-label','Các lớp trên trang');
+layersPanel.innerHTML='<div class="layersHeading"><strong>Lớp</strong><button id="closeLayersPanel" type="button" aria-label="Thu gọn bảng lớp">✕</button></div><p class="layersHint">Lớp trên che lớp dưới. Kéo ⋮⋮ để sắp xếp trong từng tem.</p><div id="layersList"></div>';
+document.querySelector('.wordWorkspace').append(layersPanel);
+const toggleLayers=document.createElement('button');toggleLayers.id='toggleLayers';toggleLayers.type='button';toggleLayers.textContent='☷ Lớp';toggleLayers.onclick=()=>{document.body.classList.toggle('layersCollapsed');toggleLayers.setAttribute('aria-expanded',String(!document.body.classList.contains('layersCollapsed')));zoom()};toggleLayers.setAttribute('aria-expanded','true');labelToolsGrid.append(toggleLayers);
+$('closeLayersPanel').onclick=()=>toggleLayers.click();
+const layersStyle=document.createElement('style');layersStyle.textContent=`
+.wordWorkspace{display:flex;min-height:0}.documentColumn{flex:1;min-width:0}
+#layersPanel{width:260px;flex:0 0 260px;background:#fff;border-left:1px solid #ced6e0;overflow:auto;padding:12px;min-height:0}
+.layersHeading{display:flex;align-items:center;justify-content:space-between;color:#354a62}.layersHeading button{border:0;padding:4px 8px;background:transparent}
+.layersHint{font-size:11px;color:#657486;line-height:1.5;margin:8px 0 12px}
+.layerSection{margin-bottom:14px}.layerSectionTitle{border:0;background:transparent;font-size:11px;font-weight:bold;color:#596c80;padding:6px 0;text-align:left;width:100%}
+.layerRow{display:flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:7px;background:#eef0f4;margin:5px 0;padding:7px;min-height:47px;cursor:pointer}
+.layerRow.selected{border-color:#8855ff;background:#f2edff}.layerRow.dropBefore{border-top:3px solid #8855ff}.layerRow.dropAfter{border-bottom:3px solid #8855ff}
+.layerGrip{cursor:grab;color:#87909b;padding:3px;font-size:16px;flex-shrink:0}.layerThumb{width:34px;height:30px;object-fit:contain;border-radius:3px;background:#fff;flex-shrink:0}
+.layerIcon{display:grid;place-items:center;font-size:20px}.layerName{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.layerLock{padding:4px;border:0;background:transparent;font-size:13px;flex-shrink:0}.layersCollapsed #layersPanel{display:none}
+@media(max-width:800px){#layersPanel{width:210px;flex-basis:210px}}
+@media(max-width:600px){#layersPanel{position:absolute;right:0;top:0;bottom:0;z-index:15;width:230px;box-shadow:-3px 0 12px #20334d25}.wordWorkspace{position:relative}}
+`;document.head.append(layersStyle);
+let selectedUnitKey='',layerDragData=null;
+function activeUnitKey(){return selectedGraphicId||selectedUnitKey}
+async function selectLayerUnit(labelId,key){
+ if(labelOperation||layerBusy)return;
+ if(labelId!==activeLabelId)await activateLabel(labelId);
+ selectedUnitKey=key;
+ if(key.startsWith('graphic-')){const item=decorations.find(item=>item.id===key);if(!item)return;selectGraphicItems(item);$('editLayer').value='image'}
+ else{selectedGraphicId=null;selectedGraphicSet.clear();$('editLayer').value='text';if(key.startsWith('text-')){const runs=(previewSize?.L.runs||[]).filter(run=>(run.layerKey||'text-0')===key);if(runs.length){const start=Math.min(...runs.map(run=>run.textStart)),end=Math.max(...runs.map(run=>run.textEnd));if(Number.isFinite(start)&&Number.isFinite(end)){savedSelection=rangeOffsets($('temEditor'),{start,end});$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}}}}
+ positionGraphicOverlays();syncGraphicControls();renderLayersPanel();
+}
+async function reorderLayerUnit(labelId,key,targetKey,after=false){
+ if(layerBusy||labelOperation||graphicDrag||labelDrag||key===targetKey)return;
+ if(labelId!==activeLabelId)await activateLabel(labelId);
+ layerBusy=true;
+ try{
+  recordHistory();const L=previewSize?.L||layout(),order=orderedLayerUnits(L).map(unit=>unit.key),from=order.indexOf(key);
+  if(from<0||!order.includes(targetKey))return;
+  order.splice(from,1);const index=order.indexOf(targetKey);order.splice(index+(after?0:1),0,key);
+  $('layerStack').value=JSON.stringify({order});selectedUnitKey=key;
+  // Keep graphic hit-testing and the older image tools in the same relative order.
+  decorations.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
+  await preview();recordHistory();syncGraphicControls();
+ }finally{layerBusy=false;renderLayersPanel()}
+}
+function renderLayersPanel(){
+ if(!previewSize)return;
+ const host=$('layersList'),scroll=layersPanel.scrollTop;host.replaceChildren();
+ [...labels].reverse().forEach(label=>{
+  const L=label.id===activeLabelId?previewSize.L:label.size?.L;if(!L)return;
+  const section=document.createElement('section');section.className='layerSection';
+  const title=document.createElement('button');title.type='button';title.className='layerSectionTitle';title.textContent='Tem '+(labels.indexOf(label)+1);title.onclick=()=>activateLabel(label.id).then(renderLayersPanel);section.append(title);
+  const stack=readLayerStack(label.id===activeLabelId?$('layerStack').value:label.settings.layerStack||'{}');
+  for(const unit of orderedLayerUnits(L,stack).reverse()){
+   const row=document.createElement('div');row.className='layerRow';row.tabIndex=0;row.setAttribute('role','button');row.dataset.labelId=label.id;row.dataset.unitKey=unit.key;
+   row.classList.toggle('selected',label.id===activeLabelId&&activeUnitKey()===unit.key);
+   const name=unit.kind==='text'?'Chữ · '+(unit.text.trim()||'Dòng trống'):unit.kind==='background'?unit.text:(unit.item.kind==='image'?'Ảnh':graphicNames[unit.item.kind]||'Emoji');
+   row.title=name;row.setAttribute('aria-label',name);
+   const grip=document.createElement('span');grip.className='layerGrip';grip.textContent='⋮⋮';grip.draggable=true;grip.title='Kéo để đổi lớp';
+   grip.ondragstart=event=>{layerDragData={labelId:label.id,key:unit.key};event.dataTransfer.setData('text/plain',unit.key);event.dataTransfer.effectAllowed='move'};
+   grip.ondragend=()=>{layerDragData=null;host.querySelectorAll('.layerRow').forEach(node=>node.classList.remove('dropBefore','dropAfter'))};
+   row.append(grip);
+   if(unit.kind==='graphic'&&unit.item.kind==='image'){const img=document.createElement('img');img.className='layerThumb';img.src=unit.item.src;img.alt='';img.draggable=false;row.append(img)}
+   else{const icon=document.createElement('span');icon.className='layerThumb layerIcon';icon.textContent=unit.kind==='text'?'T':unit.kind==='background'?'▱':(emojiIcons[unit.item.kind]?.[0]||legacyEmoji[unit.item.kind]||'✦');row.append(icon)}
+   const text=document.createElement('span');text.className='layerName';text.textContent=name;row.append(text);
+   if(unit.kind==='graphic'){const lock=document.createElement('button');lock.type='button';lock.className='layerLock';lock.textContent=unit.item.locked?'🔒':'🔓';lock.title=unit.item.locked?'Mở khóa hình':'Khóa hình';lock.onclick=async event=>{event.stopPropagation();await selectLayerUnit(label.id,unit.key);await imageLockButton.onclick();renderLayersPanel()};row.append(lock)}
+   row.onclick=()=>selectLayerUnit(label.id,unit.key).catch(error=>$('status').textContent=error.message);
+   row.onkeydown=event=>{if(event.target!==row)return;if(['Enter',' '].includes(event.key)){event.preventDefault();row.click()}else if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();selectLayerUnit(label.id,unit.key).then(()=>moveObjectLayer(event.key==='ArrowUp'?1:-1)).catch(error=>$('status').textContent=error.message)}};
+   row.ondragover=event=>{if(layerDragData?.labelId!==label.id)return;event.preventDefault();const after=event.clientY>row.getBoundingClientRect().top+row.offsetHeight/2;row.classList.toggle('dropBefore',!after);row.classList.toggle('dropAfter',after)};
+   row.ondragleave=()=>row.classList.remove('dropBefore','dropAfter');
+   row.ondrop=event=>{event.preventDefault();row.classList.remove('dropBefore','dropAfter');const drag=layerDragData;layerDragData=null;if(!drag||drag.labelId!==label.id)return;reorderLayerUnit(label.id,drag.key,unit.key,event.clientY>row.getBoundingClientRect().top+row.offsetHeight/2).catch(error=>$('status').textContent=error.message)};
+   section.append(row);
+  }
+  host.append(section);
+ });layersPanel.scrollTop=scroll;
+}
+const beforeUnitLayerMove=moveObjectLayer;
+moveObjectLayer=async function(delta,graphicOnly=false){
+ const key=activeUnitKey(),L=previewSize?.L;if(!key||!L)return beforeUnitLayerMove(delta,graphicOnly);
+ const order=orderedLayerUnits(L).map(unit=>unit.key),index=order.indexOf(key),next=index+delta;
+ if(index<0||next<0||next>=order.length)return;
+ return reorderLayerUnit(activeLabelId,key,order[next],delta<0);
+};
+const beforeUnitLayerButtons=syncLayerButtons;syncLayerButtons=function(){beforeUnitLayerButtons();const key=activeUnitKey(),L=previewSize?.L;if(!key||!L)return;const order=orderedLayerUnits(L).map(unit=>unit.key),index=order.indexOf(key);for(const prefix of ['layer','menuLayer']){$(prefix+'Up').disabled=layerBusy||index<0||index===order.length-1;$(prefix+'Down').disabled=layerBusy||index<=0}};
+const beforeUnitPanelZoom=zoom;zoom=function(){beforeUnitPanelZoom();renderLayersPanel()};
+$('temEditor').addEventListener('pointerup',()=>{captureSelection();const offsets=selectionOffsets(),run=previewSize?.L.runs.find(run=>run.textStart<=offsets?.start&&run.textEnd>offsets?.start);selectedUnitKey=run?.layerKey||'text-0';renderLayersPanel();syncLayerButtons()});
+const beforeUnitOverlays=positionGraphicOverlays;positionGraphicOverlays=function(){beforeUnitOverlays();const order=previewSize?.L?orderedLayerUnits(previewSize.L).map(unit=>unit.key):[];$('labelSurface').querySelectorAll('.graphicOverlay').forEach(box=>box.style.zIndex=6+order.indexOf(box.dataset.graphicId))};
+renderLayersPanel();
 
 </script></html>

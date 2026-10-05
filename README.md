@@ -162,3 +162,12 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 - Bôi đen chữ: áp dụng cho toàn bộ những dòng có chữ được bôi đen trong tem đang sửa, kể cả khi chỉ chọn một phần của dòng. Các dòng khác giữ độ cong hiện có.
 - Có thể làm cong nhiều dòng cùng lúc; không cần chọn Dòng đầu/Dòng thứ 2. **Thẳng** cũng dùng cùng phạm vi chọn.
 - Độ cong riêng của từng dòng được giữ khi lưu/mở mẫu, sao chép tem, hoàn tác/làm lại, in và xuất PNG/Word/SVG. Mẫu cũ vẫn đọc được thiết lập cong từng dòng trước đây.
+
+
+## Bảng lớp bên phải
+
+- Bảng Lớp hiển thị từng dòng chữ, nền/viền tem và từng ảnh/emoji riêng. Các mẫu Word giữ ảnh nền thành một lớp ảnh có khóa.
+- Danh sách hiển thị lớp trên cùng trước. Kéo tay nắm ⋮⋮ tới nửa trên/dưới hàng khác để đổi thứ tự trong tem; nền, chữ và ảnh có thể đổi thứ tự với nhau.
+- Bấm dòng chữ để chọn nội dung của dòng; bấm ảnh/emoji để chọn hình, dùng nút khóa trên hàng để khóa/mở khóa hình. Lên/Xuống 1 lớp áp dụng cho đơn vị đang chọn.
+- Các tem được phân thành mục riêng theo thứ tự trên trang. Nút Lớp thu gọn/mở lại bảng. Alt + mũi tên lên/xuống trên hàng hỗ trợ đổi lớp bằng bàn phím.
+- Thứ tự được lưu trong mẫu, giữ khi undo/redo và được dùng cho preview, in, PNG/Word/SVG. Không ghi thay đổi vào tài liệu Word nguồn.
