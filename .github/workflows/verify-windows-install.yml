@@ -1,0 +1,61 @@
+name: Verify installed Windows app
+on:
+  workflow_run:
+    workflows: ['Windows installer with offline AI']
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: TEMhoa-Windows-Setup
+          path: installer
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Install EXE
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem installer -Filter 'TEMhoa-Setup-*-x64.exe' | Select-Object -First 1
+          $process = Start-Process -FilePath $file.FullName -ArgumentList '/S', '/D=C:\TemhoaInstallTest' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Installer failed' }
+          if (!(Test-Path 'C:\TemhoaInstallTest\TEMhoa.exe')) { throw 'Application was not installed' }
+      - name: Test installed homepage and capture screenshot
+        shell: pwsh
+        run: |
+          npm install --no-save playwright
+          @'
+          const { _electron }=require('playwright');
+          const assert=require('node:assert/strict');
+          (async()=>{
+            const app=await _electron.launch({executablePath:'C:\\TemhoaInstallTest\\TEMhoa.exe',timeout:60000});
+            try {
+              const page=await app.firstWindow({timeout:60000});
+              await page.waitForFunction(()=>document.getElementById('scanStatus').textContent.includes('Đã nạp'),null,{timeout:60000});
+              await page.locator('#temHome').waitFor({state:'visible'});
+              await page.screenshot({path:'TEMhoa-TrangChu.png'});
+              await page.locator('[data-home-type="cloud"]').click();
+              await page.locator('#homeSearch').fill('khai truong');
+              assert.equal(await page.locator('.homeCard:visible').count(),4);
+              await page.locator('.homeCard:visible').first().click();
+              await page.locator('#temHome').waitFor({state:'hidden',timeout:120000});
+              console.log('PASS: silent EXE install, automatic fonts, homepage, search, template opening');
+            } finally {await app.close()}
+          })().catch(error=>{console.error(error);process.exit(1)});
+          '@ | Set-Content verify.cjs -Encoding utf8
+          node verify.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: TEMhoa-Homepage-Preview
+          path: TEMhoa-TrangChu.png
+          if-no-files-found: ignore
