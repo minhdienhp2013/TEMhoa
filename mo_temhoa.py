@@ -53,8 +53,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         route = urlsplit(self.path)
         if route.path in ('/', '/TemHoa-MinhDien.html'):
-            html = HTML.read_text(encoding='utf-8').replace('<script>', '<script>window.TEMHOA_TOKEN=' + json.dumps(TOKEN) + ';</script><script>', 1)
+            html = HTML.read_text(encoding='utf-8')
+            ui = '<link rel="stylesheet" href="/professional-ui.css">'
+            html = html.replace('</head>', ui + '</head>', 1) if '</head>' in html else html.replace('<style>', ui + '<style>', 1)
+            html = html.replace('<script>', '<script>window.TEMHOA_TOKEN=' + json.dumps(TOKEN) + ';</script><script>', 1)
             self.reply(200, html.encode('utf-8'), 'text/html; charset=utf-8')
+        elif route.path == '/professional-ui.css':
+            css = (ROOT / 'professional-ui.css').read_bytes()
+            self.reply(200, css, 'text/css; charset=utf-8')
         elif route.path == '/api/background':
             if not self.api_allowed():
                 self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return
