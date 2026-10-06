@@ -42,3 +42,15 @@ Kết quả: PASS các bài kiểm thử nêu trên, `studio-core.cjs`, `delete-
 ## Sửa bộ chọn màu
 
 Cập nhật trực tiếp bằng sự kiện input của bộ chọn màu, không chờ đóng hộp chọn. Chọn màu tô bật lại tô nền; chọn màu viền khi viền bằng 0 bật viền 2 px. Giữ độ dày viền đã đặt. Hàng đợi xác định đối tượng bằng id, bảo vệ khóa và vùng chọn; tránh đồng bộ giá trị cũ vào bộ chọn màu đang có focus. Kiểm thử bổ sung chuỗi input màu nhanh, pixel tô và viền, undo/redo, lưu/mở lại và màu trong PNG thực tế.
+
+## Chuyển sắc cho hình
+
+Hai icon Kiểu màu tô và Kiểu màu viền mở bộ chọn màu gần nút bấm. Chọn Một màu / Chuyển sắc thẳng / Chuyển sắc tỏa tròn; đổi hai màu và góc 0–360 độ cho kiểu thẳng. Thay đổi phản ánh ngay trên canvas, không tự áp chuyển sắc khi chỉ chọn hình. Chọn ô màu đơn trên thanh công cụ đưa riêng màu tô hoặc viền về một màu. Đối tượng khóa được bảo vệ; Escape, nút đóng và bấm bên ngoài đóng bộ chọn và trả focus. Bộ chọn giới hạn theo kích thước cửa sổ.
+
+Thuộc tính shapeFillPaint / shapeStrokePaint được chuẩn hóa an toàn và lưu cùng đối tượng; mẫu cũ mặc định một màu. Canvas/PNG/PDF dùng cùng phép tạo gradient theo hệ tọa độ hình, có xoay/lật. SVG chứa linearGradient/radialGradient thực và id riêng cho từng lần vẽ. PDF giữ pipeline raster hiện có.
+
+PASS tests/shapes-smoke.cjs sau nâng cấp: cả 57 hình, input màu nhanh, viền tự bật, gradient thẳng/tỏa tròn cho tô và viền, pixel chuyển sắc, undo/redo, quay về màu đơn, khóa, SVG qua XML parser (định nghĩa/id/tham chiếu), PNG thực qua Pillow, PDF tải thực qua PyMuPDF, lưu/đóng/mở lại và bộ chọn ở cửa sổ 390 px. Không có pageerror hoặc HTTP lỗi. Kiểm tra trực quan ảnh thật cửa sổ rộng và hẹp; chưa build native Windows/Mac.
+
+![Chuyển sắc tô](shapes-screenshots/shape-gradient-fill.png)
+
+![Chuyển sắc cửa sổ hẹp](shapes-screenshots/shape-gradient-small.png)
