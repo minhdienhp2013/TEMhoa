@@ -35,4 +35,4 @@ const backgroundCheck=await page.evaluate(async()=>{
 });
 assert.deepEqual(backgroundCheck,{restoredClear:true,samePixels:true,sameSVG:true,hasInk:true,hasTransparent:true});
 
-assert.deepEqual(errors,[]);console.log('PASS: text creation, free drag, save/open, second text, render, cloud mode');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+await page.evaluate(()=>renderLayersPanel());assert.equal(await page.locator('#layersList [data-unit-key="background"]').count(),0);assert.equal(await page.getByRole('button',{name:'Viền tem',exact:true}).count(),0);assert.ok(await page.evaluate(()=>orderedLayerUnits(layout()).every(unit=>unit.kind!=='background')));assert.deepEqual(errors,[]);console.log('PASS: text creation, free drag, save/open, second text, render, cloud mode');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
