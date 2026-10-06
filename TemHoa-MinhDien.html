@@ -1280,5 +1280,188 @@ renderHomeThemes();filterHome();$('homeSearch').oninput=filterHome;
 
 
 
+
+/* Canva-like context menu for TEMhoa. Commands operate on the actual current selection. */
+const contextMenuStyle=document.createElement('style');contextMenuStyle.textContent="\n#labelContextMenu.canvaMenu{position:fixed;z-index:1000;width:292px;max-height:min(720px,calc(100vh - 20px));overflow:visible;padding:9px;background:#111214;color:#f7f7f8;border:1px solid #292b30;border-radius:16px;box-shadow:0 18px 55px #0008;font:14px Arial,sans-serif}\n#labelContextMenu.canvaMenu[hidden]{display:none}\n.canvaMenu .ctxItem{position:relative;display:flex;width:100%;min-height:43px;align-items:center;gap:11px;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left}\n.canvaMenu .ctxItem:hover,.canvaMenu .ctxItem:focus-visible,.canvaMenu .ctxItem.ctxOpen{background:#1c1e22;outline:none}\n.canvaMenu .ctxItem:disabled{opacity:.38;cursor:not-allowed}.canvaMenu .ctxIcon{display:grid;place-items:center;width:25px;flex:0 0 25px;font-size:20px}.canvaMenu .ctxText{flex:1;min-width:0}.canvaMenu .ctxShortcut{margin-left:auto;padding:4px 7px;border-radius:6px;background:#18191c;color:#d4d5d8;font-size:12px}.canvaMenu .ctxArrow{font-size:22px;margin-left:auto}.canvaMenu .ctxDivider{height:1px;background:#24262a;margin:6px 5px}\n.canvaMenu .ctxSub{position:absolute;left:calc(100% + 7px);top:-7px;width:240px;padding:8px;background:#111214;border:1px solid #292b30;border-radius:13px;box-shadow:0 14px 38px #0008;display:none}.canvaMenu .ctxHasSub:hover>.ctxSub,.canvaMenu .ctxHasSub:focus-within>.ctxSub{display:block}.canvaMenu.ctxOpenLeft .ctxSub{left:auto;right:calc(100% + 7px)}\n.canvaMenu .ctxDanger{color:#ff9b9b}\n";document.head.append(contextMenuStyle);
+
+const labelLockControl=document.createElement('input');labelLockControl.type='checkbox';labelLockControl.id='labelLocked';labelLockControl.hidden=true;document.body.append(labelLockControl);ids.push('labelLocked');
+const contextSetLabelSettings=setLabelSettings;setLabelSettings=function(value,ui=false){if(value?.labelLocked===undefined)labelLockControl.checked=false;return contextSetLabelSettings(value,ui)};
+
+let contextClipboardKind='',contextGraphicClipboard=null,contextStyleClipboard=null;
+const contextClone=value=>JSON.parse(JSON.stringify(value));
+
+function contextGraphicUnits(){
+ const chosen=new Set(graphicSelection().map(item=>item.id)),seen=new Set(),units=[];
+ for(const item of decorations){
+  if(!chosen.has(item.id))continue;
+  const key=item.groupId||item.id;if(seen.has(key))continue;seen.add(key);
+  const items=item.groupId?decorations.filter(member=>member.groupId===item.groupId&&chosen.has(member.id)):[item];
+  units.push({items,bounds:graphicGroupBounds(items)})
+ }
+ return units
+}
+function contextLabelUnits(){
+ saveActiveLabel();const chosen=new Set(selectedLabels().map(label=>label.id)),seen=new Set(),units=[];
+ for(const label of labels){
+  if(!chosen.has(label.id))continue;
+  const key=labelGroupKey(label)||label.id;if(seen.has(key))continue;seen.add(key);
+  const items=labelGroupKey(label)?labels.filter(member=>labelGroupKey(member)===labelGroupKey(label)&&chosen.has(member.id)):[label];
+  units.push({items,bounds:wholeGroupBounds(items)})
+ }
+ return units
+}
+function contextSelectionLocked(){if(selectedGraphic())return graphicSelection().some(item=>item.locked);saveActiveLabel();return selectedLabels().some(label=>label.settings.labelLocked===true)}
+function contextCanGroup(){return selectedGraphic()?graphicSelection().length>1:selectedLabels().length>1}
+function contextCanUngroup(){return selectedGraphic()?graphicSelection().some(item=>item.groupId):selectedLabels().some(label=>labelGroupKey(label))}
+function contextUnitCount(){return selectedGraphic()?contextGraphicUnits().length:contextLabelUnits().length}
+function contextMoveGraphicUnit(unit,dx,dy){for(const item of unit.items){item.x+=dx;item.y+=dy}}
+function contextMoveLabelUnit(unit,dx,dy){for(const label of unit.items){const g=labelGeometry(label);label.settings.labelX=String(g.x+dx);label.settings.labelY=String(g.y+dy)}}
+async function contextCommit(message=''){if(!selectedGraphic()){const active=currentLabel();setLabelSettings(active.settings,true);previewSize=active.size}await preview();recordHistory();syncGraphicControls();renderLayersPanel();if(message)$('status').textContent=message}
+
+async function contextCopySelection(){
+ if(selectedGraphic()){const items=graphicSelection();contextGraphicClipboard=items.map(contextClone);contextClipboardKind='graphic';$('status').textContent='Đã sao chép '+items.length+' thành phần.'}
+ else{await copyLabel();contextClipboardKind='label';contextGraphicClipboard=null}
+}
+async function contextPasteGraphics(){
+ const source=contextGraphicClipboard||[];if(!source.length)return;if(decorations.length+source.length>12){$('status').textContent='Một tem tối đa 12 hình / icon.';return}
+ recordHistory();groupSequence=Math.max(groupSequence,...decorations.map(item=>Number(item.groupId?.split('-')[1])||0),0);
+ const groups=new Map(),copies=source.map(original=>{let groupId='';if(original.groupId){if(!groups.has(original.groupId))groups.set(original.groupId,'group-'+(++groupSequence));groupId=groups.get(original.groupId)}return safeGraphic({...contextClone(original),id:'graphic-'+(++graphicSequence),groupId,x:original.x+25,y:original.y+25})});
+ decorations.push(...copies);selectedGraphicSet=new Set(copies.map(item=>item.id));selectedGraphicId=copies.at(-1)?.id||null;graphicSelectionOwner=activeLabelId;await ensureGraphics(copies);await contextCommit('Đã dán '+copies.length+' thành phần.')
+}
+async function contextPasteSelection(){if(contextClipboardKind==='graphic')return contextPasteGraphics();return pasteLabel()}
+async function contextDuplicateSelection(){
+ if(selectedGraphic()){const oldKind=contextClipboardKind,oldClip=contextGraphicClipboard;contextGraphicClipboard=graphicSelection().map(contextClone);contextClipboardKind='graphic';try{await contextPasteGraphics()}finally{contextClipboardKind=oldKind;contextGraphicClipboard=oldClip}}
+ else await duplicateLabel()
+}
+async function contextDeleteSelection(){
+ if(selectedGraphic()){const idsToDelete=new Set(graphicSelection().map(item=>item.id));if(!idsToDelete.size)return;recordHistory();decorations=decorations.filter(item=>!idsToDelete.has(item.id));selectedGraphicId=null;selectedGraphicSet.clear();await contextCommit('Đã xóa '+idsToDelete.size+' thành phần.');return}
+ saveActiveLabel();const chosen=selectedLabels(),remove=new Set(chosen.map(label=>label.id));if(labels.length-remove.size<1){$('status').textContent='Cần giữ lại ít nhất một khối thiết kế.';return}
+ recordHistory();labels=labels.filter(label=>!remove.has(label.id));activeLabelId=labels.at(-1).id;selectedLabelSet=new Set([activeLabelId]);setLabelSettings(currentLabel().settings,true);previewSize=currentLabel().size;await contextCommit('Đã xóa '+remove.size+' khối.')
+}
+function contextCopyStyle(){
+ if(selectedGraphic()){const item=selectedGraphic();contextStyleClipboard={kind:'graphic',style:contextClone({color:item.color,backgroundColor:item.backgroundColor,tolerance:item.tolerance,removeWhite:item.removeWhite,keepRatio:item.keepRatio,flipX:item.flipX,flipY:item.flipY})}}
+ else{saveActiveLabel();const data=currentLabel().settings,keys=['font','customFont','size','spacing','bold','italic','underline','align','fill','body','padding','border','edge','colorStyles','defaultTextStyle','lineStyles','curveAmount','curveOverrides','curveLine'];contextStyleClipboard={kind:'label',style:Object.fromEntries(keys.map(key=>[key,contextClone(data[key])]))}}
+ $('status').textContent='Đã sao chép định dạng.'
+}
+async function contextApplyStyle(){
+ if(!contextStyleClipboard){$('status').textContent='Chưa có định dạng đã sao chép.';return}
+ recordHistory();
+ if(selectedGraphic()&&contextStyleClipboard.kind==='graphic'){const style=contextStyleClipboard.style;for(const item of graphicSelection())for(const [key,value] of Object.entries(style)){if(item.kind==='image'&&key==='color')continue;if(item.kind!=='image'&&['backgroundColor','tolerance','removeWhite'].includes(key))continue;item[key]=contextClone(value)}}
+ else if(!selectedGraphic()&&contextStyleClipboard.kind==='label'){saveActiveLabel();for(const label of selectedLabels())Object.assign(label.settings,contextClone(contextStyleClipboard.style))}
+ else{$('status').textContent='Định dạng đã sao chép không cùng loại thành phần.';return}
+ await contextCommit('Đã dán định dạng.')
+}
+async function contextToggleLock(){
+ recordHistory();
+ if(selectedGraphic()){const items=graphicSelection(),lock=!items.every(item=>item.locked);items.forEach(item=>item.locked=lock);await contextCommit(lock?'Đã khóa thành phần.':'Đã mở khóa thành phần.')}
+ else{saveActiveLabel();const items=selectedLabels(),lock=!items.every(label=>label.settings.labelLocked===true);items.forEach(label=>label.settings.labelLocked=lock);labelLockControl.checked=currentLabel().settings.labelLocked===true;await contextCommit(lock?'Đã khóa thành phần.':'Đã mở khóa thành phần.')}
+}
+async function contextGroupSelection(ungroup=false){
+ if(ungroup&&!contextCanUngroup()){$('status').textContent='Vùng chọn chưa được nhóm.';return}
+ if(!ungroup&&!contextCanGroup()){$('status').textContent='Giữ Shift và chọn từ 2 thành phần trở lên để Nhóm.';return}
+ await groupGraphics(ungroup);renderLayersPanel()
+}
+async function contextMoveLayer(mode){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi đổi lớp.';return}
+ recordHistory();
+ if(selectedGraphic()){
+  const selected=new Set(graphicSelection().map(item=>item.id));let array=decorations.slice();
+  if(mode==='front')array=[...array.filter(x=>!selected.has(x.id)),...array.filter(x=>selected.has(x.id))];
+  else if(mode==='back')array=[...array.filter(x=>selected.has(x.id)),...array.filter(x=>!selected.has(x.id))];
+  else if(mode==='up'){for(let i=array.length-2;i>=0;i--)if(selected.has(array[i].id)&&!selected.has(array[i+1].id))[array[i],array[i+1]]=[array[i+1],array[i]]}
+  else if(mode==='down'){for(let i=1;i<array.length;i++)if(selected.has(array[i].id)&&!selected.has(array[i-1].id))[array[i],array[i-1]]=[array[i-1],array[i]]}
+  decorations=array
+ }else{
+  saveActiveLabel();const selected=new Set(selectedLabels().map(label=>label.id));let array=labels.slice();
+  if(mode==='front')array=[...array.filter(x=>!selected.has(x.id)),...array.filter(x=>selected.has(x.id))];
+  else if(mode==='back')array=[...array.filter(x=>selected.has(x.id)),...array.filter(x=>!selected.has(x.id))];
+  else if(mode==='up'){for(let i=array.length-2;i>=0;i--)if(selected.has(array[i].id)&&!selected.has(array[i+1].id))[array[i],array[i+1]]=[array[i+1],array[i]]}
+  else if(mode==='down'){for(let i=1;i<array.length;i++)if(selected.has(array[i].id)&&!selected.has(array[i-1].id))[array[i],array[i-1]]=[array[i-1],array[i]]}
+  labels=array
+ }
+ await contextCommit('Đã thay đổi thứ tự lớp.')
+}
+async function contextAlignSelection(mode){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi căn chỉnh.';return}
+ const units=selectedGraphic()?contextGraphicUnits():contextLabelUnits();if(units.length<2){$('status').textContent='Chọn ít nhất 2 thành phần để căn chỉnh.';return}
+ const left=Math.min(...units.map(u=>u.bounds.x)),top=Math.min(...units.map(u=>u.bounds.y)),right=Math.max(...units.map(u=>u.bounds.x+u.bounds.width)),bottom=Math.max(...units.map(u=>u.bounds.y+u.bounds.height)),cx=(left+right)/2,cy=(top+bottom)/2;recordHistory();
+ for(const unit of units){const b=unit.bounds;let dx=0,dy=0;if(mode==='left')dx=left-b.x;if(mode==='right')dx=right-(b.x+b.width);if(mode==='hcenter')dx=cx-(b.x+b.width/2);if(mode==='top')dy=top-b.y;if(mode==='bottom')dy=bottom-(b.y+b.height);if(mode==='vcenter')dy=cy-(b.y+b.height/2);selectedGraphic()?contextMoveGraphicUnit(unit,dx,dy):contextMoveLabelUnit(unit,dx,dy)}
+ await contextCommit('Đã căn chỉnh vùng chọn.')
+}
+async function contextDistributeSelection(axis){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi dàn cách.';return}
+ const units=selectedGraphic()?contextGraphicUnits():contextLabelUnits();if(units.length<3){$('status').textContent='Chọn ít nhất 3 thành phần để dàn cách đều.';return}
+ const horizontal=axis==='horizontal',sorted=units.slice().sort((a,b)=>(horizontal?a.bounds.x:a.bounds.y)-(horizontal?b.bounds.x:b.bounds.y)),start=horizontal?sorted[0].bounds.x:sorted[0].bounds.y,end=horizontal?sorted.at(-1).bounds.x+sorted.at(-1).bounds.width:sorted.at(-1).bounds.y+sorted.at(-1).bounds.height,total=sorted.reduce((sum,u)=>sum+(horizontal?u.bounds.width:u.bounds.height),0),gap=(end-start-total)/(sorted.length-1);recordHistory();let cursor=start;
+ for(const unit of sorted){const pos=horizontal?unit.bounds.x:unit.bounds.y,delta=cursor-pos;selectedGraphic()?contextMoveGraphicUnit(unit,horizontal?delta:0,horizontal?0:delta):contextMoveLabelUnit(unit,horizontal?delta:0,horizontal?0:delta);cursor+=(horizontal?unit.bounds.width:unit.bounds.height)+gap}
+ await contextCommit('Đã dàn cách đều '+(horizontal?'theo chiều ngang.':'theo chiều dọc.'))
+}
+async function contextCenterSelection(){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi căn giữa.';return}
+ if(selectedGraphic()){const units=contextGraphicUnits(),all=units.flatMap(u=>u.items);if(!all.length)return;const b=graphicGroupBounds(all),L=previewSize?.L||layout(),dx=L.width/2-(b.x+b.width/2),dy=L.height/2-(b.y+b.height/2);recordHistory();units.forEach(unit=>contextMoveGraphicUnit(unit,dx,dy))}
+ else{const units=contextLabelUnits();if(!units.length)return;const all=units.flatMap(u=>u.items),b=wholeGroupBounds(all),page=previewPage(),dx=page.width/2-(b.x+b.width/2),dy=page.height/2-(b.y+b.height/2);recordHistory();units.forEach(unit=>contextMoveLabelUnit(unit,dx,dy))}
+ await contextCommit('Đã căn vùng chọn vào giữa tem.')
+}
+async function contextUseColorForTem(){
+ let color='';if(selectedGraphic()){const item=selectedGraphic();color=item.kind==='image'?(item.backgroundColor||'#ffffff'):item.color}else{saveActiveLabel();color=currentLabel().settings.fill||'#ffffff'}if(!/^#[0-9a-f]{6}$/i.test(color))color='#ffffff';$('body').value=color;colorStyles.body={type:'solid'};recordHistory();await preview();recordHistory();updateColorButtons();$('status').textContent='Đã dùng màu '+color+' cho nền tem.'
+}
+async function contextDownloadSelection(){
+ let canvas;
+ if(selectedGraphic()){
+  const items=graphicSelection();if(!items.length)return;await ensureGraphics(items);const bounds=graphicGroupBounds(items),scale=Math.min(4,Math.max(1,1800/Math.max(bounds.width,bounds.height))),pad=8;canvas=cv(Math.max(1,Math.ceil(bounds.width*scale+pad*2)),Math.max(1,Math.ceil(bounds.height*scale+pad*2)));const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.translate(-bounds.x+pad/scale,-bounds.y+pad/scale);for(const item of decorations)if(items.includes(item))drawGraphic(ctx,item,false)
+ }else{
+  saveActiveLabel();const chosen=selectedLabels();if(!chosen.length)return;await ensureDocumentFonts();const original=oneLabelSettings(),parts=[];try{for(const label of chosen){setLabelSettings(label.settings);const output=render(false,1,false),page=previewPage(),x=label.settings.labelX===''?(page.width-output.cm)/2:Number(label.settings.labelX),y=label.settings.labelY===''?1:Number(label.settings.labelY),sx=Number(label.settings.labelScaleX||1),sy=Number(label.settings.labelScaleY||1);parts.push({c:output.c,x,y,w:output.cm*sx,h:output.heightCm*sy})}}finally{setLabelSettings(original,true)}const left=Math.min(...parts.map(p=>p.x)),top=Math.min(...parts.map(p=>p.y)),right=Math.max(...parts.map(p=>p.x+p.w)),bottom=Math.max(...parts.map(p=>p.y+p.h)),unit=120;canvas=cv(Math.max(1,Math.ceil((right-left)*unit)),Math.max(1,Math.ceil((bottom-top)*unit)));const ctx=canvas.getContext('2d');for(const p of parts)ctx.drawImage(p.c,(p.x-left)*unit,(p.y-top)*unit,p.w*unit,p.h*unit)
+ }
+ const link=document.createElement('a');link.download='TEMhoa-vung-chon.png';link.href=canvas.toDataURL('image/png');document.body.append(link);link.click();link.remove();$('status').textContent='Đã xuất vùng chọn PNG.'
+}
+
+window.addEventListener('pointerdown',event=>{
+ if(event.button!==0||event.target.closest?.('.graphicOverlay'))return;
+ if(event.target.closest?.('#wholeGroupFrame')&&selectedLabels().some(label=>label.settings.labelLocked===true)){event.preventDefault();event.stopPropagation();$('status').textContent='Thành phần đang khóa.';return}
+ const node=event.target.closest?.('.otherLabel,#labelSurface');if(!node)return;const id=node.dataset.labelId||activeLabelId,label=labels.find(item=>item.id===id);if(!label)return;const locked=label.id===activeLabelId?labelLockControl.checked:label.settings.labelLocked===true;if(!locked)return;
+ event.preventDefault();event.stopPropagation();if(label.id!==activeLabelId)activateLabel(label.id).then(()=>{selectedLabelSet=new Set([label.id]);drawLabelGroupFrame()});else{selectedLabelSet=new Set([label.id]);drawLabelGroupFrame()}$('status').textContent='Thành phần đang khóa. Chuột phải → Mở khóa để chỉnh.'
+},true);
+
+function ctxDivider(){const d=document.createElement('div');d.className='ctxDivider';return d}
+function ctxItem(label,icon='',shortcut='',action=null,disabled=false,extraClass=''){
+ const button=document.createElement('button');button.type='button';button.className='ctxItem '+extraClass;button.disabled=disabled;button.setAttribute('role','menuitem');const i=document.createElement('span');i.className='ctxIcon';i.textContent=icon;const t=document.createElement('span');t.className='ctxText';t.textContent=label;button.append(i,t);
+ if(shortcut){const s=document.createElement('span');s.className='ctxShortcut';s.textContent=shortcut;button.append(s)}
+ if(action)button.onclick=async event=>{event.stopPropagation();labelMenu.hidden=true;try{await action()}catch(error){$('status').textContent=error.message}};return button
+}
+function ctxSub(label,icon,items){const host=ctxItem(label,icon,'',null,false,'ctxHasSub'),arrow=document.createElement('span');arrow.className='ctxArrow';arrow.textContent='›';host.append(arrow);const sub=document.createElement('div');sub.className='ctxSub';sub.setAttribute('role','menu');for(const item of items)sub.append(item);host.append(sub);return host}
+function rebuildContextMenu(){
+ const lock=contextSelectionLocked(),units=contextUnitCount(),mac=navigator.platform?.toLowerCase().includes('mac'),mod=mac?'⌘':'Ctrl+';
+ labelMenu.className='labelContextMenu canvaMenu';labelMenu.replaceChildren(
+  ctxItem('Sao chép','▣',mod+'C',contextCopySelection),
+  ctxItem('Sao chép định dạng','🖌','',()=>{contextCopyStyle()}),
+  ctxItem('Dán','▢',mod+'V',contextPasteSelection,contextClipboardKind===''&&!labelClipboard),
+  ctxItem('Tạo bản sao','⊞',mod+'D',contextDuplicateSelection),
+  ctxItem('Xóa','⌫','Delete',contextDeleteSelection,false,'ctxDanger'),
+  ctxDivider(),
+  ctxSub('Lớp','◇',[ctxItem('Đưa lên trên cùng','⇈','',()=>contextMoveLayer('front'),lock),ctxItem('Lên 1 lớp','↑','',()=>contextMoveLayer('up'),lock),ctxItem('Xuống 1 lớp','↓','',()=>contextMoveLayer('down'),lock),ctxItem('Đưa xuống dưới cùng','⇊','',()=>contextMoveLayer('back'),lock)]),
+  ctxSub('Căn chỉnh thành phần','≡',[ctxItem('Căn trái','⇤','',()=>contextAlignSelection('left'),lock||units<2),ctxItem('Căn giữa ngang','↔','',()=>contextAlignSelection('hcenter'),lock||units<2),ctxItem('Căn phải','⇥','',()=>contextAlignSelection('right'),lock||units<2),ctxItem('Căn trên','↥','',()=>contextAlignSelection('top'),lock||units<2),ctxItem('Căn giữa dọc','↕','',()=>contextAlignSelection('vcenter'),lock||units<2),ctxItem('Căn dưới','↧','',()=>contextAlignSelection('bottom'),lock||units<2),ctxDivider(),ctxItem('Căn vùng chọn vào giữa tem','⊙','',contextCenterSelection,lock)]),
+  ctxSub('Dàn cách đều','▦',[ctxItem('Theo chiều ngang','↔','',()=>contextDistributeSelection('horizontal'),lock||units<3),ctxItem('Theo chiều dọc','↕','',()=>contextDistributeSelection('vertical'),lock||units<3)]),
+  ctxDivider(),
+  ctxItem(contextCanUngroup()?'Bỏ nhóm':'Nhóm','▧',contextCanUngroup()?mod+'Shift+G':mod+'G',()=>contextGroupSelection(contextCanUngroup()),contextCanUngroup()?false:!contextCanGroup()),
+  ctxItem(lock?'Mở khóa':'Khóa',lock?'🔓':'🔒','',contextToggleLock),
+  ctxDivider(),
+  ctxItem('Dán định dạng','✥','',contextApplyStyle,!contextStyleClipboard),
+  ctxItem('Dùng màu cho nền tem','◉','',contextUseColorForTem),
+  ctxItem('Tải xuống phần đã chọn','↓','',contextDownloadSelection)
+ )
+}
+async function openCanvaContextMenu(event){
+ event.preventDefault();event.stopImmediatePropagation();const overlay=event.target.closest('.graphicOverlay'),other=event.target.closest('.otherLabel'),active=event.target.closest('#labelSurface');
+ if(overlay){const item=decorations.find(x=>x.id===overlay.dataset.graphicId);if(item&&!selectedGraphicSet.has(item.id))selectGraphicItems(item,false);else if(item)selectedGraphicId=item.id;selectedLabelSet.clear();positionGraphicOverlays();syncGraphicControls()}
+ else{selectedGraphicId=null;selectedGraphicSet.clear();const id=other?.dataset.labelId||(active?activeLabelId:'');if(id&&id!==activeLabelId)await activateLabel(id);const label=labels.find(x=>x.id===id)||currentLabel();if(!selectedLabelSet.has(label.id))selectWholeLabel(label,false);syncGraphicControls()}
+ rebuildContextMenu();labelMenu.hidden=false;labelMenu.classList.toggle('ctxOpenLeft',event.clientX>innerWidth-600);requestAnimationFrame(()=>{const w=labelMenu.offsetWidth,h=labelMenu.offsetHeight;labelMenu.style.left=Math.max(8,Math.min(event.clientX,innerWidth-w-8))+'px';labelMenu.style.top=Math.max(8,Math.min(event.clientY,innerHeight-h-8))+'px'})
+}
+$('previewArea').addEventListener('contextmenu',openCanvaContextMenu,true);
+document.addEventListener('pointerdown',event=>{if(!labelMenu.hidden&&!labelMenu.contains(event.target))labelMenu.hidden=true},true);
+document.addEventListener('keydown',event=>{
+ if(!home.hidden||event.target.closest?.('input,textarea,select,[contenteditable=true],dialog'))return;const mod=event.ctrlKey||event.metaKey,key=event.key.toLowerCase();
+ if(mod&&!event.altKey&&['c','v','d','g'].includes(key)){event.preventDefault();event.stopImmediatePropagation();const task=key==='c'?contextCopySelection:key==='v'?contextPasteSelection:key==='d'?contextDuplicateSelection:()=>contextGroupSelection(event.shiftKey);Promise.resolve(task()).catch(error=>$('status').textContent=error.message);return}
+ if(!mod&&!event.altKey&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();event.stopImmediatePropagation();contextDeleteSelection().catch(error=>$('status').textContent=error.message)}
+},true);
+
 </script></html>
 
