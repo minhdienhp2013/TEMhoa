@@ -75,6 +75,14 @@
       {
         "from": "../studio-objects.js",
         "to": "app/studio-objects.js"
+      },
+      {
+        "from": "../image-tools.js",
+        "to": "app/image-tools.js"
+      },
+      {
+        "from": "../image-tools.css",
+        "to": "app/image-tools.css"
       }
     ],
     "win": {

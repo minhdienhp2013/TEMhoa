@@ -1,10 +1,10 @@
 name: Verify graphic editor
 on:
   push:
-    branches: [main, design/minhdien-art-motion, feat/studio-production-20261006]
-    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
+    branches: [main, design/minhdien-art-motion, feat/studio-production-20261006, feat/image-toolbar-20261006]
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
   pull_request:
-    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pypdf PyMuPDF
+      - run: python -m pip install pypdf PyMuPDF Pillow
       - run: node tests/studio-core.cjs
       - run: node tests/design-smoke.cjs
       - run: node tests/delete-template-smoke.cjs
@@ -32,6 +32,12 @@ jobs:
         env:
           TEMHOA_SCREENSHOTS: screenshots
       - run: node tests/studio-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/image-tools-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/editor-interactions-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots
       - run: python tests/studio-pdf-check.py
