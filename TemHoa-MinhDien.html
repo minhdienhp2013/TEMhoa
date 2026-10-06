@@ -1570,7 +1570,9 @@ input[type=checkbox],input[type=range]{accent-color:var(--ui-brand)}
 .artContextZone[hidden]{display:none}
 .artContextZone .ribbonRow{margin:0;gap:5px;min-height:34px}
 .artContextZone .fontPickerButton{width:190px;height:34px;min-height:34px;font-size:13px;border-color:var(--ui-line)}
-.artContextZone #size{width:62px;height:34px;font-size:13px}
+.artContextZone #size{width:62px;height:34px;font-size:13px;appearance:textfield;-moz-appearance:textfield}
+/* Keep the size-list arrow; A+/A− already provide stepping controls. */
+#size::-webkit-inner-spin-button,#size::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .artContextZone .styleToggle,.artContextZone .toolButton{width:32px;min-width:32px;height:34px;border-radius:4px}
 .styleToggle input:checked+span,.toolButton[aria-pressed=true]{background:var(--ui-tint);border-color:#e8c1c8;color:var(--ui-brand)}
 .artContextZone .paintButton{width:30px;min-width:30px;height:30px;border-radius:4px}
