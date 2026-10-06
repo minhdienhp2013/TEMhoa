@@ -1741,4 +1741,21 @@ const topPropertyHome=showTemHome;showTemHome=async function(...args){closeTopPr
 <link rel="stylesheet" href="image-tools.css">
 <script src="image-tools.js"></script>
 <script src="clipboard-tools.js"></script>
+<style id="compactInsertToolsStyle">
+.wordTitle{height:92px;min-height:92px}
+#compactInsertTools{display:grid;grid-template-columns:repeat(2,minmax(84px,1fr));gap:4px;flex:0 0 auto;margin-left:auto;padding:0 8px;border-left:1px solid var(--ui-line);border-right:1px solid var(--ui-line)}
+#compactInsertTools .artButton{height:36px;min-height:36px;padding:5px 8px;font-size:12px;justify-content:flex-start}
+#compactInsertTools .artIcon{width:18px;height:18px}
+#workspacePasteDock{position:absolute;left:32px;top:32px;z-index:7}
+#workspacePasteDock #systemPaste{min-width:44px;min-height:44px;padding:10px;background:var(--ui-surface);box-shadow:0 1px 4px #25262b0c}
+#workspacePasteDock #systemPaste span{display:none}
+@media(max-width:800px){#compactInsertTools{grid-template-columns:repeat(2,44px);padding:0 4px}#compactInsertTools .artButton{width:44px;height:44px;padding:11px;justify-content:center}#compactInsertTools .artButton span{display:none}.wordTitle{height:104px;min-height:104px}}
+</style>
+<script>
+/* Move live actions, keeping their handlers and keyboard shortcuts. */
+const compactInsertTools=document.createElement('div');compactInsertTools.id='compactInsertTools';compactInsertTools.setAttribute('role','group');compactInsertTools.setAttribute('aria-label','Thêm nội dung');
+for(const id of ['designAddText','designAddImage','insertGraphics','studioResources']){const b=$(id);if(b){compactInsertTools.append(b);}}
+artHeader.insertBefore(compactInsertTools,artQuick);
+const workspacePasteDock=document.createElement('div');workspacePasteDock.id='workspacePasteDock';workspacePasteDock.setAttribute('aria-label','Dán bên thước');workspacePasteDock.append($('systemPaste'));document.querySelector('.wordWorkspace').append(workspacePasteDock);
+</script>
 </html>

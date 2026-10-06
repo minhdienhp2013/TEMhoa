@@ -21,3 +21,9 @@ PASS hồi quy: art-ui-smoke, clipboard-smoke, editor-interactions-smoke, image-
 Trong icon đám mây, thêm lại Màu nền mây. Dùng bộ chọn màu hiện có: màu đơn, gradient và trong suốt. Khôi phục mặt nạ nền mây trong render raster và SVG, đồng thời bỏ việc ép nền về trong suốt khi mở mẫu/undo. Chỉ áp dụng nền cho Tem mây; Tem thường và chữ tự do vẫn trong suốt. Mẫu thiếu thuộc tính nền giữ mặc định trong suốt an toàn.
 
 PASS kiểm tra thực tế qua nút chọn màu và mã #22bb66: pixel màu nền trên canvas, PNG giải mã thực tế, SVG, PDF tải xuống và raster hóa bằng PyMuPDF; undo/redo và serialize/restore thiết kế giữ đúng màu. PASS autosave-smoke.
+
+## Bố trí nhóm chèn nội dung
+
+Văn bản, Ảnh, Thành phần, Tài nguyên được chuyển nguyên nút vào lưới 2×2 bên phải thanh đầu. Không thêm nút AI vào nhóm. Nút Dán chuyển sang góc trống sát thước dọc, ngoài vùng cuộn của canvas, vẫn dùng clipboard hệ thống và Ctrl+V/Command+V. Cửa sổ hẹp dùng icon 44×44 với tooltip/aria-label; không nhân đôi nút.
+
+PASS art-ui-smoke kiểm tra hình học 2 hàng/2 cột, mở Tài nguyên và Thành phần, thêm chữ/ảnh, focus và cửa sổ hẹp; clipboard-smoke kiểm tra nút Dán và phím tắt thực tế; editor-interactions-smoke kiểm tra kéo/resize/Aa; properties-scroll-smoke kiểm tra popup và màu nền mây/PNG/PDF. Ảnh Desktop và cửa sổ hẹp phía trên cập nhật theo giao diện mới.
