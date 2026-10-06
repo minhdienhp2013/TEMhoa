@@ -13,7 +13,7 @@ from background_ai import AIJobs, MAX_REQUEST
 
 ROOT = Path(__file__).resolve().parent
 HTML = ROOT / 'TemHoa-MinhDien.html'
-TEMPLATES = ROOT / 'Mau-Tem-Hoa'
+TEMPLATES = Path(os.environ.get('TEMHOA_TEMPLATE_ROOT', str(ROOT / 'Mau-Tem-Hoa')))
 TOKEN = secrets.token_hex(24)
 MAX_BYTES = 32 * 1024 * 1024
 AI_JOBS = AIJobs()
@@ -56,6 +56,9 @@ class Handler(BaseHTTPRequestHandler):
             html = HTML.read_text(encoding='utf-8')
             html = html.replace('<script>', '<script>window.TEMHOA_TOKEN=' + json.dumps(TOKEN) + ';</script><script>', 1)
             self.reply(200, html.encode('utf-8'), 'text/html; charset=utf-8')
+        elif route.path in ('/studio.css', '/studio-core.js', '/studio.js', '/studio-objects.js'):
+            asset = ROOT / route.path[1:]
+            self.reply(200, asset.read_bytes(), 'text/css; charset=utf-8' if asset.suffix == '.css' else 'text/javascript; charset=utf-8')
         elif route.path == '/api/background':
             if not self.api_allowed():
                 self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return
