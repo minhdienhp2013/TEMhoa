@@ -1,8 +1,10 @@
 name: Verify graphic editor
 on:
   push:
-    branches: [main]
-    paths: ['TemHoa-MinhDien.html', 'tests/**', '.github/workflows/design-editor.yml']
+    branches: [main, design/minhdien-art-motion]
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'tests/**', '.github/workflows/design-editor.yml']
+  pull_request:
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'tests/**', '.github/workflows/design-editor.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,9 +20,15 @@ jobs:
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium --only-shell
       - run: node tests/design-smoke.cjs
-
       - run: node tests/delete-template-smoke.cjs
-
       - run: node tests/output-paper-smoke.cjs
-
       - run: node tests/autosave-smoke.cjs
+      - run: node tests/art-ui-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: temhoa-ui-screenshots
+          path: screenshots
+          if-no-files-found: ignore

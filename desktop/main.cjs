@@ -30,7 +30,7 @@ else{
   const trusted=url=>{try{return new URL(url).origin===origin}catch{return false}};
   session.defaultSession.setPermissionCheckHandler((contents,permission,requestingOrigin)=>permission==='local-fonts'&&trusted(requestingOrigin)&&contents?.id===win?.webContents.id);
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>callback(permission==='local-fonts'&&contents.id===win?.webContents.id&&trusted(details.requestingUrl||contents.getURL())));
-  win=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:650,title:'TEMhoa',show:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  win=new BrowserWindow({width:1440,height:960,minWidth:1000,minHeight:650,title:'TEMhoa',icon:path.join(root,'assets','temhoa-icon.png'),show:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(!trusted(url))event.preventDefault()});
   win.once('ready-to-show',()=>win.show());
@@ -39,3 +39,4 @@ else{
  app.on('window-all-closed',()=>app.quit());
  app.on('before-quit',()=>{app.isQuitting=true;stopServer()});
 }
+
