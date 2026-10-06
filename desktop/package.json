@@ -59,6 +59,22 @@
       {
         "from": "../assets",
         "to": "app/assets"
+      },
+      {
+        "from": "../studio.css",
+        "to": "app/studio.css"
+      },
+      {
+        "from": "../studio-core.js",
+        "to": "app/studio-core.js"
+      },
+      {
+        "from": "../studio.js",
+        "to": "app/studio.js"
+      },
+      {
+        "from": "../studio-objects.js",
+        "to": "app/studio-objects.js"
       }
     ],
     "win": {

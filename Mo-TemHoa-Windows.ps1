@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $taskRoot 'Background-TemHoa-Windows.ps1')
 $taskHtml = Join-Path $taskRoot 'TemHoa-MinhDien.html'
@@ -70,6 +70,9 @@ try {
             $taskStatus = '200 OK'; $taskMime = 'application/json; charset=utf-8'; $taskResult = $null
             if ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/' -or $taskRoute -eq '/TemHoa-MinhDien.html')) {
                 $taskBody = $taskBytes; $taskMime = 'text/html; charset=utf-8'
+            } elseif ($taskParts[0] -eq 'GET' -and $taskRoute -in @('/studio.css','/studio-core.js','/studio.js','/studio-objects.js')) {
+                $taskBody = [System.IO.File]::ReadAllBytes((Join-Path $taskRoot $taskRoute.Substring(1)))
+                $taskMime = if ($taskRoute.EndsWith('.css')) { 'text/css; charset=utf-8' } else { 'text/javascript; charset=utf-8' }
             } elseif ($taskRoute -eq '/api/background' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     $taskRequest = $null
