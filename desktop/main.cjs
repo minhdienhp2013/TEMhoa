@@ -35,6 +35,7 @@ else{
   win.webContents.on('will-navigate',(event,url)=>{if(!trusted(url))event.preventDefault()});
   win.once('ready-to-show',()=>win.show());
   await win.loadURL(url);
+  try{const css=fs.readFileSync(path.join(root,'professional-ui.css'),'utf8');await win.webContents.insertCSS(css)}catch(error){console.warn('TEMhoa UI:',error.message)}
  }).catch(error=>{dialog.showErrorBox('Không mở được TEMhoa',error.message);app.quit()});
  app.on('window-all-closed',()=>app.quit());
  app.on('before-quit',()=>{app.isQuitting=true;stopServer()});
