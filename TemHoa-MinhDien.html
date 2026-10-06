@@ -963,7 +963,7 @@ const compactRibbonStyle=document.createElement('style');compactRibbonStyle.text
 function readLayerStack(value=$('layerStack').value){try{const data=JSON.parse(value);return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}}
 function layerUnits(L){
  const texts=[...new Set(L.runs.map(run=>run.layerKey||'text-0'))].map(key=>({key,kind:'text',text:L.runs.filter(run=>(run.layerKey||'text-0')===key).map(run=>run.text).join('')}));
- return [{key:'background',kind:'background',text:'Viền tem'},...(L.graphics||[]).filter(item=>item.behindText).map(item=>({key:item.id,kind:'graphic',item})),...texts,...(L.graphics||[]).filter(item=>!item.behindText).map(item=>({key:item.id,kind:'graphic',item}))];
+ return [...(L.graphics||[]).filter(item=>item.behindText).map(item=>({key:item.id,kind:'graphic',item})),...texts,...(L.graphics||[]).filter(item=>!item.behindText).map(item=>({key:item.id,kind:'graphic',item}))];
 }
 function orderedLayerUnits(L,stack=readLayerStack()){
  const units=layerUnits(L),map=new Map(units.map(unit=>[unit.key,unit])),result=[];
@@ -975,11 +975,11 @@ function paintLayerUnit(ctx,L,scale,unit,color='fill'){
  if(unit.kind==='graphic'){ctx.save();ctx.scale(scale,scale);drawGraphic(ctx,unit.item,color!=='fill');ctx.restore()}
 }
 function paintLayerStack(ctx,L,scale,paintBackground){
- for(const unit of orderedLayerUnits(L)){if(unit.kind==='background')paintBackground();else paintLayerUnit(ctx,L,scale,unit)}
+ paintBackground();for(const unit of orderedLayerUnits(L))paintLayerUnit(ctx,L,scale,unit)
 }
 function layerStackSVG(L,scale,w,h,inner,outer,color){
- return orderedLayerUnits(L).map(unit=>{
-  if(unit.kind==='background')return '<path fill="'+color('edge')+'" fill-rule="evenodd" d="'+contourPath(outer.map((v,i)=>Math.max(0,v-inner[i])),w,h,true)+'"/>';
+ const edgePath='<path fill="'+color('edge')+'" fill-rule="evenodd" d="'+contourPath(outer.map((v,i)=>Math.max(0,v-inner[i])),w,h,true)+'"/>';
+ return edgePath+orderedLayerUnits(L).map(unit=>{
   if(unit.kind==='graphic')return graphicsSVG({...L,graphics:[unit.item]},scale);
   const canvas=cv(w,h),ctx=canvas.getContext('2d');paintLayerUnit(ctx,L,scale,unit,'#ffffff');const rgba=ctx.getImageData(0,0,w,h).data,mask=new Uint8Array(w*h);for(let i=0;i<mask.length;i++)mask[i]=rgba[i*4+3]>=128?255:0;
   return '<path fill="'+color('fill')+'" fill-rule="evenodd" d="'+contourPath(mask,w,h,false)+'"/>';
