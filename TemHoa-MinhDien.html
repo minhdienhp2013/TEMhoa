@@ -601,6 +601,7 @@ async function deleteLabel(){if(labels.length<2||labelOperation)return;recordHis
 const objectStyle=document.createElement('style');objectStyle.textContent='.multiLabelPage #selectionFrame{outline:1px solid #397bc7}.multiLabelPage .resizeHandle{display:block}.otherLabel{position:absolute;cursor:pointer;outline:1px solid transparent}.otherLabel:hover,.otherLabel:focus{outline:1px dashed #397bc7}.otherLabel canvas{display:block;pointer-events:none}.labelContextMenu{position:fixed;z-index:100;background:white;border:1px solid #c6ced9;border-radius:6px;padding:5px;box-shadow:0 5px 18px #20334d33;min-width:210px}.labelContextMenu button{display:block;width:100%;text-align:left;border:0;background:white;padding:9px 12px}.labelContextMenu button:hover{background:#e9f1ff}.labelContextMenu button:disabled{opacity:.45}';document.head.append(objectStyle);
 $('labelSurface').tabIndex=0;const labelMenu=document.createElement('div');labelMenu.id='labelContextMenu';labelMenu.className='labelContextMenu';labelMenu.hidden=true;labelMenu.setAttribute('role','menu');document.body.append(labelMenu);
 for(const [id,title,callback] of [['copyLabel','Sao chép tem',copyLabel],['pasteLabel','Dán tem',pasteLabel],['duplicateLabel','Nhân đôi tem · Ctrl+D',duplicateLabel],['deleteLabel','Xóa tem',deleteLabel]]){const button=document.createElement('button');button.id=id;button.textContent=title;button.setAttribute('role','menuitem');button.onclick=()=>{labelMenu.hidden=true;callback().catch(error=>$('status').textContent=error.message)};labelMenu.append(button)}
+$('previewArea').addEventListener('contextmenu',async event=>{event.preventDefault();const id=event.target.closest('.otherLabel')?.dataset.labelId;if(id)await activateLabel(id);captureSelection();$('pasteLabel').disabled=!labelClipboard;$('deleteLabel').disabled=labels.length<2;labelMenu.hidden=false;labelMenu.style.left=Math.min(event.clientX,innerWidth-225)+'px';labelMenu.style.top=Math.max(0,Math.min(event.clientY,innerHeight-180))+'px'});
 document.addEventListener('pointerdown',event=>{if(!labelMenu.contains(event.target))labelMenu.hidden=true});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')labelMenu.hidden=true;if(!(event.ctrlKey||event.metaKey)||event.altKey)return;const key=event.key.toLowerCase(),inEditor=$('temEditor').contains(event.target),inWorkspace=$('previewArea').contains(event.target);if(!inWorkspace)return;if(key==='d'){event.preventDefault();duplicateLabel().catch(error=>$('status').textContent=error.message)}else if(!inEditor&&['c','v','z','y'].includes(key)){event.preventDefault();if(key==='c')copyLabel();else if(key==='v')pasteLabel();else restoreHistory(key==='y'||event.shiftKey?1:-1)}});
 // Render all labels as a group so printing protection never changes their relative placement.
@@ -700,7 +701,7 @@ for(const [id,title,delta] of [['menuLayerUp','Lên 1 lớp',1],['menuLayerDown'
 function syncLayerButtons(){const target=layerTarget(),graphic=selectedGraphic(),index=decorations.indexOf(graphic);for(const prefix of ['layer','menuLayer']){ $(prefix+'Up').disabled=layerBusy||target.index<0||target.index>=target.items.length-1;$(prefix+'Down').disabled=layerBusy||target.index<=0} $('graphicLayerUp').disabled=layerBusy||!graphic||index>=decorations.length-1;$('graphicLayerDown').disabled=layerBusy||!graphic||index<=0}
 const beforeLayerControls=syncGraphicControls;syncGraphicControls=function(){beforeLayerControls();syncLayerButtons()};const beforeLayerZoom=zoom;zoom=function(){beforeLayerZoom();syncLayerButtons()};
 $('temEditor').addEventListener('pointerdown',syncLayerButtons);
-$('previewArea').addEventListener('contextmenu',event=>{const graphicId=event.target.closest('.graphicOverlay')?.dataset.graphicId;if(graphicId){const item=decorations.find(item=>item.id===graphicId);if(item&&!selectedGraphicSet.has(graphicId))selectGraphicItems(item);else selectedGraphicId=graphicId}else selectedGraphicId=null;syncGraphicControls();positionGraphicOverlays()},true);
+$('previewArea').addEventListener('contextmenu',event=>{const graphicId=event.target.closest('.graphicOverlay')?.dataset.graphicId;selectedGraphicId=graphicId||null;syncGraphicControls();positionGraphicOverlays()},true);
 $('previewArea').addEventListener('contextmenu',()=>{syncLayerButtons();labelMenu.style.top=Math.max(0,Math.min(parseFloat(labelMenu.style.top)||0,innerHeight-labelMenu.offsetHeight-8))});
 document.addEventListener('keydown',event=>{if(!event.altKey||event.ctrlKey||event.metaKey||!['PageUp','PageDown'].includes(event.key)||!$('previewArea').contains(event.target))return;event.preventDefault();moveObjectLayer(event.key==='PageUp'?1:-1).catch(error=>$('status').textContent=error.message)});
 
@@ -1281,60 +1282,193 @@ renderHomeThemes();filterHome();$('homeSearch').oninput=filterHome;
 
 
 
-// Context commands share the live selection and the document's undo/autosave.
-$('groupGraphics').onclick=()=>groupGraphics(false).catch(contextError);
-$('ungroupGraphics').onclick=()=>groupGraphics(true).catch(contextError);
-function contextError(error){$('status').textContent=error.message}
-const labelLockedInput=document.createElement('input');labelLockedInput.id='labelLocked';labelLockedInput.type='hidden';document.body.append(labelLockedInput);ids.push('labelLocked');
-const contextSetSettings=setLabelSettings;setLabelSettings=function(value,ui=false){contextSetSettings({...value,labelLocked:value.labelLocked==='true'?'true':'false'},ui)};
-function contextLocked(){return selectedGraphic()?graphicSelection().some(item=>item.locked):selectedLabels().some(label=>label.settings.labelLocked==='true')}
-function contextBusy(){return groupBusy||layerBusy||labelOperation||!!graphicDrag||!!labelDrag||!!labelGroupDrag||!!designDrag}
-async function contextCommit(change){if(contextBusy()||contextLocked())return;saveActiveLabel();recordHistory();change();if(!selectedGraphic())setLabelSettings(currentLabel().settings,true);await preview();recordHistory();syncGraphicControls()}
-async function contextLock(){if(contextBusy())return;saveActiveLabel();recordHistory();const unlock=contextLocked();if(selectedGraphic())graphicSelection().forEach(item=>item.locked=!unlock);else{selectedLabels().forEach(label=>label.settings.labelLocked=String(!unlock));$('labelLocked').value=String(!unlock)}await preview();recordHistory();syncGraphicControls()}
-// Locked objects remain selectable, but cannot be moved, resized or edited.
-document.addEventListener('pointerdown',event=>{if(event.button!==0||!$('previewArea').contains(event.target))return;const graphic=event.target.closest('.graphicOverlay');if(graphic)return;const node=event.target.closest('.otherLabel,#labelSurface,#wholeGroupFrame');if(!node)return;const label=node.matches('.otherLabel')?labels.find(item=>item.id===node.dataset.labelId):currentLabel();const members=node.id==='wholeGroupFrame'?selectedLabels():labelGroupMembers(label);if(!members.some(item=>item.settings.labelLocked==='true'))return;event.preventDefault();event.stopImmediatePropagation();if(node.id!=='wholeGroupFrame')activateLabel(label.id).then(()=>selectWholeLabel(label)).catch(contextError)},true);
-const contextEditText=editDesignText;editDesignText=function(){if(!contextLocked())contextEditText()};
-const contextGroup=groupGraphics;groupGraphics=async function(ungroup=false){if(!contextLocked())return contextGroup(ungroup)};
-async function contextDelete(){if(contextBusy()||contextLocked())return;if(selectedGraphic()){const remove=new Set(graphicSelection().map(item=>item.id));recordHistory();decorations=decorations.filter(item=>!remove.has(item.id));selectedGraphicId=null;selectedGraphicSet.clear();await preview();recordHistory();syncGraphicControls();return}saveActiveLabel();const remove=new Set(selectedLabels().map(label=>label.id));if(remove.size>=labels.length){$('status').textContent='Giữ lại ít nhất một khối trên trang.';return}recordHistory();labels=labels.filter(label=>!remove.has(label.id));activeLabelId=labels.at(-1).id;selectedLabelSet=new Set([activeLabelId]);selectedUnitKey='';selectedLayerUnits.clear();setLabelSettings(currentLabel().settings,true);await preview();recordHistory();syncGraphicControls()}
-async function contextDuplicate(){if(contextBusy())return;if(selectedGraphic()){const items=graphicSelection();if(decorations.length+items.length>12)throw Error('Một tem tối đa 12 hình.');recordHistory();const groups=new Map();const copies=items.map(item=>{if(item.groupId&&!groups.has(item.groupId))groups.set(item.groupId,'group-'+(++groupSequence));return {...item,id:'graphic-'+(++graphicSequence),groupId:groups.get(item.groupId)||'',x:item.x+25,y:item.y+25}});decorations.push(...copies);graphicSelectionOwner=activeLabelId;selectedGraphicId=copies[0].id;selectedGraphicSet=new Set(copies.map(item=>item.id));await preview();recordHistory();syncGraphicControls();return}return duplicateLabel()}
-async function contextLayer(delta,edge=false){if(contextBusy()||contextLocked())return;if(!selectedGraphic()){selectedUnitKey='';selectedLayerUnits.clear()}if(!edge)return moveObjectLayer(delta);for(let i=0;i<40;i++){syncLayerButtons();if($(delta>0?'layerUp':'layerDown').disabled)break;await moveObjectLayer(delta)}}
-async function contextAlign(axis,position,distribute=false){
- if(contextBusy()||contextLocked())return;
- saveActiveLabel();const graphic=!!selectedGraphic(),items=graphic?graphicSelection():selectedLabels();if(!items.length||distribute&&items.length<3)return;
- const entries=items.map(item=>({item,box:graphic?graphicBounds(item):labelGeometry(item)}));
- const extent=axis==='x'?'width':'height',end=box=>box[axis]+box[extent];
- let low=Math.min(...entries.map(entry=>entry.box[axis])),high=Math.max(...entries.map(entry=>end(entry.box)));
- if(items.length===1){if(graphic){const L=previewSize.L;low=0;high=axis==='x'?L.width:L.height}else{low=0;high=previewPage()[extent]}}
- await contextCommit(()=>{
-  function shift(entry,amount){if(graphic)entry.item[axis]+=amount;else entry.item.settings[axis==='x'?'labelX':'labelY']=String(entry.box[axis]+amount)}
-  if(distribute){entries.sort((a,b)=>a.box[axis]-b.box[axis]);const gap=(high-low-entries.reduce((sum,entry)=>sum+entry.box[extent],0))/(entries.length-1);let cursor=low;for(const entry of entries){shift(entry,cursor-entry.box[axis]);cursor+=entry.box[extent]+gap}}
-  else for(const entry of entries){const target=position===0?low:position===1?(low+high-entry.box[extent])/2:high-entry.box[extent];shift(entry,target-entry.box[axis])}
- });
-}
-const contextStyle=document.createElement('style');contextStyle.textContent='.labelContextMenu{min-width:250px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:6px;border-radius:10px}.labelContextMenu button{border-radius:5px;font-size:14px;display:flex;justify-content:space-between;gap:20px}.labelContextMenu button:focus-visible{outline:2px solid #8855ff}.labelContextMenu kbd{font:12px Arial;color:#7b7b85}.labelContextMenu details{border-top:1px solid #e6e6eb;margin-top:4px;padding-top:4px}.labelContextMenu summary{padding:9px 12px;cursor:pointer;list-style:none}.labelContextMenu summary:after{content:"▾";float:right}.labelContextMenu details button{padding-left:22px}';document.head.append(contextStyle);
-labelMenu.replaceChildren();
-function contextButton(parent,id,title,action,shortcut=''){const button=document.createElement('button');button.id=id;button.type='button';button.setAttribute('role','menuitem');button.append(document.createTextNode(title));if(shortcut){const hint=document.createElement('kbd');hint.textContent=shortcut;button.append(hint)}button.onclick=async()=>{labelMenu.hidden=true;try{await action()}catch(error){contextError(error)}};parent.append(button);return button}
-function contextSection(title){const section=document.createElement('details'),summary=document.createElement('summary');summary.textContent=title;section.append(summary);section.addEventListener('toggle',()=>{if(!labelMenu.hidden)labelMenu.style.top=Math.max(8,Math.min(parseFloat(labelMenu.style.top)||8,innerHeight-labelMenu.offsetHeight-8))+'px'});labelMenu.append(section);return section}
-let graphicClipboard=null;
-contextButton(labelMenu,'copyLabel','Sao chép',async()=>{if(selectedGraphic())graphicClipboard=graphicSelection().map(item=>({...item}));else{graphicClipboard=null;await copyLabel()}},'⌘/Ctrl+C');
-contextButton(labelMenu,'pasteLabel','Dán',async()=>{if(!graphicClipboard)return pasteLabel();if(contextBusy()||contextLocked())return;if(decorations.length+graphicClipboard.length>12)throw Error('Một tem tối đa 12 hình.');recordHistory();const groups=new Map();const copies=graphicClipboard.map(item=>{if(item.groupId&&!groups.has(item.groupId))groups.set(item.groupId,'group-'+(++groupSequence));return {...item,id:'graphic-'+(++graphicSequence),groupId:groups.get(item.groupId)||'',x:item.x+25,y:item.y+25}});decorations.push(...copies);graphicSelectionOwner=activeLabelId;selectedGraphicId=copies[0].id;selectedGraphicSet=new Set(copies.map(item=>item.id));await ensureGraphics();await preview();recordHistory();syncGraphicControls()},'⌘/Ctrl+V');
-contextButton(labelMenu,'duplicateLabel','Tạo bản sao',contextDuplicate,'⌘/Ctrl+D');
-contextButton(labelMenu,'deleteLabel','Xóa',contextDelete,'Delete');
-contextButton(labelMenu,'menuGroup','Nhóm',()=>groupGraphics(false),'⌘/Ctrl+G');
-contextButton(labelMenu,'menuUngroup','Bỏ nhóm',()=>groupGraphics(true),'⇧+⌘/Ctrl+G');
-contextButton(labelMenu,'menuLock','Khóa',contextLock);
-const contextLayers=contextSection('Lớp');
-for(const [id,title,delta,edge] of [['menuLayerUp','Tiến một lớp',1,false],['menuLayerDown','Lùi một lớp',-1,false],['menuLayerFront','Đưa lên trên cùng',1,true],['menuLayerBack','Đưa xuống dưới cùng',-1,true]])contextButton(contextLayers,id,title,()=>contextLayer(delta,edge));
-const contextAlignment=contextSection('Căn chỉnh');
-for(const [id,title,axis,position] of [['Left','Trái','x',0],['Center','Giữa ngang','x',1],['Right','Phải','x',2],['Top','Trên','y',0],['Middle','Giữa dọc','y',1],['Bottom','Dưới','y',2]])contextButton(contextAlignment,'menuAlign'+id,title,()=>contextAlign(axis,position));
-const contextSpacing=contextSection('Dàn cách đều');
-contextButton(contextSpacing,'menuSpaceX','Theo chiều ngang',()=>contextAlign('x',0,true));contextButton(contextSpacing,'menuSpaceY','Theo chiều dọc',()=>contextAlign('y',0,true));
-function syncContextMenu(){syncGraphicControls();const busy=contextBusy(),locked=contextLocked(),count=selectedGraphic()?graphicSelection().length:selectedLabels().length;$('pasteLabel').disabled=busy||(!graphicClipboard&&!labelClipboard);$('duplicateLabel').disabled=busy;$('deleteLabel').disabled=busy||locked||(!selectedGraphic()&&count>=labels.length);$('menuGroup').disabled=locked||$('groupGraphics').disabled;$('menuUngroup').disabled=locked||$('ungroupGraphics').disabled;$('menuLock').disabled=busy;$('menuLock').textContent=locked?'Mở khóa':'Khóa';for(const id of ['menuLayerUp','menuLayerDown','menuLayerFront','menuLayerBack'])$(id).disabled=busy||locked||$(id==='menuLayerUp'||id==='menuLayerFront'?'layerUp':'layerDown').disabled;contextAlignment.querySelectorAll('button').forEach(button=>button.disabled=busy||locked);contextSpacing.querySelectorAll('button').forEach(button=>button.disabled=busy||locked||count<3)}
-$('previewArea').addEventListener('contextmenu',async event=>{event.preventDefault();const node=event.target.closest('.otherLabel'),id=node?.dataset.labelId;if(id){const label=labels.find(item=>item.id===id);if(!selectedLabelSet.has(id)){await activateLabel(id);selectWholeLabel(label)}}else if(!selectedGraphic()&&!selectedLabelSet.has(activeLabelId))selectWholeLabel(currentLabel());captureSelection();syncContextMenu();labelMenu.hidden=false;labelMenu.querySelectorAll('details').forEach(section=>section.open=false);labelMenu.style.left=Math.max(8,Math.min(event.clientX,innerWidth-labelMenu.offsetWidth-8))+'px';labelMenu.style.top=Math.max(8,Math.min(event.clientY,innerHeight-labelMenu.offsetHeight-8))+'px';labelMenu.querySelector('button:not(:disabled)')?.focus({preventScroll:true})});
-labelMenu.addEventListener('keydown',event=>{if(!['ArrowDown','ArrowUp','Home','End','Escape'].includes(event.key))return;event.preventDefault();if(event.key==='Escape'){labelMenu.hidden=true;$('labelSurface').focus();return}const buttons=[...labelMenu.querySelectorAll('button:not(:disabled),summary')].filter(button=>button.getClientRects().length),index=buttons.indexOf(document.activeElement);buttons[event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus()});
-$('designDelete').onclick=()=>contextDelete().catch(contextError);
-window.addEventListener('keydown',event=>{if(event.target.closest('input,textarea,[contenteditable="true"]')||(!$('previewArea').contains(event.target)&&!labelMenu.contains(event.target)))return;const key=event.key.toLowerCase(),command=event.ctrlKey||event.metaKey;let id=command?({c:'copyLabel',v:'pasteLabel',d:'duplicateLabel',g:event.shiftKey?'menuUngroup':'menuGroup'})[key]:['delete','backspace'].includes(key)?'deleteLabel':null;if(!id)return;event.preventDefault();event.stopImmediatePropagation();syncContextMenu();if(!$(id).disabled)$(id).click()},true);
+/* Canva-like context menu for TEMhoa. Commands operate on the actual current selection. */
+const contextMenuStyle=document.createElement('style');contextMenuStyle.textContent="\n#labelContextMenu.canvaMenu{position:fixed;z-index:1000;width:292px;max-height:min(720px,calc(100vh - 20px));overflow:visible;padding:9px;background:#111214;color:#f7f7f8;border:1px solid #292b30;border-radius:16px;box-shadow:0 18px 55px #0008;font:14px Arial,sans-serif}\n#labelContextMenu.canvaMenu[hidden]{display:none}\n.canvaMenu .ctxItem{position:relative;display:flex;width:100%;min-height:43px;align-items:center;gap:11px;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left}\n.canvaMenu .ctxItem:hover,.canvaMenu .ctxItem:focus-visible,.canvaMenu .ctxItem.ctxOpen{background:#1c1e22;outline:none}\n.canvaMenu .ctxItem:disabled{opacity:.38;cursor:not-allowed}.canvaMenu .ctxIcon{display:grid;place-items:center;width:25px;flex:0 0 25px;font-size:20px}.canvaMenu .ctxText{flex:1;min-width:0}.canvaMenu .ctxShortcut{margin-left:auto;padding:4px 7px;border-radius:6px;background:#18191c;color:#d4d5d8;font-size:12px}.canvaMenu .ctxArrow{font-size:22px;margin-left:auto}.canvaMenu .ctxDivider{height:1px;background:#24262a;margin:6px 5px}\n.canvaMenu .ctxSub{position:absolute;left:calc(100% + 7px);top:-7px;width:240px;padding:8px;background:#111214;border:1px solid #292b30;border-radius:13px;box-shadow:0 14px 38px #0008;display:none}.canvaMenu .ctxHasSub:hover>.ctxSub,.canvaMenu .ctxHasSub:focus-within>.ctxSub{display:block}.canvaMenu.ctxOpenLeft .ctxSub{left:auto;right:calc(100% + 7px)}\n.canvaMenu .ctxDanger{color:#ff9b9b}\n";document.head.append(contextMenuStyle);
 
+const labelLockControl=document.createElement('input');labelLockControl.type='checkbox';labelLockControl.id='labelLocked';labelLockControl.hidden=true;document.body.append(labelLockControl);ids.push('labelLocked');
+const contextSetLabelSettings=setLabelSettings;setLabelSettings=function(value,ui=false){if(value?.labelLocked===undefined)labelLockControl.checked=false;return contextSetLabelSettings(value,ui)};
+
+let contextClipboardKind='',contextGraphicClipboard=null,contextStyleClipboard=null;
+const contextClone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
+
+function contextGraphicUnits(){
+ const chosen=new Set(graphicSelection().map(item=>item.id)),seen=new Set(),units=[];
+ for(const item of decorations){
+  if(!chosen.has(item.id))continue;
+  const key=item.groupId||item.id;if(seen.has(key))continue;seen.add(key);
+  const items=item.groupId?decorations.filter(member=>member.groupId===item.groupId&&chosen.has(member.id)):[item];
+  units.push({items,bounds:graphicGroupBounds(items)})
+ }
+ return units
+}
+function contextLabelUnits(){
+ saveActiveLabel();const chosen=new Set(selectedLabels().map(label=>label.id)),seen=new Set(),units=[];
+ for(const label of labels){
+  if(!chosen.has(label.id))continue;
+  const key=labelGroupKey(label)||label.id;if(seen.has(key))continue;seen.add(key);
+  const items=labelGroupKey(label)?labels.filter(member=>labelGroupKey(member)===labelGroupKey(label)&&chosen.has(member.id)):[label];
+  units.push({items,bounds:wholeGroupBounds(items)})
+ }
+ return units
+}
+function contextSelectionLocked(){if(selectedGraphic())return graphicSelection().some(item=>item.locked);saveActiveLabel();return selectedLabels().some(label=>label.settings.labelLocked===true)}
+function contextCanGroup(){return selectedGraphic()?graphicSelection().length>1:selectedLabels().length>1}
+function contextCanUngroup(){return selectedGraphic()?graphicSelection().some(item=>item.groupId):selectedLabels().some(label=>labelGroupKey(label))}
+function contextUnitCount(){return selectedGraphic()?contextGraphicUnits().length:contextLabelUnits().length}
+function contextMoveGraphicUnit(unit,dx,dy){for(const item of unit.items){item.x+=dx;item.y+=dy}}
+function contextMoveLabelUnit(unit,dx,dy){for(const label of unit.items){const g=labelGeometry(label);label.settings.labelX=String(g.x+dx);label.settings.labelY=String(g.y+dy)}}
+async function contextCommit(message=''){if(!selectedGraphic()){const active=currentLabel();setLabelSettings(active.settings,true);previewSize=active.size}await preview();recordHistory();syncGraphicControls();renderLayersPanel();if(message)$('status').textContent=message}
+
+async function contextCopySelection(){
+ if(selectedGraphic()){const items=graphicSelection();contextGraphicClipboard=items.map(contextClone);contextClipboardKind='graphic';$('status').textContent='Đã sao chép '+items.length+' thành phần.'}
+ else{await copyLabel();contextClipboardKind='label';contextGraphicClipboard=null}
+}
+async function contextPasteGraphics(){
+ const source=contextGraphicClipboard||[];if(!source.length)return;if(decorations.length+source.length>12){$('status').textContent='Một tem tối đa 12 hình / icon.';return}
+ recordHistory();groupSequence=Math.max(groupSequence,...decorations.map(item=>Number(item.groupId?.split('-')[1])||0),0);
+ const groups=new Map(),copies=source.map(original=>{let groupId='';if(original.groupId){if(!groups.has(original.groupId))groups.set(original.groupId,'group-'+(++groupSequence));groupId=groups.get(original.groupId)}return safeGraphic({...contextClone(original),id:'graphic-'+(++graphicSequence),groupId,x:original.x+25,y:original.y+25})});
+ decorations.push(...copies);selectedGraphicSet=new Set(copies.map(item=>item.id));selectedGraphicId=copies.at(-1)?.id||null;graphicSelectionOwner=activeLabelId;await ensureGraphics(copies);await contextCommit('Đã dán '+copies.length+' thành phần.')
+}
+async function contextPasteSelection(){if(contextClipboardKind==='graphic')return contextPasteGraphics();return pasteLabel()}
+async function contextDuplicateSelection(){
+ if(selectedGraphic()){const oldKind=contextClipboardKind,oldClip=contextGraphicClipboard;contextGraphicClipboard=graphicSelection().map(contextClone);contextClipboardKind='graphic';try{await contextPasteGraphics()}finally{contextClipboardKind=oldKind;contextGraphicClipboard=oldClip}}
+ else await duplicateLabel()
+}
+async function contextDeleteSelection(){
+ if(selectedGraphic()){const idsToDelete=new Set(graphicSelection().map(item=>item.id));if(!idsToDelete.size)return;recordHistory();decorations=decorations.filter(item=>!idsToDelete.has(item.id));selectedGraphicId=null;selectedGraphicSet.clear();saveActiveLabel();await contextCommit('Đã xóa '+idsToDelete.size+' thành phần.');return}
+ saveActiveLabel();const chosen=selectedLabels(),remove=new Set(chosen.map(label=>label.id));if(labels.length-remove.size<1){$('status').textContent='Cần giữ lại ít nhất một khối thiết kế.';return}
+ recordHistory();labels=labels.filter(label=>!remove.has(label.id));activeLabelId=labels.at(-1).id;selectedLabelSet=new Set([activeLabelId]);setLabelSettings(currentLabel().settings,true);previewSize=currentLabel().size;await contextCommit('Đã xóa '+remove.size+' khối.')
+}
+function contextCopyStyle(){
+ if(selectedGraphic()){const item=selectedGraphic();contextStyleClipboard={kind:'graphic',style:contextClone({color:item.color,backgroundColor:item.backgroundColor,tolerance:item.tolerance,removeWhite:item.removeWhite,keepRatio:item.keepRatio,flipX:item.flipX,flipY:item.flipY})}}
+ else{saveActiveLabel();const data=currentLabel().settings,keys=['font','customFont','size','spacing','bold','italic','underline','align','fill','body','padding','border','edge','colorStyles','defaultTextStyle','lineStyles','curveAmount','curveOverrides','curveLine'];contextStyleClipboard={kind:'label',style:Object.fromEntries(keys.map(key=>[key,contextClone(data[key])]))}}
+ $('status').textContent='Đã sao chép định dạng.'
+}
+async function contextApplyStyle(){
+ if(!contextStyleClipboard){$('status').textContent='Chưa có định dạng đã sao chép.';return}
+ recordHistory();
+ if(selectedGraphic()&&contextStyleClipboard.kind==='graphic'){const style=contextStyleClipboard.style;for(const item of graphicSelection())for(const [key,value] of Object.entries(style)){if(item.kind==='image'&&key==='color')continue;if(item.kind!=='image'&&['backgroundColor','tolerance','removeWhite'].includes(key))continue;item[key]=contextClone(value)}}
+ else if(!selectedGraphic()&&contextStyleClipboard.kind==='label'){saveActiveLabel();for(const label of selectedLabels())Object.assign(label.settings,contextClone(contextStyleClipboard.style))}
+ else{$('status').textContent='Định dạng đã sao chép không cùng loại thành phần.';return}
+ await contextCommit('Đã dán định dạng.')
+}
+async function contextToggleLock(){
+ recordHistory();
+ if(selectedGraphic()){const items=graphicSelection(),lock=!items.every(item=>item.locked);items.forEach(item=>item.locked=lock);await contextCommit(lock?'Đã khóa thành phần.':'Đã mở khóa thành phần.')}
+ else{saveActiveLabel();const items=selectedLabels(),lock=!items.every(label=>label.settings.labelLocked===true);items.forEach(label=>label.settings.labelLocked=lock);labelLockControl.checked=currentLabel().settings.labelLocked===true;await contextCommit(lock?'Đã khóa thành phần.':'Đã mở khóa thành phần.')}
+}
+async function contextGroupSelection(ungroup=false){
+ if(ungroup&&!contextCanUngroup()){$('status').textContent='Vùng chọn chưa được nhóm.';return}
+ if(!ungroup&&!contextCanGroup()){$('status').textContent='Giữ Shift và chọn từ 2 thành phần trở lên để Nhóm.';return}
+ await groupGraphics(ungroup);renderLayersPanel()
+}
+async function contextMoveLayer(mode){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi đổi lớp.';return}
+ recordHistory();
+ if(selectedGraphic()){
+  const selected=new Set(graphicSelection().map(item=>item.id));let array=decorations.slice();
+  if(mode==='front')array=[...array.filter(x=>!selected.has(x.id)),...array.filter(x=>selected.has(x.id))];
+  else if(mode==='back')array=[...array.filter(x=>selected.has(x.id)),...array.filter(x=>!selected.has(x.id))];
+  else if(mode==='up'){for(let i=array.length-2;i>=0;i--)if(selected.has(array[i].id)&&!selected.has(array[i+1].id))[array[i],array[i+1]]=[array[i+1],array[i]]}
+  else if(mode==='down'){for(let i=1;i<array.length;i++)if(selected.has(array[i].id)&&!selected.has(array[i-1].id))[array[i],array[i-1]]=[array[i-1],array[i]]}
+  decorations=array
+ }else{
+  saveActiveLabel();const selected=new Set(selectedLabels().map(label=>label.id));let array=labels.slice();
+  if(mode==='front')array=[...array.filter(x=>!selected.has(x.id)),...array.filter(x=>selected.has(x.id))];
+  else if(mode==='back')array=[...array.filter(x=>selected.has(x.id)),...array.filter(x=>!selected.has(x.id))];
+  else if(mode==='up'){for(let i=array.length-2;i>=0;i--)if(selected.has(array[i].id)&&!selected.has(array[i+1].id))[array[i],array[i+1]]=[array[i+1],array[i]]}
+  else if(mode==='down'){for(let i=1;i<array.length;i++)if(selected.has(array[i].id)&&!selected.has(array[i-1].id))[array[i],array[i-1]]=[array[i-1],array[i]]}
+  labels=array
+ }
+ await contextCommit('Đã thay đổi thứ tự lớp.')
+}
+async function contextAlignSelection(mode){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi căn chỉnh.';return}
+ const units=selectedGraphic()?contextGraphicUnits():contextLabelUnits();if(units.length<2){$('status').textContent='Chọn ít nhất 2 thành phần để căn chỉnh.';return}
+ const left=Math.min(...units.map(u=>u.bounds.x)),top=Math.min(...units.map(u=>u.bounds.y)),right=Math.max(...units.map(u=>u.bounds.x+u.bounds.width)),bottom=Math.max(...units.map(u=>u.bounds.y+u.bounds.height)),cx=(left+right)/2,cy=(top+bottom)/2;recordHistory();
+ for(const unit of units){const b=unit.bounds;let dx=0,dy=0;if(mode==='left')dx=left-b.x;if(mode==='right')dx=right-(b.x+b.width);if(mode==='hcenter')dx=cx-(b.x+b.width/2);if(mode==='top')dy=top-b.y;if(mode==='bottom')dy=bottom-(b.y+b.height);if(mode==='vcenter')dy=cy-(b.y+b.height/2);selectedGraphic()?contextMoveGraphicUnit(unit,dx,dy):contextMoveLabelUnit(unit,dx,dy)}
+ await contextCommit('Đã căn chỉnh vùng chọn.')
+}
+async function contextDistributeSelection(axis){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi dàn cách.';return}
+ const units=selectedGraphic()?contextGraphicUnits():contextLabelUnits();if(units.length<3){$('status').textContent='Chọn ít nhất 3 thành phần để dàn cách đều.';return}
+ const horizontal=axis==='horizontal',sorted=units.slice().sort((a,b)=>(horizontal?a.bounds.x:a.bounds.y)-(horizontal?b.bounds.x:b.bounds.y)),start=horizontal?sorted[0].bounds.x:sorted[0].bounds.y,end=horizontal?sorted.at(-1).bounds.x+sorted.at(-1).bounds.width:sorted.at(-1).bounds.y+sorted.at(-1).bounds.height,total=sorted.reduce((sum,u)=>sum+(horizontal?u.bounds.width:u.bounds.height),0),gap=(end-start-total)/(sorted.length-1);recordHistory();let cursor=start;
+ for(const unit of sorted){const pos=horizontal?unit.bounds.x:unit.bounds.y,delta=cursor-pos;selectedGraphic()?contextMoveGraphicUnit(unit,horizontal?delta:0,horizontal?0:delta):contextMoveLabelUnit(unit,horizontal?delta:0,horizontal?0:delta);cursor+=(horizontal?unit.bounds.width:unit.bounds.height)+gap}
+ await contextCommit('Đã dàn cách đều '+(horizontal?'theo chiều ngang.':'theo chiều dọc.'))
+}
+async function contextCenterSelection(){
+ if(contextSelectionLocked()){$('status').textContent='Hãy mở khóa trước khi căn giữa.';return}
+ if(selectedGraphic()){const units=contextGraphicUnits(),all=units.flatMap(u=>u.items);if(!all.length)return;const b=graphicGroupBounds(all),L=previewSize?.L||layout(),dx=L.width/2-(b.x+b.width/2),dy=L.height/2-(b.y+b.height/2);recordHistory();units.forEach(unit=>contextMoveGraphicUnit(unit,dx,dy))}
+ else{const units=contextLabelUnits();if(!units.length)return;const all=units.flatMap(u=>u.items),b=wholeGroupBounds(all),page=previewPage(),dx=page.width/2-(b.x+b.width/2),dy=page.height/2-(b.y+b.height/2);recordHistory();units.forEach(unit=>contextMoveLabelUnit(unit,dx,dy))}
+ await contextCommit('Đã căn vùng chọn vào giữa tem.')
+}
+async function contextUseColorForTem(){
+ let color='';if(selectedGraphic()){const item=selectedGraphic();color=item.kind==='image'?(item.backgroundColor||'#ffffff'):item.color}else{saveActiveLabel();color=currentLabel().settings.fill||'#ffffff'}if(!/^#[0-9a-f]{6}$/i.test(color))color='#ffffff';$('body').value=color;colorStyles.body={type:'solid'};recordHistory();await preview();recordHistory();updateColorButtons();$('status').textContent='Đã dùng màu '+color+' cho nền tem.'
+}
+async function contextDownloadSelection(){
+ let canvas;
+ if(selectedGraphic()){
+  const items=graphicSelection();if(!items.length)return;await ensureGraphics(items);const bounds=graphicGroupBounds(items),scale=Math.min(4,Math.max(1,1800/Math.max(bounds.width,bounds.height))),pad=8;canvas=cv(Math.max(1,Math.ceil(bounds.width*scale+pad*2)),Math.max(1,Math.ceil(bounds.height*scale+pad*2)));const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.translate(-bounds.x+pad/scale,-bounds.y+pad/scale);for(const item of decorations)if(items.includes(item))drawGraphic(ctx,item,false)
+ }else{
+  saveActiveLabel();const chosen=selectedLabels();if(!chosen.length)return;await ensureDocumentFonts();const original=oneLabelSettings(),parts=[];try{for(const label of chosen){setLabelSettings(label.settings);const output=render(false,1,false),page=previewPage(),x=label.settings.labelX===''?(page.width-output.cm)/2:Number(label.settings.labelX),y=label.settings.labelY===''?1:Number(label.settings.labelY),sx=Number(label.settings.labelScaleX||1),sy=Number(label.settings.labelScaleY||1);parts.push({c:output.c,x,y,w:output.cm*sx,h:output.heightCm*sy})}}finally{setLabelSettings(original,true)}const left=Math.min(...parts.map(p=>p.x)),top=Math.min(...parts.map(p=>p.y)),right=Math.max(...parts.map(p=>p.x+p.w)),bottom=Math.max(...parts.map(p=>p.y+p.h)),unit=120;canvas=cv(Math.max(1,Math.ceil((right-left)*unit)),Math.max(1,Math.ceil((bottom-top)*unit)));const ctx=canvas.getContext('2d');for(const p of parts)ctx.drawImage(p.c,(p.x-left)*unit,(p.y-top)*unit,p.w*unit,p.h*unit)
+ }
+ const link=document.createElement('a');link.download='TEMhoa-vung-chon.png';link.href=canvas.toDataURL('image/png');document.body.append(link);link.click();link.remove();$('status').textContent='Đã xuất vùng chọn PNG.'
+}
+
+window.addEventListener('pointerdown',event=>{
+ if(event.button!==0||event.target.closest?.('.graphicOverlay'))return;
+ if(event.target.closest?.('#wholeGroupFrame')&&selectedLabels().some(label=>label.settings.labelLocked===true)){event.preventDefault();event.stopPropagation();$('status').textContent='Thành phần đang khóa.';return}
+ const node=event.target.closest?.('.otherLabel,#labelSurface');if(!node)return;const id=node.dataset.labelId||activeLabelId,label=labels.find(item=>item.id===id);if(!label)return;const locked=label.id===activeLabelId?labelLockControl.checked:label.settings.labelLocked===true;if(!locked)return;
+ event.preventDefault();event.stopPropagation();if(label.id!==activeLabelId)activateLabel(label.id).then(()=>{selectedLabelSet=new Set([label.id]);drawLabelGroupFrame()});else{selectedLabelSet=new Set([label.id]);drawLabelGroupFrame()}$('status').textContent='Thành phần đang khóa. Chuột phải → Mở khóa để chỉnh.'
+},true);
+
+function ctxDivider(){const d=document.createElement('div');d.className='ctxDivider';return d}
+function ctxItem(label,icon='',shortcut='',action=null,disabled=false,extraClass=''){
+ const button=document.createElement('button');button.type='button';button.className='ctxItem '+extraClass;button.disabled=disabled;button.setAttribute('role','menuitem');button.setAttribute('aria-label',label);const i=document.createElement('span');i.className='ctxIcon';i.textContent=icon;i.setAttribute('aria-hidden','true');const t=document.createElement('span');t.className='ctxText';t.textContent=label;button.append(i,t);
+ if(shortcut){const s=document.createElement('span');s.className='ctxShortcut';s.textContent=shortcut;s.setAttribute('aria-hidden','true');button.append(s)}
+ if(action)button.onclick=async event=>{event.stopPropagation();labelMenu.hidden=true;try{await action()}catch(error){$('status').textContent=error.message}};return button
+}
+function ctxSub(label,icon,items){const host=ctxItem(label,icon,'',null,false,'ctxHasSub'),arrow=document.createElement('span');arrow.className='ctxArrow';arrow.textContent='›';host.append(arrow);const sub=document.createElement('div');sub.className='ctxSub';sub.setAttribute('role','menu');for(const item of items)sub.append(item);host.append(sub);return host}
+function rebuildContextMenu(){
+ const lock=contextSelectionLocked(),units=contextUnitCount(),mac=navigator.platform?.toLowerCase().includes('mac'),mod=mac?'⌘':'Ctrl+';
+ labelMenu.className='labelContextMenu canvaMenu';labelMenu.replaceChildren(
+  ctxItem('Sao chép','▣',mod+'C',contextCopySelection),
+  ctxItem('Sao chép định dạng','🖌','',()=>{contextCopyStyle()}),
+  ctxItem('Dán','▢',mod+'V',contextPasteSelection,contextClipboardKind===''&&!labelClipboard),
+  ctxItem('Tạo bản sao','⊞',mod+'D',contextDuplicateSelection),
+  ctxItem('Xóa','⌫','Delete',contextDeleteSelection,false,'ctxDanger'),
+  ctxDivider(),
+  ctxSub('Lớp','◇',[ctxItem('Đưa lên trên cùng','⇈','',()=>contextMoveLayer('front'),lock),ctxItem('Lên 1 lớp','↑','',()=>contextMoveLayer('up'),lock),ctxItem('Xuống 1 lớp','↓','',()=>contextMoveLayer('down'),lock),ctxItem('Đưa xuống dưới cùng','⇊','',()=>contextMoveLayer('back'),lock)]),
+  ctxSub('Căn chỉnh thành phần','≡',[ctxItem('Căn trái','⇤','',()=>contextAlignSelection('left'),lock||units<2),ctxItem('Căn giữa ngang','↔','',()=>contextAlignSelection('hcenter'),lock||units<2),ctxItem('Căn phải','⇥','',()=>contextAlignSelection('right'),lock||units<2),ctxItem('Căn trên','↥','',()=>contextAlignSelection('top'),lock||units<2),ctxItem('Căn giữa dọc','↕','',()=>contextAlignSelection('vcenter'),lock||units<2),ctxItem('Căn dưới','↧','',()=>contextAlignSelection('bottom'),lock||units<2),ctxDivider(),ctxItem('Căn vùng chọn vào giữa tem','⊙','',contextCenterSelection,lock)]),
+  ctxSub('Dàn cách đều','▦',[ctxItem('Theo chiều ngang','↔','',()=>contextDistributeSelection('horizontal'),lock||units<3),ctxItem('Theo chiều dọc','↕','',()=>contextDistributeSelection('vertical'),lock||units<3)]),
+  ctxDivider(),
+  ctxItem(contextCanUngroup()?'Bỏ nhóm':'Nhóm','▧',contextCanUngroup()?mod+'Shift+G':mod+'G',()=>contextGroupSelection(contextCanUngroup()),contextCanUngroup()?false:!contextCanGroup()),
+  ctxItem(lock?'Mở khóa':'Khóa',lock?'🔓':'🔒','',contextToggleLock),
+  ctxDivider(),
+  ctxItem('Dán định dạng','✥','',contextApplyStyle,!contextStyleClipboard),
+  ctxItem('Dùng màu cho nền tem','◉','',contextUseColorForTem),
+  ctxItem('Tải xuống phần đã chọn','↓','',contextDownloadSelection)
+ )
+}
+async function openCanvaContextMenu(event){
+ event.preventDefault();event.stopImmediatePropagation();const overlay=event.target.closest('.graphicOverlay'),other=event.target.closest('.otherLabel'),active=event.target.closest('#labelSurface');
+ if(overlay){const item=decorations.find(x=>x.id===overlay.dataset.graphicId);if(item&&!selectedGraphicSet.has(item.id))selectGraphicItems(item,false);else if(item)selectedGraphicId=item.id;selectedLabelSet.clear();positionGraphicOverlays();syncGraphicControls()}
+ else{selectedGraphicId=null;selectedGraphicSet.clear();const id=other?.dataset.labelId||(active?activeLabelId:'');if(id&&id!==activeLabelId)await activateLabel(id);const label=labels.find(x=>x.id===id)||currentLabel();if(!selectedLabelSet.has(label.id))selectWholeLabel(label,false);syncGraphicControls()}
+ rebuildContextMenu();labelMenu.hidden=false;labelMenu.classList.toggle('ctxOpenLeft',event.clientX>innerWidth-600);requestAnimationFrame(()=>{const w=labelMenu.offsetWidth,h=labelMenu.offsetHeight;labelMenu.style.left=Math.max(8,Math.min(event.clientX,innerWidth-w-8))+'px';labelMenu.style.top=Math.max(8,Math.min(event.clientY,innerHeight-h-8))+'px'})
+}
+$('previewArea').addEventListener('contextmenu',openCanvaContextMenu,true);
+document.addEventListener('pointerdown',event=>{if(!labelMenu.hidden&&!labelMenu.contains(event.target))labelMenu.hidden=true},true);
+document.addEventListener('keydown',event=>{
+ if(!home.hidden||event.target.closest?.('input,textarea,select,[contenteditable=true],dialog'))return;const mod=event.ctrlKey||event.metaKey,key=event.key.toLowerCase();
+ if(mod&&!event.altKey&&['c','v','d','g'].includes(key)){event.preventDefault();event.stopImmediatePropagation();const task=key==='c'?contextCopySelection:key==='v'?contextPasteSelection:key==='d'?contextDuplicateSelection:()=>contextGroupSelection(event.shiftKey);Promise.resolve(task()).catch(error=>$('status').textContent=error.message);return}
+ if(!mod&&!event.altKey&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();event.stopImmediatePropagation();contextDeleteSelection().catch(error=>$('status').textContent=error.message)}
+},true);
+
+
+// Keep legacy control IDs available to shared toolbar/zoom synchronizers.
+const legacyContextControls=document.createElement('div');legacyContextControls.hidden=true;legacyContextControls.append(...labelMenu.childNodes);document.body.append(legacyContextControls);
+$('groupGraphics').onclick=()=>contextGroupSelection(false).catch(error=>$('status').textContent=error.message);
+$('ungroupGraphics').onclick=()=>contextGroupSelection(true).catch(error=>$('status').textContent=error.message);
 
 </script></html>
 
