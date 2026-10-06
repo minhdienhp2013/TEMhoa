@@ -6,7 +6,7 @@ await page.evaluate(async()=>{await addGraphic('grin');await addGraphic('sad');s
 assert.equal(await page.evaluate(()=>graphicSelection().length),2);
 await page.evaluate(async()=>contextGroupSelection(false));
 assert.ok(await page.evaluate(()=>decorations.length===2&&decorations[0].groupId&&decorations[0].groupId===decorations[1].groupId),'Two selected graphics must group');
-await page.locator('.graphicOverlay').first().click({button:'right'});
+await page.locator('.graphicOverlay').last().click({button:'right'});
 const menuState=await page.evaluate(()=>({hidden:labelMenu.hidden,text:labelMenu.textContent,selectedGraphicId,selected:[...selectedGraphicSet],groups:decorations.map(x=>x.groupId),errors:[]}));
 if(menuState.hidden||!menuState.text.includes('Bỏ nhóm'))throw Error('Context menu state: '+JSON.stringify(menuState));
 await page.getByRole('menuitem',{name:'Bỏ nhóm',exact:true}).click();
@@ -14,13 +14,13 @@ assert.ok(await page.evaluate(()=>decorations.every(item=>!item.groupId)),'Ungro
 await page.evaluate(async()=>{decorations[0].x=80;decorations[1].x=260;selectGraphicItems(decorations[0],false);selectGraphicItems(decorations[1],true);await preview();await contextAlignSelection('left')});
 const aligned=await page.evaluate(()=>decorations.map(item=>graphicBounds(item).x));
 assert.ok(Math.abs(aligned[0]-aligned[1])<0.01,'Context align-left must align selected graphics');
-await page.locator('.graphicOverlay').first().click({button:'right'});
+await page.locator('.graphicOverlay').last().click({button:'right'});
 await page.getByRole('menuitem',{name:'Nhóm',exact:true}).click();
 assert.ok(await page.evaluate(()=>decorations[0].groupId&&decorations[0].groupId===decorations[1].groupId),'Context menu Group must work');
-await page.locator('.graphicOverlay').first().click({button:'right'});
+await page.locator('.graphicOverlay').last().click({button:'right'});
 await page.getByRole('menuitem',{name:'Khóa',exact:true}).click();
 assert.ok(await page.evaluate(()=>decorations.every(item=>item.locked)),'Lock must apply to the whole group');
-await page.locator('.graphicOverlay').first().click({button:'right'});
+await page.locator('.graphicOverlay').last().click({button:'right'});
 await page.getByRole('menuitem',{name:'Mở khóa',exact:true}).click();
 assert.ok(await page.evaluate(()=>decorations.every(item=>!item.locked)),'Unlock must apply to the whole group');
 assert.deepEqual(errors,[]);console.log('PASS: text creation, free drag, save/open, second text, render, cloud mode');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
