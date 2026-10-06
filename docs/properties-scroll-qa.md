@@ -15,3 +15,9 @@ PASS hồi quy: art-ui-smoke, clipboard-smoke, editor-interactions-smoke, image-
 ![Desktop](properties-scroll-screenshots/desktop.png)
 
 ![Cửa sổ hẹp](properties-scroll-screenshots/mobile.png)
+
+## Khôi phục màu nền mây
+
+Trong icon đám mây, thêm lại Màu nền mây. Dùng bộ chọn màu hiện có: màu đơn, gradient và trong suốt. Khôi phục mặt nạ nền mây trong render raster và SVG, đồng thời bỏ việc ép nền về trong suốt khi mở mẫu/undo. Chỉ áp dụng nền cho Tem mây; Tem thường và chữ tự do vẫn trong suốt. Mẫu thiếu thuộc tính nền giữ mặc định trong suốt an toàn.
+
+PASS kiểm tra thực tế qua nút chọn màu và mã #22bb66: pixel màu nền trên canvas, PNG giải mã thực tế, SVG, PDF tải xuống và raster hóa bằng PyMuPDF; undo/redo và serialize/restore thiết kế giữ đúng màu. PASS autosave-smoke.
