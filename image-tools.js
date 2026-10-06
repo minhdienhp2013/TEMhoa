@@ -124,11 +124,14 @@
     if(!label.bitmap||label.bitmap.width!==c.width||label.bitmap.height!==c.height)label.bitmap=cv(c.width,c.height);
     const bitmap=label.bitmap.getContext('2d');bitmap.clearRect(0,0,c.width,c.height);bitmap.drawImage(c,0,0);label.renderVersion=(label.renderVersion||0)+1;
   }
-  function releaseTintSave(){if(tintLive?.saveHeld){autoSuspended--;tintLive.saveHeld=false;}}
+  function releaseTintSave(){if(tintLive?.saveHeld){autoSuspended--;colorSaveGate.leave();tintLive.saveHeld=false;}}
   const tintPreview=preview;
   preview=async function(...args){
     const finishing=tintLive;releaseTintSave();tintLive=null;tintPrepared=null;
-    try{return await tintPreview(...args);}finally{if(finishing){recordHistory();renderLayersPanel();}}
+    try{return await tintPreview(...args);}finally{if(finishing){
+      const item=finishing.owner===activeLabelId?decorations.find(i=>i.id===finishing.id):labels.find(l=>l.id===finishing.owner)?.settings.decorations?.find(i=>i.id===finishing.id);
+      if(item&&window.TemColors)for(const key of finishing.colors){if(key==='imageTint'){const tint=safeImageTint(item.imageTint);if(tint.enabled)TemColors.remember(tint);}else TemColors.remember({type:'solid',color:item[key]});}
+      recordHistory();renderLayersPanel();if(autoContext?.pending)tintFlush().catch(error=>message(error.message));}}
   };
   function finishTint(){queue=queue.then(async()=>{if(tintLive){const prepared=tintPrepared;await preview();if(prepared?.owner===activeLabelId&&prepared.id===currentImage()?.id)tintPrepared=prepared;}}).catch(error=>message(error.message));return queue;}
   const pendingControls=new Map();
@@ -143,9 +146,9 @@
     queue=queue.then(async()=>{
       if(key){await new Promise(resolve=>requestAnimationFrame(resolve));if(pendingControls.get(key)===job)pendingControls.delete(key);}
       if(activeLabelId!==owner||!canEdit(item))return false;
-      if(controlKey==='imageTint'){
-        if(!tintLive){prepareTint(currentImage());recordHistory();clearTimeout(autoTimer);autoSuspended++;tintLive={owner,id:item.id,saveHeld:true};}
-        await job.change(currentImage());paintTint(currentImage());return true;
+      if(['imageTint','strokeColor','shadowColor'].includes(controlKey)){
+        if(!tintLive){prepareTint(currentImage());recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();tintLive={owner,id:item.id,saveHeld:true,colors:new Set()};}
+        tintLive.colors.add(controlKey);await job.change(currentImage());paintTint(currentImage());return true;
       }
       if(tintLive)await preview();
       recordHistory();await job.change(currentImage());await ensureGraphics();await preview();
@@ -184,7 +187,7 @@
     const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier,key);};
     range.oninput=()=>change(range);number.onchange=()=>change(number);row.append(name,range,number);node.append(row);
   }
-  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>{const value=input.value;mutate(item=>item[key]=value,key);};row.append(input);node.append(row);}
+  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>{const value=input.value;mutate(item=>item[key]=value,key);};input.onfocus=()=>prepareTint(currentImage());input.onchange=input.onblur=finishTint;row.append(input);node.append(row);}
   function imageTintPanel(node){
     const tint=safeImageTint(currentImage().imageTint),section=document.createElement('div');
     const title=document.createElement('strong');title.textContent='Đổi màu ảnh';section.append(title);
@@ -204,7 +207,7 @@
   function openPanel(kind){if(!currentImage()&&kind!=='more')return;if(!canEdit(currentImage())&&kind!=='more')return;
     if(popover?.kind===kind){closePopover(true);return;}const title={edit:'Chỉnh sửa ảnh',stroke:'Viền ảnh',radius:'Bo góc và mask',flip:'Lật ảnh',opacity:'Độ mờ',position:'Vị trí ảnh',style:'Kiểu dáng ảnh',more:'Thêm công cụ ảnh'}[kind];const node=shell(kind,title);popover.kind=kind;
     if(kind==='edit'){for(const [key,label,min,max] of [['brightness','Sáng',-100,100],['contrast','Tương phản',-100,100],['saturation','Bão hòa',-100,100],['temperature','Nhiệt độ màu',-100,100],['blur','Làm mờ',0,30]])control(node,key,label,min,max);reset(node,['brightness','contrast','saturation','temperature','blur']);node.append(button('image-restore','Khôi phục ảnh gốc','undo',()=>restoreOriginal()));node.append(manualBackground);node.append(document.createTextNode('Điều chỉnh giữ ảnh gốc. Chuyển động trình chiếu chưa hỗ trợ.'));}
-    if(kind==='stroke'){color(node,'strokeColor','Màu viền');control(node,'strokeWidth','Độ dày viền (px)',0,50,.5);const label=document.createElement('label');label.textContent='Kiểu nét';const select=document.createElement('select');select.setAttribute('aria-label','Kiểu nét');for(const [v,t] of [['solid','Liền'],['dash','Nét đứt'],['dot','Chấm']])select.add(new Option(t,v));select.value=currentImage().strokeStyle||'solid';select.onchange=()=>mutate(item=>item.strokeStyle=select.value);label.append(select);node.append(label);reset(node,['strokeColor','strokeWidth','strokeStyle']);}
+    if(kind==='stroke'){prepareTint(currentImage());color(node,'strokeColor','Màu viền');control(node,'strokeWidth','Độ dày viền (px)',0,50,.5);const label=document.createElement('label');label.textContent='Kiểu nét';const select=document.createElement('select');select.setAttribute('aria-label','Kiểu nét');for(const [v,t] of [['solid','Liền'],['dash','Nét đứt'],['dot','Chấm']])select.add(new Option(t,v));select.value=currentImage().strokeStyle||'solid';select.onchange=()=>mutate(item=>item.strokeStyle=select.value);label.append(select);node.append(label);reset(node,['strokeColor','strokeWidth','strokeStyle']);}
     if(kind==='radius'){control(node,'radius','Bo góc (%)',0,50);const label=document.createElement('label');label.textContent='Mask';const select=document.createElement('select');select.setAttribute('aria-label','Mask ảnh');select.add(new Option('Chữ nhật','rect'));select.add(new Option('Elip','ellipse'));select.value=currentImage().imageMask||'rect';select.onchange=()=>mutate(item=>item.imageMask=select.value);label.append(select);node.append(label);reset(node,['radius','imageMask']);}
     if(kind==='flip')for(const [key,label] of [['flipX','Lật ngang'],['flipY','Lật dọc']])node.append(button('',label,'flip',async()=>{await mutate(item=>item[key]=!item[key]);closePopover(true);}));
     if(kind==='opacity'){control(node,'opacity','Độ mờ (%)',0,100,1,100);reset(node,['opacity']);}
