@@ -365,7 +365,11 @@ document.addEventListener('pointerdown',e=>{if(openFontPicker&&!openFontPicker.m
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFontPicker()});
 window.addEventListener('resize',closeFontPicker);
 
-function sortComputerFonts(fonts){const rank=name=>/^UTM/i.test(name)?0:/^UVN/i.test(name)?1:2;return [...new Set(fonts)].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b,'vi'))}
+const commonFontOrder=['Times New Roman','Arial','Tahoma','Calibri','Cambria','Verdana','Georgia','Helvetica','Helvetica Neue'];
+function sortComputerFonts(fonts){
+ const rank=name=>{const index=commonFontOrder.findIndex(common=>common.toLocaleLowerCase('vi')===name.toLocaleLowerCase('vi'));return index>=0?index:/^UTM/i.test(name)?commonFontOrder.length:/^UVN/i.test(name)?commonFontOrder.length+1:commonFontOrder.length+2;};
+ return [...new Set(fonts)].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b,'vi'));
+}
 function populateFontSelect(select,perLine=false,selected=''){
  select.replaceChildren();function option(parent,value,text){let o=document.createElement('option');o.value=value;o.textContent=text;parent.append(o)}
  if(perLine)option(select,'','Theo phông trên thanh công cụ');
