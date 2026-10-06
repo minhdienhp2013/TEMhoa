@@ -1038,7 +1038,7 @@ async function reorderLayerUnit(labelId,key,targetKey,after=false){
   recordHistory();const L=previewSize?.L||layout(),order=orderedLayerUnits(L).map(unit=>unit.key),from=order.indexOf(key);
   if(from<0||!order.includes(targetKey))return;
   order.splice(from,1);const index=order.indexOf(targetKey);order.splice(index+(after?0:1),0,key);
-  $('layerStack').value=JSON.stringify({order});selectedUnitKey=key;
+  $('layerStack').value=JSON.stringify({...readLayerStack(),order});selectedUnitKey=key;
   // Keep graphic hit-testing and the older image tools in the same relative order.
   decorations.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
   await preview();recordHistory();syncGraphicControls();
@@ -1170,7 +1170,7 @@ async function convertNormalText(){
 }
 const designApplyTemplate=applyTemplate;applyTemplate=async function(template){designEditing=false;await designApplyTemplate(template);if(isDesign()&&designKind.value!=='text')await convertNormalText();zoom()};
 $('previewArea').addEventListener('pointerdown',async event=>{
- if(event.button!==0||homeBusy||event.target.closest('.graphicOverlay,#wholeGroupFrame,.resizeHandle')||designDrag)return;
+ if(event.button!==0||homeBusy||event.target.closest('.graphicOverlay,#wholeGroupFrame,.resizeHandle,.layerMoveHandle')||designDrag)return;
  const node=event.target.closest('.otherLabel,#labelSurface');if(!node)return;
  const id=node.dataset.labelId||activeLabelId,label=labels.find(item=>item.id===id);if(!label||!(label.settings.designKind==='text'||label.settings.designKind==='design'||label.settings.wordFrame))return;
  if(designEditing&&id===activeLabelId&&event.target.closest('#temEditor'))return;
@@ -1770,6 +1770,28 @@ for(const id of ['designAddText','designAddImage','insertGraphics','studioResour
 document.querySelector('.wordWorkspace').append(compactInsertTools);
 // Keyboard/native paste stays active; the redundant visible button is removed.
 $('systemPaste').hidden=true;$('systemPaste').inert=true;document.body.append($('systemPaste'));
+</script>
+<script>
+/* A selected text layer has its own transform; page geometry stays unchanged. */
+(() => {
+ const getTransform=key=>{const t=readLayerStack().transforms?.[key]||{};return {x:Number.isFinite(t.x)?t.x:0,y:Number.isFinite(t.y)?t.y:0,sx:Number.isFinite(t.sx)?Math.max(.05,Math.min(10,t.sx)):1,sy:Number.isFinite(t.sy)?Math.max(.05,Math.min(10,t.sy)):1};};
+ const bounds=key=>{const runs=(previewSize?.L.runs||[]).filter(r=>(r.layerKey||'text-0')===key);if(!runs.length)return null;const x=Math.min(...runs.map(r=>r.x)),y=Math.min(...runs.map(r=>r.y-r.size*(r.scaleY||1)));return {x,y,w:Math.max(1,Math.max(...runs.map(r=>r.x+r.width))-x),h:Math.max(1,Math.max(...runs.map(r=>r.y+r.size*.3*(r.scaleY||1)))-y)};};
+ const oldPaint=paintLayerUnit;paintLayerUnit=function(ctx,L,scale,unit,...args){if(unit.kind!=='text')return oldPaint(ctx,L,scale,unit,...args);const t=getTransform(unit.key);ctx.save();try{ctx.translate(t.x*scale,t.y*scale);ctx.scale(t.sx,t.sy);return oldPaint(ctx,L,scale,unit,...args)}finally{ctx.restore()}};
+ function sync(){const key=activeUnitKey();if(selectedGraphic()){selectionFrame.style.display='none';return}if(!key?.startsWith('text-'))return;const b=bounds(key);if(!b)return;const t=getTransform(key),L=previewSize.L,sx=parseFloat($('labelSurface').style.width)/L.width,sy=parseFloat($('labelSurface').style.height)/L.height;Object.assign(selectionFrame.style,{display:'block',left:(b.x*t.sx+t.x)*sx+'px',top:(b.y*t.sy+t.y)*sy+'px',width:b.w*t.sx*sx+'px',height:b.h*t.sy*sy+'px'});textMoveHandle.style.left=(b.x*t.sx+t.x)*sx+'px';textMoveHandle.style.top=((b.y*t.sy+t.y)*sy-22)+'px';}
+ const oldZoom=zoom;zoom=function(...args){const r=oldZoom(...args);sync();return r};
+ const oldSelect=selectLayerUnit;selectLayerUnit=async function(...args){const r=await oldSelect(...args);sync();return r};
+ const oldSync=syncGraphicControls;syncGraphicControls=function(...args){const r=oldSync(...args);sync();return r};
+ textMoveHandle.classList.add('layerMoveHandle');
+ document.addEventListener('pointerdown',event=>{if(event.button!==0||designEditing||(!isDesign()&&event.target.closest('#temEditor'))||selectedLabels().length>1||selectedLayerUnits.size>1||!activeUnitKey()?.startsWith('text-')||!event.target.closest('#labelSurface')||event.target.closest('button,.graphicOverlay'))return;event.preventDefault();event.stopImmediatePropagation();selectionFrame.querySelector('[data-handle=move]').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:event.pointerId,button:event.button,clientX:event.clientX,clientY:event.clientY}));},true);
+ let drag=null,frame=0;
+ function draw(){frame=0;if(!drag)return;const output=render(),c=$('canvas');c.getContext('2d').clearRect(0,0,c.width,c.height);c.getContext('2d').drawImage(output.c,0,0);sync();}
+ for(const handle of [...selectionFrame.querySelectorAll('.resizeHandle'),textMoveHandle]){
+  handle.addEventListener('pointerdown',event=>{const key=activeUnitKey();if(!key?.startsWith('text-'))return;event.preventDefault();event.stopImmediatePropagation();if(event.button!==0||labelLockControl.checked||readLayerStack().locked?.includes(key))return;const b=bounds(key);if(!b)return;recordHistory();drag={key,owner:activeLabelId,pointer:event.pointerId,x:event.clientX,y:event.clientY,b,t:getTransform(key),dir:handle===textMoveHandle?'move':handle.dataset.handle,ux:previewSize.L.width/parseFloat($('labelSurface').style.width),uy:previewSize.L.height/parseFloat($('labelSurface').style.height)};handle.setPointerCapture(event.pointerId);$('labelSurface').classList.add('resizing');},true);
+  handle.addEventListener('pointermove',event=>{if(!drag||drag.pointer!==event.pointerId)return;event.stopImmediatePropagation();const d=drag;if(d.owner!==activeLabelId)return;const dx=(event.clientX-d.x)*d.ux,dy=(event.clientY-d.y)*d.uy,t={...d.t},west=d.dir.includes('w'),north=d.dir.includes('n'),horizontal=/[ew]/.test(d.dir),vertical=/[ns]/.test(d.dir);if(d.dir==='move'){t.x+=dx;t.y+=dy}else{if(horizontal)t.sx=Math.max(.05,Math.min(10,d.t.sx+(west?-dx:dx)/d.b.w));if(vertical)t.sy=Math.max(.05,Math.min(10,d.t.sy+(north?-dy:dy)/d.b.h));if($('lockRatio').checked){const factor=horizontal?t.sx/d.t.sx:t.sy/d.t.sy;t.sx=Math.max(.05,Math.min(10,d.t.sx*factor));t.sy=Math.max(.05,Math.min(10,d.t.sy*factor))}t.x+=(d.b.x+(west?d.b.w:0))*(d.t.sx-t.sx);t.y+=(d.b.y+(north?d.b.h:0))*(d.t.sy-t.sy)}const stack=readLayerStack();stack.transforms={...stack.transforms,[d.key]:t};$('layerStack').value=JSON.stringify(stack);if(!frame)frame=requestAnimationFrame(draw);},true);
+  const finish=async event=>{if(!drag||drag.pointer!==event.pointerId)return;event.stopImmediatePropagation();if(frame){cancelAnimationFrame(frame);draw()}drag=null;$('labelSurface').classList.remove('resizing');await preview();recordHistory();sync();};for(const event of ['pointerup','pointercancel','lostpointercapture'])handle.addEventListener(event,finish,true);
+ }
+})();
+
 </script>
 <script src="shape-tools.js"></script>
 <script src="color-tools.js"></script>

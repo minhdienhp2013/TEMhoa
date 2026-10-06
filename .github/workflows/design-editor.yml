@@ -34,6 +34,7 @@ jobs:
       - run: node tests/studio-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/layer-transform-smoke.cjs
       - run: node tests/all-colors-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots

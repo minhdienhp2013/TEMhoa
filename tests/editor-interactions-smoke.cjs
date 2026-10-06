@@ -32,6 +32,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await shot('image-resize-live');const resized=await p.locator('.graphicOverlay.selected').boundingBox();await p.mouse.up();await p.waitForFunction(()=>!TemLivePreview.active);await select();const final=await p.locator('.graphicOverlay.selected').boundingBox();assert.ok(Math.abs(resized.width-final.width)<1,'resize commit stable');assert.equal(await p.evaluate(()=>$('canvas').toDataURL()===render().c.toDataURL()),true);
 
 
+ // Whole-page handles remain available when a layer is not selected.
+ await p.evaluate(()=>{selectedGraphicId=null;selectedGraphicSet.clear();selectedUnitKey='';selectedLayerUnits.clear();zoom();});
  // The outer label handles must also preserve the viewport when released.
  const wholeHandle=await p.locator('#selectionFrame [data-handle=nw]').boundingBox(),wx=wholeHandle.x+2,wy=wholeHandle.y+2;
  await p.mouse.move(wx,wy);await p.mouse.down();assert.equal(await p.evaluate(()=>!!labelDrag),true,'outer handle receives pointer');await p.mouse.move(wx-55,wy-27,{steps:8});await p.waitForTimeout(70);const wholeLive=await p.locator('#selectionFrame').boundingBox();await p.mouse.up();await p.waitForTimeout(200);const wholeFinal=await p.locator('#selectionFrame').boundingBox();assert.ok(Math.abs(wholeLive.x-wholeFinal.x)<1&&Math.abs(wholeLive.y-wholeFinal.y)<1&&Math.abs(wholeLive.width-wholeFinal.width)<1,'outer resize does not scroll on release');await select();
