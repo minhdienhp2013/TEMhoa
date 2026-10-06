@@ -43,6 +43,9 @@ jobs:
       - run: node tests/clipboard-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/properties-scroll-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
       - run: python tests/studio-pdf-check.py
       - uses: actions/upload-artifact@v4
         if: always()
