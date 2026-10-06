@@ -1,7 +1,13 @@
-# Ưu tiên phông thường dùng trong bộ chọn
+# Phông đã dùng gần đây và tự nạp phông
 
-Chỉ thay thứ tự phông trong danh sách chọn phông chính và từng dòng; giữ vị trí thanh công cụ/trang chính. Các phông có trên máy được ưu tiên: Times New Roman, Arial, Tahoma, Calibri, Cambria, Verdana, Georgia, Helvetica, Helvetica Neue. Sau đó giữ nhóm UTM, UVN và các phông khác theo tên. Không tự tải hay thêm phông chưa có vào danh sách; phông đang dùng nhưng chưa tìm thấy vẫn giữ nhãn cảnh báo hiện có.
+Danh sách chọn phông chính và từng dòng có nhóm Đã dùng gần đây. Ghi nhận khi người dùng bấm chọn hoặc chọn bằng bàn phím; rê chuột/xem thử, tải mẫu và mở file không thay đổi lịch sử. Giữ tối đa 12 họ phông, phông vừa chọn lên đầu và không lặp. Các phông khác giữ cách sắp UTM, UVN, sau đó theo tên; đã bỏ việc ưu tiên cố định Times/Arial. Lịch sử dùng localStorage riêng theo origin, giữ qua đóng/mở lại trên cùng địa chỉ; bắt đầu ghi nhận từ bản này. Phông từng dùng nhưng chưa thấy trên máy giữ nhãn cảnh báo. Phông đang dùng và văn bản không bị thay đổi vì sắp danh sách.
 
-PASS tests/art-ui-smoke.cjs với Chromium thực: danh sách họ phông fixture đảo thứ tự, mở bộ chọn thật, kiểm tra năm phông đầu và phông khác vẫn còn, chọn Times New Roman, giữ nguyên văn bản; toàn bộ kiểm thử art shell, canvas, focus, thiết kế gần đây, reduced motion và cửa sổ hẹp vẫn qua. Fixture kiểm tra thứ tự/handler, không chứng minh mọi phông này được cài trên máy Linux. Không build native Mac/Windows trong lần sửa này.
+Nút Lấy phông trên máy đã gỡ khỏi DOM. Khi load, ứng dụng thử queryLocalFonts; nếu cần user activation, tự gọi trong lần click/phím đầu tiên, không cần nút riêng và không chặn thao tác chỉnh sửa. Thành công không hỏi lại trong phiên. Từ chối quyền không lặp yêu cầu mỗi lần click; vẫn có phông hệ thống và thông tin quyền trong bộ chọn/panel phông. Quyền bị từ chối có thể cấp lại trong cài đặt trang rồi mở lại trang. Trình duyệt không có API, dữ liệu lịch sử hỏng và localStorage bị chặn đều có fallback.
 
-![Phông thường dùng ở đầu danh sách](font-screenshots/font-common-first.png)
+Ràng buộc trình duyệt: Local Font Access yêu cầu transient activation; trang không thể ép hộp hỏi quyền xuất hiện khi chưa có thao tác. [Đặc tả API](https://wicg.github.io/local-font-access/#font-manager).
+
+PASS tests/recent-fonts-smoke.cjs: thứ tự chọn thực tế, khử trùng, hover không ghi nhận, bàn phím/chọn phông từng dòng, đóng/mở lại profile, tự scan khi thao tác, không gọi lặp, từ chối/không hỗ trợ/lịch sử JSON hỏng. Test còn cấp quyền qua CDP và dùng queryLocalFonts thật của Chromium để đọc phông được cài trên Linux; kiểm tra fontRecords và machineFonts được nạp. Fixture họ phông dùng kiểm tra MRU, không chứng minh UTM/UVN được cài trên máy Linux.
+
+PASS art-ui-smoke.cjs và properties-scroll-smoke.cjs: công cụ, ảnh, dữ liệu/canvas, focus/scroll, bốn kích thước cửa sổ và PDF nền mây thực. Không có pageerror trong luồng MRU. desktop/smoke.cjs cập nhật cho nút đã gỡ và trường hợp chờ thao tác; chưa chạy native Electron hoặc build Mac/Windows trong lần sửa này.
+
+![Phông đã dùng gần đây](font-screenshots/recent-fonts.png)

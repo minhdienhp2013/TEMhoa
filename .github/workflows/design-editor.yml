@@ -46,6 +46,9 @@ jobs:
       - run: node tests/properties-scroll-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/recent-fonts-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
       - run: node tests/shapes-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots

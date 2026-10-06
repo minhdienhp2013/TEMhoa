@@ -173,7 +173,7 @@
   for(const id of ['graphicPhotoTools','lockGraphic','graphicList','manualBackground'])if($(id))legacy.append($(id));
   graphicsDialog.querySelectorAll('p,.graphicFields').forEach(node=>legacy.append(node));
   graphicsDialog.querySelectorAll('.graphicActions').forEach(node=>{if(!node.querySelector('#importGraphic'))legacy.append(node);});
-  graphicsDialog.querySelector('h3').firstChild.textContent='Thành phần ';artExtra.textContent='Ảnh: chọn trực tiếp trên canvas để mở thanh công cụ ảnh.';
+  graphicsDialog.querySelector('h3').firstChild.textContent='Thành phần ';
   $('graphicWhite').onchange=()=>{const enabled=$('graphicWhite').checked;return mutate(async item=>{item.sourceOriginal ||= item.original||item.src;item.removeWhite=enabled;await applyGraphicBackground(item);});};
   for(const id of ['graphicBackground','graphicTolerance'])$(id).onchange=()=>{const color=$('graphicBackground').value,tolerance=clamp(Number($('graphicTolerance').value)||0,0,150);return mutate(async item=>{item.sourceOriginal ||= item.original||item.src;item.backgroundColor=color;item.tolerance=tolerance;await applyGraphicBackground(item);});};
   let sampling=false;

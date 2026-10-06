@@ -36,11 +36,11 @@ body{height:100dvh;overflow:hidden;padding-bottom:0;display:flex;flex-direction:
 <header class="wordTitle"><div><strong>Tem Hoa Minh Điến</strong><span>Soạn tem hoa</span></div><div class="quickActions"><button id="save" title="Lưu mẫu">Lưu mẫu</button><button id="load" title="Mở mẫu">Mở mẫu</button><button id="print" title="In đúng kích thước (Ctrl + P / Command + P)">🖨 In</button><button class="exportWord" id="word" title="Xuất Word · 600 DPI">Xuất Word</button><button id="png" title="Xuất ảnh PNG · 600 DPI">Ảnh PNG</button><button id="svg" title="Xuất vector SVG">Vector SVG</button><input id="template" type="file" accept=".json" hidden></div></header>
 <div class="wordTabs"><button id="tabHome" class="tabActive" type="button" aria-selected="true">Trang đầu</button><span class="documentName">Tem mới · Unicode · 600 DPI</span></div>
 <div class="wordRibbon" id="homeRibbon" role="toolbar" aria-label="Thanh công cụ định dạng">
- <div class="ribbonGroup fontGroup"><div class="ribbonRow"><select id="font" aria-label="Phông trên máy tính"><option value="">Bấm Lấy phông trên máy…</option></select><input id="size" aria-label="Cỡ chữ" type="number" min="12" max="200" value="64" list="fontSizes"><datalist id="fontSizes"><option value="24"><option value="36"><option value="48"><option value="64"><option value="72"><option value="96"><option value="120"><option value="144"></datalist><button id="sizeUp" class="toolButton" title="Tăng cỡ chữ (Ctrl + ])" aria-label="Tăng cỡ chữ">A<span class="sup">＋</span></button><button id="sizeDown" class="toolButton" title="Giảm cỡ chữ (Ctrl + [)" aria-label="Giảm cỡ chữ">A<span class="sup">−</span></button></div><div class="ribbonRow"><label class="styleToggle" title="In đậm (Ctrl + B)"><input id="bold" type="checkbox" checked><span><b>B</b></span></label><label class="styleToggle" title="In nghiêng (Ctrl + I)"><input id="italic" type="checkbox"><span><i>I</i></span></label><label class="styleToggle" title="Gạch chân (Ctrl + U)"><input id="underline" type="checkbox"><span><u>U</u></span></label><div class="casePicker"><button id="caseButton" class="toolButton" type="button" title="Đổi chữ hoa/thường" aria-label="Đổi chữ hoa/thường" aria-haspopup="menu" aria-expanded="false">Aa ▾</button><div id="caseMenu" class="caseMenu" role="menu" aria-label="Đổi chữ hoa/thường" hidden><button type="button" role="menuitem" data-case="sentence">Viết hoa đầu câu</button><button type="button" role="menuitem" data-case="lower">chữ thường</button><button type="button" role="menuitem" data-case="upper">CHỮ HOA</button><button type="button" role="menuitem" data-case="title">Viết Hoa Từng Từ</button><button type="button" role="menuitem" data-case="toggle">đẢO cHỮ hOA/tHƯỜNG</button></div></div><input id="customFont" type="text" placeholder="Tên phông trên máy" hidden><button id="scanFonts" class="smallButton">Lấy phông trên máy</button></div><div class="ribbonRow"><label for="inputEncoding">Bảng mã bộ gõ</label><select id="inputEncoding" style="width:175px"><option value="unicode">Unicode</option><option value="tcvn3">TCVN3 (ABC)</option></select></div><div class="ribbonCaption">Phông chữ · chữ bôi đen / toàn bộ</div></div>
+ <div class="ribbonGroup fontGroup"><div class="ribbonRow"><select id="font" aria-label="Phông trên máy tính"><option value="">Phông hệ thống</option></select><input id="size" aria-label="Cỡ chữ" type="number" min="12" max="200" value="64" list="fontSizes"><datalist id="fontSizes"><option value="24"><option value="36"><option value="48"><option value="64"><option value="72"><option value="96"><option value="120"><option value="144"></datalist><button id="sizeUp" class="toolButton" title="Tăng cỡ chữ (Ctrl + ])" aria-label="Tăng cỡ chữ">A<span class="sup">＋</span></button><button id="sizeDown" class="toolButton" title="Giảm cỡ chữ (Ctrl + [)" aria-label="Giảm cỡ chữ">A<span class="sup">−</span></button></div><div class="ribbonRow"><label class="styleToggle" title="In đậm (Ctrl + B)"><input id="bold" type="checkbox" checked><span><b>B</b></span></label><label class="styleToggle" title="In nghiêng (Ctrl + I)"><input id="italic" type="checkbox"><span><i>I</i></span></label><label class="styleToggle" title="Gạch chân (Ctrl + U)"><input id="underline" type="checkbox"><span><u>U</u></span></label><div class="casePicker"><button id="caseButton" class="toolButton" type="button" title="Đổi chữ hoa/thường" aria-label="Đổi chữ hoa/thường" aria-haspopup="menu" aria-expanded="false">Aa ▾</button><div id="caseMenu" class="caseMenu" role="menu" aria-label="Đổi chữ hoa/thường" hidden><button type="button" role="menuitem" data-case="sentence">Viết hoa đầu câu</button><button type="button" role="menuitem" data-case="lower">chữ thường</button><button type="button" role="menuitem" data-case="upper">CHỮ HOA</button><button type="button" role="menuitem" data-case="title">Viết Hoa Từng Từ</button><button type="button" role="menuitem" data-case="toggle">đẢO cHỮ hOA/tHƯỜNG</button></div></div><input id="customFont" type="text" placeholder="Tên phông trên máy" hidden></div><div class="ribbonRow"><label for="inputEncoding">Bảng mã bộ gõ</label><select id="inputEncoding" style="width:175px"><option value="unicode">Unicode</option><option value="tcvn3">TCVN3 (ABC)</option></select></div><div class="ribbonCaption">Phông chữ · chữ bôi đen / toàn bộ</div></div>
  <div class="ribbonGroup"><div class="ribbonRow alignTools"><button data-align="left" class="toolButton" title="Căn trái" aria-label="Căn trái"><span class="alignGlyph leftGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="center" class="toolButton" title="Căn giữa" aria-label="Căn giữa"><span class="alignGlyph centerGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="right" class="toolButton" title="Căn phải" aria-label="Căn phải"><span class="alignGlyph rightGlyph"><i></i><i></i><i></i><i></i></span></button><select id="align" hidden><option value="center">Giữa</option><option value="left">Trái</option><option value="right">Phải</option></select></div><div class="ribbonRow"><label for="spacing">Giãn dòng</label><input id="spacing" type="number" min="0" max="2" step="0.05" value="0.8"></div><div class="ribbonRow"><label for="curveAmount">Chữ cong</label><input id="curveAmount" type="number" min="-100" max="100" step="5" value="0" title="0: chữ thẳng; số dương: cầu vồng; số âm: cong xuống"></div><div class="ribbonRow"><select id="curveLine" hidden aria-label="Dòng chữ cong (mẫu cũ)"><option value="0" selected>Tất cả dòng</option><option value="1">Dòng đầu</option><option value="2">Dòng thứ 2</option><option value="3">Dòng thứ 3</option></select><button id="curveRainbow" class="smallButton">⌒ Cầu vồng</button><button id="curveReset" class="smallButton">Thẳng</button></div><div class="ribbonCaption">Đoạn văn</div></div>
 <div class="ribbonGroup colorGroup"><div class="row"><div><label for="fill">Màu chữ</label><input id="fill" type="color" value="#ff0000"></div><div><label for="body">Màu nền mây</label><input id="body" type="color" value="#ffffff" hidden></div></div><div class="row"><div><label for="padding">Độ bo viền</label><input id="padding" type="number" min="4" max="90" value="40"></div><div><label for="border">Dày viền</label><input id="border" type="number" min="0" max="20" step="0.1" value="0.3"></div></div><label for="edge">Màu viền</label><input id="edge" type="color" value="#ec4c85"><div class="ribbonCaption">Màu sắc & viền mây</div></div><div class="ribbonGroup printGroup"><label for="width">Rộng tem (cm)</label><input id="width" type="number" min="3" max="27.7" step="0.1" value="27"><label for="page">Khổ giấy</label><select id="page"><option value="landscape">A4 ngang</option><option value="portrait">A4 dọc</option><option value="a3-landscape">A3 ngang</option><option value="a3-portrait">A3 dọc</option><option value="a5-landscape">A5 ngang</option></select><div class="ribbonCaption">Khổ thiết kế</div></div><div class="ribbonGroup dimensionsGroup"><div class="ribbonRow"><label for="temHeight">↕ Cao (cm)</label><input id="temHeight" type="number" min="0.01" step="0.1" aria-label="Chiều cao tem (cm)"></div><div class="ribbonRow"><label for="temWidth">↔ Rộng (cm)</label><input id="temWidth" type="number" min="0.01" step="0.1" aria-label="Chiều rộng tem (cm)"></div><input id="lockRatio" type="checkbox" hidden><button id="aspectLock" class="smallButton" type="button" aria-pressed="false" title="Bấm để khóa tỷ lệ">🔓 Tỷ lệ tự do</button><div class="ribbonCaption">Kích cỡ tem</div></div></div>
 <div id="lineFonts" hidden></div>
-<div class="fontInfo" hidden><p id="scanStatus" role="status">Bấm Lấy phông trên máy → Cho phép để nạp danh sách.</p></div>
+<div class="fontInfo" hidden><p id="scanStatus" role="status">Ứng dụng tự xin quyền đọc phông trên máy.</p></div>
 <main class="wordWorkspace"><section class="documentColumn"><input id="labelScaleX" type="hidden" value="1"><input id="labelScaleY" type="hidden" value="1"><input id="labelX" type="hidden" value=""><input id="labelY" type="hidden" value=""><textarea id="text" hidden></textarea><div class="rulerCorner">cm</div><div class="rulerStrip rulerHorizontal"><canvas id="rulerTop" aria-label="Thước ngang centimet"></canvas></div><div class="rulerStrip rulerVertical"><canvas id="rulerLeft" aria-label="Thước dọc centimet"></canvas></div><div class="preview" id="previewArea"><div class="previewBounds" id="previewBounds"><div class="previewStage" id="previewStage"><div id="labelSurface"><canvas id="canvas"></canvas><div id="temEditor" class="temEditor" contenteditable="true" role="textbox" aria-label="Nội dung tem, nhập trực tiếp" aria-multiline="true" spellcheck="false"></div></div></div></div></div><div id="status" role="status"></div><p id="fontNotice" class="note" role="status"></p></section>
 </main>
 <footer class="wordStatus"><span id="dimensions"></span><div class="zoomTools"><button id="zoomOut" title="Thu nhỏ">−</button><input id="zoom" aria-label="Thu phóng xem trước" type="range" min="30" max="150" value="100"><button id="zoomIn" title="Phóng lớn">＋</button><span id="zoomValue">100%</span></div></footer>
@@ -124,7 +124,7 @@ let fontWarnings=[], fontLoadNotes=new Map();
 // CSS can use installed fonts without permission to enumerate their files.
 function detectSystemFonts(){
  const ctx=cv(1,1).getContext('2d'),sample='mmmmWWWWiiii 0123 Áệộ';
- const candidates=['Arial','Times New Roman','Calibri','Cambria','Verdana','Tahoma','Georgia','Courier New','Helvetica','Helvetica Neue','Menlo','Segoe UI'];
+ const candidates=[...new Set([...recentFonts,'Arial','Times New Roman','Calibri','Cambria','Verdana','Tahoma','Georgia','Courier New','Helvetica','Helvetica Neue','Menlo','Segoe UI'])];
  return candidates.filter(name=>['serif','sans-serif','monospace'].some(base=>{ctx.font='32px '+base;let width=ctx.measureText(sample).width;ctx.font='32px '+JSON.stringify(name)+', '+base;return Math.abs(ctx.measureText(sample).width-width)>.01}));
 }
 function cssFamily(family){return /^(serif|sans-serif|monospace|system-ui)$/.test(family)?family:JSON.stringify(family)}
@@ -166,7 +166,7 @@ function normalizeInsertedText(event){
 
 async function loadComputerFont(family){
  if(loadedFonts.has(family))return loadedFonts.get(family);if(fontLoads.has(family))return fontLoads.get(family);
- let records=fontRecords.get(family);if(!records?.length){if(isTCVNFont(family))fontLoadNotes.set(family,'Bấm Lấy phông trên máy → Cho phép để xử lý đúng phông TCVN3 này.');return family;}
+ let records=fontRecords.get(family);if(!records?.length){if(isTCVNFont(family))fontLoadNotes.set(family,'Cấp quyền đọc phông cho trang để xử lý đúng phông TCVN3 này.');return family;}
  const promise=(async()=>{let alias='ComputerFont'+(++revision),chosen=new Map();
   function classify(r){let style=(r.style+' '+r.fullName).toLowerCase();return {italic:/italic|oblique/.test(style),bold:/bold|black|heavy|semibold|demibold/.test(style),regular:/regular|normal|book|roman/.test(style)}}
   for(let italic of [false,true])for(let bold of [false,true]){let sorted=[...records].sort((a,b)=>{let rank=r=>{let c=classify(r);return (c.italic===italic?0:20)+(c.bold===bold?0:10)+(c.regular&&!bold?0:1)};return rank(a)-rank(b)}),r=sorted[0];chosen.set(r.postscriptName||r.fullName,r)}
@@ -350,11 +350,11 @@ function enhanceFontSelect(select,line=null){
  select.hidden=true;select.insertAdjacentElement('afterend',button);select.pickerButton=button;updateFontPicker(select);
  button.onclick=()=>{
   if(openFontPicker?.button===button){closeFontPicker();return}closeFontPicker();
-  let menu=document.createElement('div');menu.className='fontPickerMenu';let help=document.createElement('div');help.className='fontPickerHelp';help.textContent='Rê chuột để xem thử · Bấm để chọn · Esc để hủy';menu.append(help);
+  let menu=document.createElement('div');menu.className='fontPickerMenu';let help=document.createElement('div');help.className='fontPickerHelp';help.textContent=fontScanState==='denied'?'Quyền đọc phông bị từ chối; cấp lại trong quyền của trang.':'Rê chuột để xem thử · Bấm để chọn · Esc để hủy';menu.append(help);
   let list=document.createElement('div');list.className='fontPickerList';list.setAttribute('role','listbox');list.setAttribute('aria-label','Danh sách phông chữ');menu.append(list);
-  const rows=Array.from(select.options).map(option=>{let row=document.createElement('button');row.type='button';row.className='fontPickerOption';row.textContent=option.textContent;row.style.fontFamily=cssFamily(option.value||$('font').value);row.setAttribute('role','option');row.setAttribute('aria-selected',String(option.value===(select.id==='font'?select.pickerFamily:select.value)));
+  let previousRecent=null;const rows=Array.from(select.options).sort((a,b)=>!a.value?-1:!b.value?1:recentFontRank(a.value)-recentFontRank(b.value)).map(option=>{const recent=recentFontRank(option.value)<12;if(option.value&&recent!==previousRecent){if(recent||previousRecent===true){const heading=document.createElement('div');heading.className='fontPickerSection';heading.textContent=recent?'Đã dùng gần đây':'Các phông khác';list.append(heading);}previousRecent=recent;}let row=document.createElement('button');row.type='button';row.className='fontPickerOption';row.textContent=option.textContent;row.style.fontFamily=cssFamily(option.value||$('font').value);row.setAttribute('role','option');row.setAttribute('aria-selected',String(option.value===(select.id==='font'?select.pickerFamily:select.value)));
    const tryFont=()=>{hoverFont={line,family:option.value};preview()};row.onmouseenter=tryFont;row.onfocus=tryFont;
-   row.onclick=()=>{hoverFont=null;select.value=option.value;closeFontPicker();if(line===null){select.dispatchEvent(new Event('input',{bubbles:true}))}else{select.onchange()}updateFontPicker(select);if(savedSelection&&!savedSelection.collapsed)$('temEditor').focus({preventScroll:true});else button.focus()};list.append(row);return row});
+   row.onclick=()=>{hoverFont=null;rememberRecentFont(option.value);select.value=option.value;closeFontPicker();if(line===null){select.dispatchEvent(new Event('input',{bubbles:true}))}else{select.onchange()}updateFontPicker(select);if(savedSelection&&!savedSelection.collapsed)$('temEditor').focus({preventScroll:true});else button.focus()};list.append(row);return row});
   menu.onmouseleave=()=>{if(hoverFont){hoverFont=null;preview()}};
   menu.onkeydown=e=>{let index=rows.indexOf(document.activeElement);if(e.key==='Escape'){e.preventDefault();closeFontPicker();button.focus()}else if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();rows[(index+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length]?.focus()}};
   document.body.append(menu);openFontPicker={menu,button};button.setAttribute('aria-expanded','true');let r=button.getBoundingClientRect();menu.style.width=Math.min(340,window.innerWidth-16)+'px';menu.style.left=Math.max(8,Math.min(r.left,window.innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.max(8,Math.min(r.bottom+3,window.innerHeight-menu.offsetHeight-8))+'px';
@@ -365,40 +365,46 @@ document.addEventListener('pointerdown',e=>{if(openFontPicker&&!openFontPicker.m
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFontPicker()});
 window.addEventListener('resize',closeFontPicker);
 
-const commonFontOrder=['Times New Roman','Arial','Tahoma','Calibri','Cambria','Verdana','Georgia','Helvetica','Helvetica Neue'];
-function sortComputerFonts(fonts){
- const rank=name=>{const index=commonFontOrder.findIndex(common=>common.toLocaleLowerCase('vi')===name.toLocaleLowerCase('vi'));return index>=0?index:/^UTM/i.test(name)?commonFontOrder.length:/^UVN/i.test(name)?commonFontOrder.length+1:commonFontOrder.length+2;};
- return [...new Set(fonts)].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b,'vi'));
-}
+const recentFontStyle=document.createElement('style');recentFontStyle.textContent='.fontPickerSection{font:600 12px Arial,sans-serif;color:var(--ui-muted,#686B73);padding:10px 8px 5px;border-top:1px solid var(--ui-line,#E3E1DA)}';document.head.append(recentFontStyle);
+const recentFontKey='TEMhoa_recent_fonts_v1';
+function cleanRecentFonts(value){return Array.isArray(value)?[...new Map(value.filter(name=>typeof name==='string'&&name.trim()&&name.length<=200&&!['sans-serif','serif','monospace'].includes(name)).map(name=>[name.toLocaleLowerCase('vi'),name])).values()].slice(0,12):[];}
+let recentFonts=[];try{recentFonts=cleanRecentFonts(JSON.parse(localStorage.getItem(recentFontKey)||'[]'));}catch{}
+function recentFontRank(name){const index=recentFonts.findIndex(family=>family.toLocaleLowerCase('vi')===name.toLocaleLowerCase('vi'));return index<0?12:index;}
+function rememberRecentFont(name){if(!name||['sans-serif','serif','monospace'].includes(name))return;recentFonts=cleanRecentFonts([name,...recentFonts.filter(family=>family.toLocaleLowerCase('vi')!==name.toLocaleLowerCase('vi'))]);try{localStorage.setItem(recentFontKey,JSON.stringify(recentFonts));}catch{}}
+function sortComputerFonts(fonts){const rank=name=>/^UTM/i.test(name)?0:/^UVN/i.test(name)?1:2;return [...new Set(fonts)].sort((a,b)=>recentFontRank(a)-recentFontRank(b)||rank(a)-rank(b)||a.localeCompare(b,'vi'));}
 function populateFontSelect(select,perLine=false,selected=''){
  select.replaceChildren();function option(parent,value,text){let o=document.createElement('option');o.value=value;o.textContent=text;parent.append(o)}
  if(perLine)option(select,'','Theo phông trên thanh công cụ');
- for(let name of sortComputerFonts(machineFonts))option(select,name,name);
+ const available=[...new Set([...machineFonts,...recentFonts])];for(let name of sortComputerFonts(available))option(select,name,machineFonts.includes(name)?name:name+' — chưa tìm thấy trên máy');
  option(select,'sans-serif','Phông mặc định của hệ điều hành');
- if(selected!=='sans-serif'&&selected&&!machineFonts.includes(selected))option(select,selected,selected+' — chưa tìm thấy trên máy');
+ if(selected!=='sans-serif'&&selected&&!available.includes(selected))option(select,selected,selected+' — chưa tìm thấy trên máy');
  select.value=selected||(!perLine?(machineFonts.includes('Times New Roman')?'Times New Roman':machineFonts.includes('Arial')?'Arial':machineFonts[0]||'sans-serif'):'');
  updateFontPicker(select);
 }
 
 function scanError(e){
- if(e?.name==='NotAllowedError')return 'Chưa được cấp quyền đọc phông. Bấm lại nút và chọn Cho phép trong thông báo của trình duyệt.';
+ if(e?.name==='NotAllowedError')return 'Quyền đọc phông đã bị từ chối. Có thể cấp lại trong cài đặt quyền của trang; phông hệ thống vẫn dùng được.';
  if(e?.name==='SecurityError')return 'Trình duyệt đang chặn quyền đọc phông cho tệp này. Hãy kiểm tra quyền phông của trang; nếu vẫn bị chặn, cần mở phần mềm qua localhost hoặc HTTPS.';
  return 'Không đọc được danh sách phông: '+(e?.message||'Hãy thử lại bằng Chrome hoặc Edge trên máy tính.');
 }
-async function scanComputerFonts(){
- if(typeof window.queryLocalFonts!=='function'){$('scanStatus').textContent='Trình duyệt này chưa hỗ trợ lấy phông trên máy. Hãy mở tệp bằng Chrome hoặc Edge trên máy Mac/Windows. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';return}
- $('scanFonts').disabled=true;$('scanStatus').textContent='Đang đọc danh sách phông…';
+let fontScanState='idle',fontScanNeedsGesture=true;
+async function scanComputerFonts({startup=false}={}){
+ if(fontScanState==='loading')return;
+ if(typeof window.queryLocalFonts!=='function'){fontScanState='unsupported';fontScanNeedsGesture=false;$('scanStatus').textContent='Trình duyệt này chưa hỗ trợ lấy phông trên máy. Hãy mở tệp bằng Chrome hoặc Edge trên máy Mac/Windows. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';return}
+ fontScanState='loading';$('scanStatus').textContent='Đang đọc danh sách phông…';
  try{
   // Invoke immediately inside the click handler to retain browser user activation.
   const records=await window.queryLocalFonts();
   fontRecords.clear();for(let r of records){if(typeof r.family!=='string'||!r.family.trim())continue;let group=fontRecords.get(r.family)||[];group.push(r);fontRecords.set(r.family,group)}
   machineFonts=sortComputerFonts(records.map(v=>v.family).filter(v=>typeof v==='string'&&v.trim()));
-  if(!machineFonts.length){$('scanStatus').textContent='Trình duyệt không trả về phông nào. Bấm lại nút để thử lại.';return}
+  if(!machineFonts.length){fontScanState='empty';fontScanNeedsGesture=false;$('scanStatus').textContent='Trình duyệt không trả về phông nào. Phông hệ thống vẫn dùng được.';return}
+  fontScanState='loaded';fontScanNeedsGesture=false;
   let chosen=$('font').value;populateFontSelect($('font'),false,chosen);lineControls();await preview();
-  $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Ưu tiên UTM, UVN ở đầu danh sách. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
- }catch(e){$('scanStatus').textContent=scanError(e);$('status').textContent=scanError(e)}finally{$('scanFonts').disabled=false}
+  $('scanStatus').textContent=`Đã nạp ${machineFonts.length} họ phông trên máy. Phông bạn vừa chọn nằm trong nhóm Đã dùng gần đây ở đầu danh sách; các phông khác giữ nhóm UTM, UVN. Chọn tại Phông mặc định hoặc Phông riêng từng dòng. Phông .Vn được xử lý TCVN3 từ tệp phông trên máy. Nên để bộ gõ Unicode; nếu bộ gõ đang dùng TCVN3, chọn đúng Bảng mã bộ gõ.`;
+ }catch(e){if(startup&&e?.name==='SecurityError'){fontScanState='waiting';fontScanNeedsGesture=true;$('scanStatus').textContent='Ứng dụng sẽ tự xin quyền đọc phông khi bạn bắt đầu thao tác.';}else{fontScanState=e?.name==='NotAllowedError'?'denied':'error';fontScanNeedsGesture=false;$('scanStatus').textContent=scanError(e);}}
 }
-$('scanFonts').onclick=scanComputerFonts;
+document.addEventListener('click',event=>{if(event.isTrusted&&fontScanNeedsGesture&&fontScanState!=='loading')scanComputerFonts();},true);
+document.addEventListener('keydown',event=>{if(event.isTrusted&&fontScanNeedsGesture&&fontScanState!=='loading'&&navigator.userActivation?.isActive)scanComputerFonts();},true);
 
 function lineControls(){
  let lines=editorText().split('\n').slice(0,20);lineStyles.length=lines.length;let host=$('lineFonts');host.replaceChildren();
@@ -794,13 +800,10 @@ const manualBackground=document.createElement('details');manualBackground.id='ma
 const manualLabel=$('graphicWhite').closest('label');manualLabel.lastChild.textContent=' Xóa nền theo màu';manualBackground.append(manualLabel,$('graphicBackground').closest('.graphicFields'),$('pickGraphicBackground'));aiActions.after(manualBackground);
 const openDefaultAI=$('openBackgroundAI').onclick;$('openBackgroundAI').onclick=async()=>{$('aiMode').value='quality';await openDefaultAI()};
 
-if(window.TEMHOA_DESKTOP){
-  $('scanFonts').hidden=true;
-  window.addEventListener('load',()=>scanComputerFonts(),{once:true});
-}
+window.addEventListener('load',()=>scanComputerFonts({startup:true}),{once:true});
 machineFonts=detectSystemFonts();
 populateFontSelect($('font'),false,'');
-$('scanStatus').textContent='Có thể dùng ngay phông hệ thống. Bấm Lấy phông trên máy để đọc danh sách đầy đủ.';
+$('scanStatus').textContent='Có thể dùng ngay phông hệ thống. Ứng dụng tự xin quyền đọc danh sách đầy đủ.';
 if(typeof window.queryLocalFonts!=='function')$('scanStatus').textContent='Mở bằng Chrome hoặc Edge trên máy tính để lấy danh sách phông đã cài. Bạn vẫn có thể xem trước và xuất tệp bằng phông hệ thống.';
 lineControls();
 enhanceFontSelect($('font'));
@@ -1128,7 +1131,7 @@ async function showTemHome(){if(homeBusy)return;home.hidden=false;closeFontPicke
 filterHome();$('homeSearch').oninput=filterHome;home.querySelectorAll('[data-home-type]').forEach(button=>button.onclick=()=>{homeType=button.dataset.homeType;filterHome()});
 $('homeContinue').onclick=async()=>{if(homeBusy)return;homeBusy=true;homeLoadRevision++;try{await homeLoadTask;enterHomeEditor()}finally{homeBusy=false}};homeBack.onclick=showTemHome;
 // Wait for automatic fonts before rendering thumbnails so editor state stays stable.
-window.addEventListener('load',async()=>{if(window.TEMHOA_DESKTOP){while($('scanFonts').disabled)await new Promise(resolve=>setTimeout(resolve,50))}homeLoadTask=loadHomeSaved()},{once:true});
+window.addEventListener('load',async()=>{homeLoadTask=loadHomeSaved()},{once:true});
 
 
 /* Graphic-design mode: each text box is an editable independent document object. */
@@ -1502,7 +1505,7 @@ const artProperties=document.createElement('div');artProperties.id='artPropertie
 function artSection(title,nodes){const section=document.createElement('section');section.className='artPropertySection';const heading=document.createElement('h3');heading.textContent=title;section.append(heading,...nodes);artProperties.append(section)}
 artSection('Chữ & bố cục',[artFontGroup,artParagraph]);artProperties.firstElementChild.querySelector('h3').textContent='Chữ & bố cục';
 artSection('Viền tem mây',[document.querySelector('.colorGroup')]);artSection('Trang & kích cỡ',[document.querySelector('.printGroup'),document.querySelector('.dimensionsGroup')]);
-const artExtra=document.createElement('div');artExtra.innerHTML='<p style="font-size:12px;color:var(--ui-muted)">Ảnh: chọn đối tượng rồi mở Thành phần để cắt, xoay và tách nền.</p>';artSection('Công cụ trên máy',[$('scanFonts'),artExtra]);const extraActions=[...artQuick.children].filter(node=>node.tagName==='BUTTON'&&!['artPropertiesButton','toggleLayers','print','artExportButton','save'].includes(node.id)&&!node.hidden);if(extraActions.length)artSection('Nội dung mẫu',extraActions);
+artSection('Phông trên máy',[$('scanStatus')]);const extraActions=[...artQuick.children].filter(node=>node.tagName==='BUTTON'&&!['artPropertiesButton','toggleLayers','print','artExportButton','save'].includes(node.id)&&!node.hidden);if(extraActions.length)artSection('Nội dung mẫu',extraActions);
 artRibbon.replaceChildren(artTextZone,artImageZone,artSelectionTools);labelToolsGroup.remove();
 const artLayersHeading=layersPanel.querySelector('.layersHeading'),artPropsTab=document.createElement('button'),artLayersTab=document.createElement('button');
 for(const [button,id,label]of [[artPropsTab,'artPropertiesTab','Thuộc tính'],[artLayersTab,'artLayersTab','Lớp']]){button.id=id;button.type='button';button.className='artPanelTab';button.textContent=label;button.setAttribute('role','tab');button.onclick=()=>artOpenPanel(button===artPropsTab?'properties':'layers');artLayersHeading.prepend(button)}
