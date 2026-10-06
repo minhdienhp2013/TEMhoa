@@ -2,9 +2,9 @@ name: Verify graphic editor
 on:
   push:
     branches: [main, design/minhdien-art-motion, feat/studio-production-20261006, feat/image-toolbar-20261006, feat/clipboard-drop-20261006]
-    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'clipboard-tools.js', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'clipboard-tools.js', 'shape-tools.js', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
   pull_request:
-    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'clipboard-tools.js', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
+    paths: ['TemHoa-MinhDien.html', 'assets/**', 'studio*', 'image-tools*', 'clipboard-tools.js', 'shape-tools.js', 'mo_temhoa.py', 'Mo-TemHoa-Windows.ps1', 'desktop/package.json', 'tests/**', '.github/workflows/design-editor.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,6 +44,9 @@ jobs:
         env:
           TEMHOA_SCREENSHOTS: screenshots
       - run: node tests/properties-scroll-smoke.cjs
+        env:
+          TEMHOA_SCREENSHOTS: screenshots
+      - run: node tests/shapes-smoke.cjs
         env:
           TEMHOA_SCREENSHOTS: screenshots
       - run: python tests/studio-pdf-check.py
