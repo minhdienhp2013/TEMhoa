@@ -21,3 +21,17 @@ PASS `node tests/studio-core.cjs`; PASS `node --check image-tools.js`; PASS `git
 Ảnh chụp thật: image-tint-screenshots/image-tint-solid.png, image-tint-gradient.png, image-tint-small.png.
 
 Giới hạn: PDF ảnh raster, không vector. Chưa build hoặc kiểm thử ứng dụng native Mac/Windows trong lượt này. Tô màu cũng tô vùng trắng đục của ảnh; muốn giữ trắng thành trong suốt cần tách nền trước. Đổi màu không tự tách nền.
+
+## Điều tra và sửa lag bộ chọn màu
+
+Nguyên nhân được tái hiện: mỗi sự kiện input của bộ chọn màu/slider tạo một mutation bất đồng bộ mới. Không có gộp giá trị, queue chạy lại tất cả màu trung gian, mỗi lượt gọi preview toàn phần và recordHistory hai lần (các wrapper này cũng kiểm tra tự lưu, tạo thumbnail/nháp). Khi input nhanh hơn renderer, màu hiển thị tụt lại sau con trỏ.
+
+Đo cùng ảnh 2400 × 1600 px và 50 giá trị trong một burst trên Chromium Linux:
+- Trước sửa: 50 preview, 100 recordHistory, 18.123 ms để hoàn tất màu cuối.
+- Sau sửa: 1 preview, 2 recordHistory, 345–440 ms trong các lượt chạy.
+
+Mutation của control liên tục được gộp theo thiết kế/ảnh/thuộc tính. Mỗi control chỉ giữ một giá trị đang chờ mới nhất, lấy vào lượt requestAnimationFrame; khi một preview đang chạy có tối đa một lượt chờ tiếp theo cho control đó. Lệnh rời rạc không được gộp và là ranh giới thứ tự. Trước khi áp dụng vẫn kiểm tra vùng chọn và khóa. Không giảm chất lượng renderer hay file xuất.
+
+PASS tests/image-color-performance.cjs: burst chỉ một preview, undo/redo đúng trước/sau; cập nhật cả hai stop gradient giữ giá trị cuối; input trong lúc preview đang chờ chỉ thêm một preview; đổi vùng chọn và khóa trước áp dụng không sửa nhầm ảnh. Bài kiểm thử được đưa vào CI. PASS lại image-tools-smoke đầy đủ, gồm lưu/mở lại, PNG/PDF, backend contract, crop và cửa sổ hẹp; syntax/diff check đạt.
+
+Số liệu là độ trễ hoàn tất burst, không phải FPS hay cam kết tốc độ trên Windows/Mac. Một lần dựng preview toàn phần vẫn có chi phí với ảnh/tài liệu lớn; bản sửa loại bỏ việc replay hàng dài màu đã cũ.

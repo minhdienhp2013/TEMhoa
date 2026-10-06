@@ -89,9 +89,21 @@
   const currentImage=()=>selectedGraphic()?.kind==='image'&&graphicSelection().length===1&&!labelGroupKey(currentLabel())?selectedGraphic():null;
   const canEdit=item=>item&&item.id===currentImage()?.id&&!item.locked&&!labelLockControl.checked;
   const message=text=>{$('status').textContent=text;const status=$('imageToolStatus');if(status)status.textContent=text;};
-  function mutate(change) {
+  const pendingControls=new Map();
+  function mutate(change,controlKey=null) {
     const item=currentImage(),owner=activeLabelId;if(!canEdit(item)||busy)return Promise.resolve(false);
-    queue=queue.then(async()=>{if(activeLabelId!==owner||!canEdit(item))return false;recordHistory();await change(currentImage());await ensureGraphics();await preview();recordHistory();syncGraphicControls();renderLayersPanel();return true;}).catch(error=>{message(error.message);return false;});return queue;
+    // Native color pickers/sliders emit faster than a full preview can render.
+    // Keep one pending value per control and target, never replay stale colors.
+    const key=controlKey?`${owner}:${item.id}:${controlKey}`:null;
+    if(key&&pendingControls.has(key)){pendingControls.get(key).change=change;return queue;}
+    if(!key)pendingControls.clear();
+    const job={change};if(key)pendingControls.set(key,job);
+    queue=queue.then(async()=>{
+      if(key){await new Promise(resolve=>requestAnimationFrame(resolve));if(pendingControls.get(key)===job)pendingControls.delete(key);}
+      if(activeLabelId!==owner||!canEdit(item))return false;
+      recordHistory();await job.change(currentImage());await ensureGraphics();await preview();
+      recordHistory();syncGraphicControls();renderLayersPanel();return true;
+    }).catch(error=>{if(key&&pendingControls.get(key)===job)pendingControls.delete(key);message(error.message);return false;});return queue;
   }
   const icons={edit:'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M9 15v6',replace:'M4 8V4h16v16H4v-4M1 12h12M9 8l4 4-4 4',background:'M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4M8 8h.01M3 21L21 3',stroke:'M4 5h16M4 12h16M4 19h16',radius:'M4 20v-7a9 9 0 0 1 9-9h7',flip:'M12 3v18M3 6l6 6-6 6zM21 6l-6 6 6 6z',opacity:'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',style:'M4 3h16v7H4zM12 10v4h5v7h-4v-7',more:'M5 12h.01M12 12h.01M19 12h.01',unlock:'M6 11h12v10H6zM16 7a4 4 0 0 0-8 0v4'};
   Object.assign(artPaths,icons);
@@ -111,10 +123,10 @@
   function control(node,key,label,min,max,step=1,multiplier=1) {
     const row=document.createElement('label');row.className='imageSlider';const name=document.createElement('span');name.textContent=label;const range=document.createElement('input'),number=document.createElement('input');range.type='range';number.type='number';
     for(const input of [range,number]){input.min=min;input.max=max;input.step=step;input.value=Math.round((currentImage()?.[key]??defaults[key])*multiplier*100)/100;input.setAttribute('aria-label',label+(input===range?'':' — giá trị'));}
-    const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier);};
+    const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier,key);};
     range.oninput=()=>change(range);number.onchange=()=>change(number);row.append(name,range,number);node.append(row);
   }
-  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>mutate(item=>item[key]=input.value);row.append(input);node.append(row);}
+  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>{const value=input.value;mutate(item=>item[key]=value,key);};row.append(input);node.append(row);}
   function imageTintPanel(node){
     const tint=safeImageTint(currentImage().imageTint),section=document.createElement('div');
     const title=document.createElement('strong');title.textContent='Đổi màu ảnh';section.append(title);
@@ -125,7 +137,7 @@
     const first=make('imageTintColor','Màu tô ảnh','color'),second=make('imageTintColor2','Màu cuối chuyển sắc ảnh','color'),angle=make('imageTintAngle','Góc chuyển sắc ảnh (độ)','number');
     first.value=tint.type==='solid'?tint.color:tint.colors[0];second.value=tint.colors[1];angle.min=0;angle.max=360;angle.step=1;angle.value=tint.angle;
     const sync=()=>{first.disabled=mode.value==='none';second.parentElement.hidden=!['linear','radial'].includes(mode.value);angle.parentElement.hidden=mode.value!=='linear';place();};
-    const commit=()=>{const value=safeImageTint({enabled:mode.value!=='none',type:mode.value,color:first.value,colors:[first.value,second.value],angle:Number(angle.value)});mutate(item=>item.imageTint=value);sync();};
+    const commit=()=>{const value=safeImageTint({enabled:mode.value!=='none',type:mode.value,color:first.value,colors:[first.value,second.value],angle:Number(angle.value)});mutate(item=>item.imageTint=value,'imageTint');sync();};
     mode.onchange=commit;first.oninput=commit;second.oninput=commit;angle.onchange=commit;
     section.append(button('image-tint-reset','Giữ màu ảnh gốc','undo',()=>{mode.value='none';commit();}));
     const note=document.createElement('p');note.textContent='Tô phần ảnh nhìn thấy; giữ nguyên vùng trong suốt và ảnh nguồn.';section.append(note);node.append(section);sync();
