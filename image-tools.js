@@ -8,6 +8,11 @@
     shadowBlur:[0,100],shadowX:[-200,200],shadowY:[-200,200],brightness:[-100,100],
     contrast:[-100,100],saturation:[-100,100],temperature:[-100,100],blur:[0,30]};
   const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+  function safeImageTint(value) {
+    const paint=safePaint(value);
+    return {enabled:value?.enabled===true,type:['linear','radial'].includes(paint.type)?paint.type:'solid',
+      color:safeHex(value?.color||'#B92C3B'),colors:paint.colors||['#B92C3B','#D9AD46'],angle:paint.angle??90};
+  }
   const beforeSafe = safeGraphic;
   safeGraphic = function(value) {
     const item=beforeSafe(value);if(!item)return item;
@@ -15,6 +20,7 @@
       item[key]=limits[key] ? (Number.isFinite(+value[key])?clamp(+value[key],...limits[key]):fallback)
         : ['strokeColor','shadowColor'].includes(key)?safeHex(value[key]||fallback):fallback;
     }
+    item.imageTint=safeImageTint(value.imageTint);
     item.strokeStyle=['solid','dash','dot'].includes(value.strokeStyle)?value.strokeStyle:'solid';
     item.imageMask=['rect','ellipse'].includes(value.imageMask)?value.imageMask:'rect';
     const c=value.imageCrop;
@@ -49,12 +55,24 @@
     const image=imagePixels(item);if(!image)return;
     // Clip into a transparent frame first. This also gives shadows the correct mask.
     const factor=Math.min(window.TEMHOA_LIVE_DRAW?1:4,Math.max(1,image.width/item.width),5000/item.width,5000/item.height,Math.sqrt(16000000/(item.width*item.height)));
-    const frameKey=JSON.stringify([factor,item.src,item.width,item.height,item.imageCrop,item.radius,item.imageMask,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
+    const frameKey=JSON.stringify([factor,item.src,item.width,item.height,item.imageCrop,item.radius,item.imageMask,safeImageTint(item.imageTint),...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
     let frame=frames.get(frameKey);if(!frame){
-    frame=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=frame.getContext('2d');fc.scale(factor,factor);path(fc,item);fc.clip();
+    frame=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=frame.getContext('2d');fc.scale(factor,factor);fc.save();path(fc,item);fc.clip();
     const c=item.imageCrop||{x:0,y:0,width:1,height:1};
     // Preserve legacy stretch unless a new replacement/crop provides an explicit region.
     fc.drawImage(image,c.x*image.width,c.y*image.height,c.width*image.width,c.height*image.height,0,0,item.width,item.height);
+    fc.restore();
+    const tint=safeImageTint(item.imageTint);
+    if(tint.enabled){
+      // Source-in changes visible RGB only; source alpha, crop and mask survive.
+      fc.globalCompositeOperation='source-in';
+      let fill=tint.color;
+      if(tint.type!=='solid'){
+        fill=tint.type==='radial'?fc.createRadialGradient(item.width/2,item.height/2,0,item.width/2,item.height/2,Math.hypot(item.width,item.height)/2):fc.createLinearGradient(...gradientPoints(item.width,item.height,tint.angle));
+        tint.colors.forEach((color,index)=>fill.addColorStop(index,color));
+      }
+      fc.fillStyle=fill;fc.fillRect(0,0,item.width,item.height);fc.globalCompositeOperation='source-over';
+    }
     frames.set(frameKey,frame);while(frames.size>1&&[...frames.values()].reduce((n,c)=>n+c.width*c.height,0)>20000000)frames.delete(frames.keys().next().value);while(frames.size>8)frames.delete(frames.keys().next().value);}
     ctx.save();ctx.translate(item.x,item.y);ctx.rotate(item.angle*Math.PI/180);ctx.scale(item.flipX?-1:1,item.flipY?-1:1);ctx.translate(-item.width/2,-item.height/2);ctx.globalAlpha*=item.opacity??1;
     if(!mask&&(item.shadowOpacity||0)>0){const hex=item.shadowColor||defaults.shadowColor;ctx.shadowColor=hex+Math.round(item.shadowOpacity*255).toString(16).padStart(2,'0');const scale=Math.hypot(ctx.getTransform().a,ctx.getTransform().b);ctx.shadowBlur=(item.shadowBlur||0)*scale;const m=ctx.getTransform();ctx.shadowOffsetX=(item.shadowX||0)*m.a+(item.shadowY||0)*m.c;ctx.shadowOffsetY=(item.shadowX||0)*m.b+(item.shadowY||0)*m.d;}
@@ -97,6 +115,21 @@
     range.oninput=()=>change(range);number.onchange=()=>change(number);row.append(name,range,number);node.append(row);
   }
   function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>mutate(item=>item[key]=input.value);row.append(input);node.append(row);}
+  function imageTintPanel(node){
+    const tint=safeImageTint(currentImage().imageTint),section=document.createElement('div');
+    const title=document.createElement('strong');title.textContent='Đổi màu ảnh';section.append(title);
+    const make=(id,label,type)=>{const row=document.createElement('label');row.textContent=label;const input=document.createElement(type==='select'?'select':'input');input.id=id;if(type!=='select')input.type=type;input.setAttribute('aria-label',label);row.append(input);section.append(row);return input;};
+    const mode=make('imageTintMode','Kiểu tô ảnh','select');
+    for(const [v,t] of [['none','Giữ màu gốc'],['solid','Một màu'],['linear','Chuyển sắc thẳng'],['radial','Chuyển sắc tỏa tròn']])mode.add(new Option(t,v));
+    mode.value=tint.enabled?tint.type:'none';
+    const first=make('imageTintColor','Màu tô ảnh','color'),second=make('imageTintColor2','Màu cuối chuyển sắc ảnh','color'),angle=make('imageTintAngle','Góc chuyển sắc ảnh (độ)','number');
+    first.value=tint.type==='solid'?tint.color:tint.colors[0];second.value=tint.colors[1];angle.min=0;angle.max=360;angle.step=1;angle.value=tint.angle;
+    const sync=()=>{first.disabled=mode.value==='none';second.parentElement.hidden=!['linear','radial'].includes(mode.value);angle.parentElement.hidden=mode.value!=='linear';place();};
+    const commit=()=>{const value=safeImageTint({enabled:mode.value!=='none',type:mode.value,color:first.value,colors:[first.value,second.value],angle:Number(angle.value)});mutate(item=>item.imageTint=value);sync();};
+    mode.onchange=commit;first.oninput=commit;second.oninput=commit;angle.onchange=commit;
+    section.append(button('image-tint-reset','Giữ màu ảnh gốc','undo',()=>{mode.value='none';commit();}));
+    const note=document.createElement('p');note.textContent='Tô phần ảnh nhìn thấy; giữ nguyên vùng trong suốt và ảnh nguồn.';section.append(note);node.append(section);sync();
+  }
   function reset(node,keys,label='Đặt lại'){node.append(button('',label,'undo',async()=>{await mutate(item=>keys.forEach(k=>item[k]=defaults[k]));const kind=popover?.kind;if(kind){closePopover();openPanel(kind);}}));}
   function openPanel(kind){if(!currentImage()&&kind!=='more')return;if(!canEdit(currentImage())&&kind!=='more')return;
     if(popover?.kind===kind){closePopover(true);return;}const title={edit:'Chỉnh sửa ảnh',stroke:'Viền ảnh',radius:'Bo góc và mask',flip:'Lật ảnh',opacity:'Độ mờ',position:'Vị trí ảnh',style:'Kiểu dáng ảnh',more:'Thêm công cụ ảnh'}[kind];const node=shell(kind,title);popover.kind=kind;
@@ -106,7 +139,7 @@
     if(kind==='flip')for(const [key,label] of [['flipX','Lật ngang'],['flipY','Lật dọc']])node.append(button('',label,'flip',async()=>{await mutate(item=>item[key]=!item[key]);closePopover(true);}));
     if(kind==='opacity'){control(node,'opacity','Độ mờ (%)',0,100,1,100);reset(node,['opacity']);}
     if(kind==='position')positionPanel(node);
-    if(kind==='style'){color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',()=>copyStyle()),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
+    if(kind==='style'){imageTintPanel(node);color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',()=>copyStyle()),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
     if(kind==='more'){for(const key of ['delete','stroke','radius','crop','flip','opacity','position','style']){const source=buttons[key],b=button('',source.getAttribute('aria-label'),source.querySelector('svg')?'properties':'image',()=>{closePopover();source.click()});b.disabled=source.disabled;node.append(b);}const note=document.createElement('p');note.textContent='Chuyển động: dành cho trình chiếu, chưa hỗ trợ.';node.append(note);}
     place();artEnter(node,'menu');node.querySelector('input,select,button:not(#image-close-panel)')?.focus();
   }
@@ -129,8 +162,8 @@
   }
   function worldGeometry(item){const L=previewSize?.L||layout(),u=graphicUnits(),g=labelGeometry(currentLabel()),a=(Number($('labelAngle').value)||0)*Math.PI/180,cx=g.x+g.width/2,cy=g.y+g.height/2,vx=(item.x+(L.graphicOffsetX??L.offsetX??0))*u.x-g.width/2,vy=(item.y+(L.graphicOffsetY??L.offsetY??0))*u.y-g.height/2,w=item.width*u.x,h=item.height*u.y;return {x:cx+vx*Math.cos(a)-vy*Math.sin(a)-w/2,y:cy+vx*Math.sin(a)+vy*Math.cos(a)-h/2,width:w,height:h,angle:(item.angle||0)+a*180/Math.PI};}
   function setWorld(item,key,value){const g=worldGeometry(item),u=graphicUnits(),a=(Number($('labelAngle').value)||0)*Math.PI/180;if(key==='angle'){item.angle=value-a*180/Math.PI;return;}if(['width','height'].includes(key)){const size=value/u[key==='width'?'x':'y'];if(item.keepRatio!==false)item[key==='width'?'height':'width']*=size/item[key];item[key]=clamp(size,8,2500);return;}const dx=key==='x'?value-g.x:0,dy=key==='y'?value-g.y:0;item.x+=(dx*Math.cos(a)+dy*Math.sin(a))/u.x;item.y+=(-dx*Math.sin(a)+dy*Math.cos(a))/u.y;}
-  const styleKeys=['opacity','radius','imageMask','strokeWidth','strokeColor','strokeStyle','shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY','brightness','contrast','saturation','temperature','blur'];
-  function copyStyle(){const item=currentImage();if(item){styleClipboard=Object.fromEntries(styleKeys.map(k=>[k,item[k]??defaults[k]]));message('Đã sao chép kiểu ảnh.');if($('image-paste-style'))$('image-paste-style').disabled=false;}}
+  const styleKeys=['imageTint','opacity','radius','imageMask','strokeWidth','strokeColor','strokeStyle','shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY','brightness','contrast','saturation','temperature','blur'];
+  function copyStyle(){const item=currentImage();if(item){styleClipboard=contextClone(Object.fromEntries(styleKeys.map(k=>[k,k==='imageTint'?safeImageTint(item[k]):item[k]??defaults[k]])));message('Đã sao chép kiểu ảnh.');if($('image-paste-style'))$('image-paste-style').disabled=false;}}
   function pasteStyle(){if(styleClipboard)return mutate(item=>Object.assign(item,contextClone(styleClipboard)));}
   async function restoreOriginal(){await mutate(async item=>{item.src=item.original=item.sourceOriginal||item.original||item.src;item.removeWhite=false;delete item.imageCrop;delete item.crop;const image=await loadGraphic(item.src);item.imageCrop={x:0,y:0,width:1,height:1};item.height=item.width*image.height/image.width;});}
 
