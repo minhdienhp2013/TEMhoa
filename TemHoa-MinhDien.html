@@ -1279,41 +1279,6 @@ const themeFilterHome=filterHome;filterHome=function(...args){themeFilterHome(..
 renderHomeThemes();filterHome();$('homeSearch').oninput=filterHome;
 
 
-/* Professional contextual object bar: exposes existing editing power where users expect it. */
-const objectBar=document.createElement('div');objectBar.id='objectBar';objectBar.className='objectBar';objectBar.setAttribute('aria-label','Thuộc tính đối tượng');
-objectBar.innerHTML='<strong id="objectBarTitle">Tem</strong><div id="objectBarText" class="objectBarSection"></div><div id="objectBarImage" class="objectBarSection" hidden></div><div class="objectBarSection objectBarArrange"><button id="objectBarDown" type="button" title="Xuống 1 lớp">↓ Lớp</button><button id="objectBarUp" type="button" title="Lên 1 lớp">↑ Lớp</button><button id="objectBarLayers" type="button" title="Mở bảng lớp">☷ Lớp</button></div>';
-document.querySelector('.wordTabs').after(objectBar);
-const objectText=$('objectBarText'),objectImage=$('objectBarImage');
-function objectProxyButton(id,label,title=''){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title||label;b.onclick=()=>$(id)?.click();return b}
-for(const [id,label] of [['bold','B'],['italic','I'],['underline','U']])objectText.append(objectProxyButton(id,label));
-objectText.append(objectProxyButton('alignLeft','≡ Trái'),objectProxyButton('alignCenter','≡ Giữa'),objectProxyButton('alignRight','≡ Phải'));
-const textColor=objectProxyButton('fillPaint','Màu chữ');objectText.append(textColor);
-const objectFont=document.createElement('button');objectFont.type='button';objectFont.textContent='Phông chữ';objectFont.onclick=()=>document.querySelector('.fontPickerButton')?.click();objectText.append(objectFont);
-const objectImageEdit=objectProxyButton('insertGraphics','Thay / thêm ảnh');objectImage.append(objectImageEdit);
-for(const [id,label] of [['startGraphicCrop','Cắt ảnh'],['pickGraphicBackground','Xóa nền'],['flipGraphicX','↔ Lật ngang'],['flipGraphicY','↕ Lật dọc'],['copyGraphic','⧉ Nhân đôi'],['quickImageLock','🔒 Khóa']])objectImage.append(objectProxyButton(id,label));
-const transform=document.createElement('div');transform.className='objectTransform';
-for(const [key,label,source,step] of [['x','X','graphicX','.1'],['y','Y','graphicY','.1'],['w','W','graphicWidth','.1'],['h','H','graphicHeight','.1'],['a','°','graphicAngle','1']]){
- const wrap=document.createElement('label');wrap.textContent=label;const input=document.createElement('input');input.type='number';input.step=step;input.dataset.source=source;input.setAttribute('aria-label',label);input.onchange=()=>{const original=$(source);if(!original||original.disabled)return;original.value=input.value;original.dispatchEvent(new Event('change',{bubbles:true}))};wrap.append(input);transform.append(wrap)
-}
-objectImage.append(transform);
-$('objectBarDown').onclick=()=>moveObjectLayer(-1).catch(error=>$('status').textContent=error.message);
-$('objectBarUp').onclick=()=>moveObjectLayer(1).catch(error=>$('status').textContent=error.message);
-$('objectBarLayers').onclick=()=>{if(document.body.classList.contains('layersCollapsed'))toggleLayers.click();layersPanel.scrollIntoView({block:'nearest'})};
-function syncObjectBar(){
- const item=selectedGraphic(),image=!!item;
- objectBar.classList.toggle('imageSelected',image);
- $('objectBarTitle').textContent=image?(item.kind==='image'?'Ảnh':'Hình trang trí'):(isDesign()&&designKind.value==='text'?'Văn bản':'Tem');
- objectText.hidden=image;objectImage.hidden=!image;
- transform.querySelectorAll('input').forEach(input=>{const source=$(input.dataset.source);input.disabled=!source||source.disabled;if(source&&document.activeElement!==input)input.value=source.value});
- for(const [bar,source] of [['objectBarDown','layerDown'],['objectBarUp','layerUp']])$(bar).disabled=$(source)?.disabled??true;
-}
-const objectSyncGraphic=syncGraphicControls;syncGraphicControls=function(){objectSyncGraphic();syncObjectBar()};
-const objectSyncLayer=syncLayerButtons;syncLayerButtons=function(){objectSyncLayer();syncObjectBar()};
-const objectZoom=zoom;zoom=function(){objectZoom();syncObjectBar()};
-$('temEditor').addEventListener('focus',syncObjectBar);$('temEditor').addEventListener('pointerup',syncObjectBar);
-$('labelSurface').addEventListener('pointerup',()=>setTimeout(syncObjectBar,0));
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&selectedGraphicId){selectedGraphicId=null;selectedGraphicSet.clear();positionGraphicOverlays();syncGraphicControls();renderLayersPanel()}});
-syncObjectBar();
 
 </script></html>
 
