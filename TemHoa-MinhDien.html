@@ -1580,6 +1580,8 @@ input[type=checkbox],input[type=range]{accent-color:var(--ui-brand)}
 #artSelectionTools{display:flex;gap:5px;align-items:center}
 #artSelectionTools button{min-height:34px;font-size:12px;white-space:nowrap}
 #artSelectionTools button[hidden]{display:none}
+/* Keep these actions in the context menu, outside the text-formatting ribbon. */
+#homeRibbon:has(#artTextZone:not([hidden])) #artSelectionTools :is(#layerUp,#layerDown,#designEditText,#designDuplicate){display:none!important}
 #artExportMenu{position:fixed;z-index:150;width:220px;padding:7px;border:1px solid var(--ui-line);border-radius:8px;background:white;box-shadow:var(--ui-shadow)}
 #artExportMenu[hidden]{display:none}
 #artExportMenu button{display:flex;width:100%;text-align:left;justify-content:flex-start;border:0;padding:10px 12px;font-size:13px}
