@@ -29,7 +29,8 @@
   };
   // Upgrade in-memory old documents too; setLabelSettings handles future loads.
   decorations=decorations.map(safeGraphic).filter(Boolean);
-  const processed=new Map(),frames=new Map();
+  const processed=new Map(),frames=new Map(),sourceFrames=new Map();let liveColorFrame=null,imageIdentity=0;const imageIdentities=new WeakMap();
+  function imageKey(image){if(!imageIdentities.has(image))imageIdentities.set(image,++imageIdentity);return imageIdentities.get(image);}
   function imagePixels(item) {
     const image=graphicImages.get(item.src);if(!image)return null;
     if(!['brightness','contrast','saturation','temperature','blur'].some(k=>item[k]))return image;
@@ -55,25 +56,32 @@
     const image=imagePixels(item);if(!image)return;
     // Clip into a transparent frame first. This also gives shadows the correct mask.
     const factor=Math.min(window.TEMHOA_LIVE_DRAW?1:4,Math.max(1,image.width/item.width),5000/item.width,5000/item.height,Math.sqrt(16000000/(item.width*item.height)));
-    const frameKey=JSON.stringify([factor,item.src,item.width,item.height,item.imageCrop,item.radius,item.imageMask,safeImageTint(item.imageTint),...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
-    let frame=frames.get(frameKey);if(!frame){
-    frame=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=frame.getContext('2d');fc.scale(factor,factor);fc.save();path(fc,item);fc.clip();
-    const c=item.imageCrop||{x:0,y:0,width:1,height:1};
-    // Preserve legacy stretch unless a new replacement/crop provides an explicit region.
-    fc.drawImage(image,c.x*image.width,c.y*image.height,c.width*image.width,c.height*image.height,0,0,item.width,item.height);
-    fc.restore();
-    const tint=safeImageTint(item.imageTint);
-    if(tint.enabled){
+    const sourceKey=JSON.stringify([factor,imageKey(image),item.width,item.height,item.imageCrop,item.radius,item.imageMask,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
+    const tint=safeImageTint(item.imageTint),frameKey=sourceKey+JSON.stringify(tint);
+    let source=sourceFrames.get(sourceKey);
+    if(!source){
+      source=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=source.getContext('2d');fc.scale(factor,factor);path(fc,item);fc.clip();
+      const c=item.imageCrop||{x:0,y:0,width:1,height:1};
+      fc.drawImage(image,c.x*image.width,c.y*image.height,c.width*image.width,c.height*image.height,0,0,item.width,item.height);
+      sourceFrames.set(sourceKey,source);while(sourceFrames.size>1&&([...sourceFrames.values()].reduce((n,c)=>n+c.width*c.height,0)>16000000||sourceFrames.size>4))sourceFrames.delete(sourceFrames.keys().next().value);
+    }
+    let frame=tint.enabled?frames.get(frameKey):source;
+    if(tint.enabled&&window.TEMHOA_LIVE_DRAW){
+      if(!liveColorFrame||liveColorFrame.width!==source.width||liveColorFrame.height!==source.height)liveColorFrame=cv(source.width,source.height);
+      frame=null;
+    }
+    if(!frame){
+      frame=window.TEMHOA_LIVE_DRAW?liveColorFrame:cv(source.width,source.height);
+      const fc=frame.getContext('2d');fc.resetTransform();fc.clearRect(0,0,frame.width,frame.height);fc.drawImage(source,0,0);fc.scale(factor,factor);
       // Source-in changes visible RGB only; source alpha, crop and mask survive.
-      fc.globalCompositeOperation='source-in';
-      let fill=tint.color;
+      fc.globalCompositeOperation='source-in';let fill=tint.color;
       if(tint.type!=='solid'){
         fill=tint.type==='radial'?fc.createRadialGradient(item.width/2,item.height/2,0,item.width/2,item.height/2,Math.hypot(item.width,item.height)/2):fc.createLinearGradient(...gradientPoints(item.width,item.height,tint.angle));
         tint.colors.forEach((color,index)=>fill.addColorStop(index,color));
       }
       fc.fillStyle=fill;fc.fillRect(0,0,item.width,item.height);fc.globalCompositeOperation='source-over';
+      if(!window.TEMHOA_LIVE_DRAW){frames.set(frameKey,frame);while(frames.size>1&&[...frames.values()].reduce((n,c)=>n+c.width*c.height,0)>20000000)frames.delete(frames.keys().next().value);while(frames.size>8)frames.delete(frames.keys().next().value);}
     }
-    frames.set(frameKey,frame);while(frames.size>1&&[...frames.values()].reduce((n,c)=>n+c.width*c.height,0)>20000000)frames.delete(frames.keys().next().value);while(frames.size>8)frames.delete(frames.keys().next().value);}
     ctx.save();ctx.translate(item.x,item.y);ctx.rotate(item.angle*Math.PI/180);ctx.scale(item.flipX?-1:1,item.flipY?-1:1);ctx.translate(-item.width/2,-item.height/2);ctx.globalAlpha*=item.opacity??1;
     if(!mask&&(item.shadowOpacity||0)>0){const hex=item.shadowColor||defaults.shadowColor;ctx.shadowColor=hex+Math.round(item.shadowOpacity*255).toString(16).padStart(2,'0');const scale=Math.hypot(ctx.getTransform().a,ctx.getTransform().b);ctx.shadowBlur=(item.shadowBlur||0)*scale;const m=ctx.getTransform();ctx.shadowOffsetX=(item.shadowX||0)*m.a+(item.shadowY||0)*m.c;ctx.shadowOffsetY=(item.shadowX||0)*m.b+(item.shadowY||0)*m.d;}
     ctx.drawImage(frame,0,0,item.width,item.height);ctx.shadowColor='transparent';
@@ -87,8 +95,42 @@
   // One mutation queue prevents async edits from applying to a different selection.
   let noneSelected=false,busy=false,queue=Promise.resolve(),popover=null,crop=null,styleClipboard=null;
   const currentImage=()=>selectedGraphic()?.kind==='image'&&graphicSelection().length===1&&!labelGroupKey(currentLabel())?selectedGraphic():null;
-  const canEdit=item=>item&&item.id===currentImage()?.id&&!item.locked&&!labelLockControl.checked;
+  const canEdit=item=>item&&item.id===currentImage()?.id&&!currentImage().locked&&!item.locked&&!labelLockControl.checked;
   const message=text=>{$('status').textContent=text;const status=$('imageToolStatus');if(status)status.textContent=text;};
+  let tintPrepared=null,tintLive=null;
+  function prepareTint(item){
+    if(tintPrepared?.owner===activeLabelId&&tintPrepared.id===item.id)return tintPrepared;
+    const oldStack=paintLayerStack;let L,scale,above;
+    try{
+      paintLayerStack=(ctx,l,s,background)=>{
+        L=l;scale=s;background();above=cv(ctx.canvas.width,ctx.canvas.height);let passed=false;
+        for(const unit of orderedLayerUnits(l)){
+          if(unit.kind==='graphic'&&unit.item.id===item.id){passed=true;continue;}
+          paintLayerUnit(passed?above.getContext('2d'):ctx,l,s,unit);
+        }
+      };
+      const below=render().c;
+      tintPrepared={owner:activeLabelId,id:item.id,L,scale,below,above};return tintPrepared;
+    }finally{paintLayerStack=oldStack;}
+  }
+  function paintTint(item){
+    const prepared=prepareTint(item),{L,scale,below,above}=prepared,c=$('canvas'),ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(below,0,0);
+    const offset={...item,x:item.x+(L.graphicOffsetX??L.offsetX??0),y:item.y+(L.graphicOffsetY??L.offsetY??0)};
+    const oldLive=window.TEMHOA_LIVE_DRAW;window.TEMHOA_LIVE_DRAW=true;
+    try{paintLayerUnit(ctx,L,scale,{kind:'graphic',item:offset});}finally{window.TEMHOA_LIVE_DRAW=oldLive;}
+    ctx.drawImage(above,0,0);
+    const label=currentLabel();label.settings.decorations=decorations.map(item=>({...item}));label.size=previewSize;
+    if(!label.bitmap||label.bitmap.width!==c.width||label.bitmap.height!==c.height)label.bitmap=cv(c.width,c.height);
+    const bitmap=label.bitmap.getContext('2d');bitmap.clearRect(0,0,c.width,c.height);bitmap.drawImage(c,0,0);label.renderVersion=(label.renderVersion||0)+1;
+  }
+  function releaseTintSave(){if(tintLive?.saveHeld){autoSuspended--;tintLive.saveHeld=false;}}
+  const tintPreview=preview;
+  preview=async function(...args){
+    const finishing=tintLive;releaseTintSave();tintLive=null;tintPrepared=null;
+    try{return await tintPreview(...args);}finally{if(finishing){recordHistory();renderLayersPanel();}}
+  };
+  function finishTint(){queue=queue.then(async()=>{if(tintLive){const prepared=tintPrepared;await preview();if(prepared?.owner===activeLabelId&&prepared.id===currentImage()?.id)tintPrepared=prepared;}}).catch(error=>message(error.message));return queue;}
   const pendingControls=new Map();
   function mutate(change,controlKey=null) {
     const item=currentImage(),owner=activeLabelId;if(!canEdit(item)||busy)return Promise.resolve(false);
@@ -101,10 +143,26 @@
     queue=queue.then(async()=>{
       if(key){await new Promise(resolve=>requestAnimationFrame(resolve));if(pendingControls.get(key)===job)pendingControls.delete(key);}
       if(activeLabelId!==owner||!canEdit(item))return false;
+      if(controlKey==='imageTint'){
+        if(!tintLive){prepareTint(currentImage());recordHistory();clearTimeout(autoTimer);autoSuspended++;tintLive={owner,id:item.id,saveHeld:true};}
+        await job.change(currentImage());paintTint(currentImage());return true;
+      }
+      if(tintLive)await preview();
       recordHistory();await job.change(currentImage());await ensureGraphics();await preview();
       recordHistory();syncGraphicControls();renderLayersPanel();return true;
-    }).catch(error=>{if(key&&pendingControls.get(key)===job)pendingControls.delete(key);message(error.message);return false;});return queue;
+    }).catch(error=>{if(key&&pendingControls.get(key)===job)pendingControls.delete(key);if(tintLive){releaseTintSave();tintLive=null;tintPrepared=null;captureAutoChanges();}message(error.message);return false;});return queue;
   }
+  document.addEventListener('click',event=>{
+    const undo=event.target.closest?.('#artUndo,#artRedo');if(!undo||(!tintLive&&!pendingControls.size))return;
+    event.preventDefault();event.stopImmediatePropagation();finishTint().then(()=>restoreHistory(undo.id==='artUndo'?-1:1));
+  },true);
+  document.addEventListener('keydown',event=>{
+    if((!tintLive&&!pendingControls.size)||!(event.ctrlKey||event.metaKey)||event.altKey||!['z','y'].includes(event.key.toLowerCase()))return;
+    event.preventDefault();event.stopImmediatePropagation();finishTint().then(()=>restoreHistory(event.key.toLowerCase()==='y'||event.shiftKey?1:-1));
+  },true);
+  const tintFlush=flushAutoSave;
+  flushAutoSave=async function(...args){await finishTint();return tintFlush(...args);};
+  window.addEventListener('pagehide',()=>{releaseTintSave();captureAutoChanges();tintFlush();});
   const icons={edit:'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M9 15v6',replace:'M4 8V4h16v16H4v-4M1 12h12M9 8l4 4-4 4',background:'M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4M8 8h.01M3 21L21 3',stroke:'M4 5h16M4 12h16M4 19h16',radius:'M4 20v-7a9 9 0 0 1 9-9h7',flip:'M12 3v18M3 6l6 6-6 6zM21 6l-6 6 6 6z',opacity:'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',style:'M4 3h16v7H4zM12 10v4h5v7h-4v-7',more:'M5 12h.01M12 12h.01M19 12h.01',unlock:'M6 11h12v10H6zM16 7a4 4 0 0 0-8 0v4'};
   Object.assign(artPaths,icons);
   const bar=artImageZone;bar.replaceChildren();bar.setAttribute('aria-label','Thanh công cụ ảnh');bar.setAttribute('role','toolbar');
@@ -117,7 +175,7 @@
   const replaceInput=document.createElement('input');replaceInput.id='image-replace-file';replaceInput.type='file';replaceInput.accept='image/png,image/jpeg,image/webp';replaceInput.hidden=true;document.body.append(replaceInput);
   buttons.replace.onclick=()=>{replaceInput.value='';replaceInput.click();};
   replaceInput.onchange=async()=>{const file=replaceInput.files[0],item=currentImage(),owner=activeLabelId;if(!file||!canEdit(item)||busy)return;busy=true;syncBar();message('Đang đọc ảnh thay thế…');try{const entry=await TemStudio.assetFromFile(file),image=await loadGraphic(entry.src);if(owner!==activeLabelId||!canEdit(item))throw Error('Vùng chọn đã đổi. Chọn lại ảnh để thay thế.');recordHistory();Object.assign(item,{src:entry.src,original:entry.src,sourceOriginal:entry.src,imageCrop:cover(image,item.width/item.height),removeWhite:false});delete item.crop;await preview();recordHistory();message('');}catch(e){message(e.message);}finally{busy=false;syncGraphicControls();}};
-  function closePopover(restore=false){if(!popover)return;const {node,anchor}=popover;popover=null;if(node.contains(manualBackground))legacy.append(manualBackground);node.remove();anchor?.setAttribute('aria-expanded','false');if(restore)anchor?.focus();}
+  function closePopover(restore=false){if(!popover)return;finishTint();const {node,anchor}=popover;popover=null;if(node.contains(manualBackground))legacy.append(manualBackground);node.remove();anchor?.setAttribute('aria-expanded','false');if(restore)anchor?.focus();}
   function shell(kind,title){closePopover();closeFontPicker();artCloseExport();labelMenu.hidden=true;const node=document.createElement('section');node.className='imagePopover';node.id='imagePanel';node.setAttribute('role','dialog');node.setAttribute('aria-label',title);const header=document.createElement('div');header.className='imagePanelHeader';const h=document.createElement('strong');h.textContent=title;header.append(h,button('image-close-panel','Đóng bảng ảnh','close',()=>closePopover(true),true));node.append(header);document.body.append(node);const anchor=buttons[kind]?.offsetParent?buttons[kind]:more;popover={node,anchor,owner:activeLabelId,id:currentImage()?.id};anchor.setAttribute('aria-expanded','true');anchor.setAttribute('aria-haspopup','dialog');const s=document.createElement('p');s.id='imageToolStatus';s.setAttribute('role','status');node.append(s);return node;}
   function place(){if(!popover)return;const {node,anchor}=popover,r=anchor.getBoundingClientRect();node.style.left=clamp(r.left,8,Math.max(8,innerWidth-node.offsetWidth-8))+'px';node.style.top=clamp(r.bottom+6,8,Math.max(8,innerHeight-node.offsetHeight-8))+'px';}
   function control(node,key,label,min,max,step=1,multiplier=1) {
@@ -138,8 +196,8 @@
     first.value=tint.type==='solid'?tint.color:tint.colors[0];second.value=tint.colors[1];angle.min=0;angle.max=360;angle.step=1;angle.value=tint.angle;
     const sync=()=>{first.disabled=mode.value==='none';second.parentElement.hidden=!['linear','radial'].includes(mode.value);angle.parentElement.hidden=mode.value!=='linear';place();};
     const commit=()=>{const value=safeImageTint({enabled:mode.value!=='none',type:mode.value,color:first.value,colors:[first.value,second.value],angle:Number(angle.value)});mutate(item=>item.imageTint=value,'imageTint');sync();};
-    mode.onchange=commit;first.oninput=commit;second.oninput=commit;angle.onchange=commit;
-    section.append(button('image-tint-reset','Giữ màu ảnh gốc','undo',()=>{mode.value='none';commit();}));
+    mode.onchange=()=>{commit();finishTint();};first.oninput=commit;second.oninput=commit;first.onfocus=second.onfocus=()=>{if(canEdit(currentImage()))prepareTint(currentImage());};first.onchange=second.onchange=finishTint;first.onblur=second.onblur=finishTint;angle.onchange=()=>{commit();finishTint();};
+    section.append(button('image-tint-reset','Giữ màu ảnh gốc','undo',()=>{mode.value='none';commit();finishTint();}));
     const note=document.createElement('p');note.textContent='Tô phần ảnh nhìn thấy; giữ nguyên vùng trong suốt và ảnh nguồn.';section.append(note);node.append(section);sync();
   }
   function reset(node,keys,label='Đặt lại'){node.append(button('',label,'undo',async()=>{await mutate(item=>keys.forEach(k=>item[k]=defaults[k]));const kind=popover?.kind;if(kind){closePopover();openPanel(kind);}}));}
@@ -151,7 +209,7 @@
     if(kind==='flip')for(const [key,label] of [['flipX','Lật ngang'],['flipY','Lật dọc']])node.append(button('',label,'flip',async()=>{await mutate(item=>item[key]=!item[key]);closePopover(true);}));
     if(kind==='opacity'){control(node,'opacity','Độ mờ (%)',0,100,1,100);reset(node,['opacity']);}
     if(kind==='position')positionPanel(node);
-    if(kind==='style'){imageTintPanel(node);color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',()=>copyStyle()),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
+    if(kind==='style'){prepareTint(currentImage());imageTintPanel(node);color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',async()=>{await finishTint();copyStyle();}),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
     if(kind==='more'){for(const key of ['delete','stroke','radius','crop','flip','opacity','position','style']){const source=buttons[key],b=button('',source.getAttribute('aria-label'),source.querySelector('svg')?'properties':'image',()=>{closePopover();source.click()});b.disabled=source.disabled;node.append(b);}const note=document.createElement('p');note.textContent='Chuyển động: dành cho trình chiếu, chưa hỗ trợ.';node.append(note);}
     place();artEnter(node,'menu');node.querySelector('input,select,button:not(#image-close-panel)')?.focus();
   }
@@ -245,7 +303,7 @@
   const change=changeGraphic;changeGraphic=async function(...args){if(contextSelectionLocked())return;return change(...args);};
   const move=moveObjectLayer;moveObjectLayer=async function(delta,...args){if(contextSelectionLocked())return;if(Math.abs(delta)>=1000){const t=layerTarget();return move(delta>0?t.items.length-1-t.index:-t.index,...args);}return move(delta,...args);};
   const restore=$('studioRestoreImage').onclick;$('studioRestoreImage').onclick=async function(...args){const result=await restore(...args);const item=selectedGraphic();if(item&&canEdit(item)&&item.imageCrop)await mutate(i=>delete i.imageCrop);return result;};
-  window.TemImageTools={defaults,mutate,worldGeometry,cover,imagePixels,openPanel,startCrop,applyCrop,cancelCrop,restoreOriginal,copyStyle,pasteStyle,get crop(){return crop},get idle(){return queue},sync:syncBar};
+  window.TemImageTools={defaults,mutate,worldGeometry,cover,imagePixels,openPanel,startCrop,applyCrop,cancelCrop,restoreOriginal,copyStyle,pasteStyle,get crop(){return crop},get pending(){return queue},get idle(){return finishTint()},sync:syncBar};
   syncGraphicControls();
 })();
 

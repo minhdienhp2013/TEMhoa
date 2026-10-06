@@ -35,3 +35,16 @@ Mutation của control liên tục được gộp theo thiết kế/ảnh/thuộ
 PASS tests/image-color-performance.cjs: burst chỉ một preview, undo/redo đúng trước/sau; cập nhật cả hai stop gradient giữ giá trị cuối; input trong lúc preview đang chờ chỉ thêm một preview; đổi vùng chọn và khóa trước áp dụng không sửa nhầm ảnh. Bài kiểm thử được đưa vào CI. PASS lại image-tools-smoke đầy đủ, gồm lưu/mở lại, PNG/PDF, backend contract, crop và cửa sổ hẹp; syntax/diff check đạt.
 
 Số liệu là độ trễ hoàn tất burst, không phải FPS hay cam kết tốc độ trên Windows/Mac. Một lần dựng preview toàn phần vẫn có chi phí với ảnh/tài liệu lớn; bản sửa loại bỏ việc replay hàng dài màu đã cũ.
+
+## Preview tương tác theo lớp, thay thế redraw toàn tem
+
+Bản gộp queue trước vẫn có giật vì mỗi lượt dựng đầy đủ tem (~350–440 ms), và timer tự lưu có thể chạy giữa cử chỉ. Bản mới tạo sẵn lớp dưới/trên ảnh đang chọn; khi input chỉ ghép lại ảnh đó vào canvas hiện có. Không chạy lại phép tạo silhouette/giãn viền/lấp lỗ, tải font, layout, ruler, zoom, panel lớp hoặc thumbnail tự lưu trong từng khung hình.
+
+Nguồn đã crop/mask được cache riêng; bộ đệm tô màu và bitmap tem được tái sử dụng. Cache key dùng danh tính bitmap WeakMap thay vì serialize nguyên data URL ảnh. Preview tương tác dùng mức lấy mẫu nhẹ (factor tối đa 1); kết thúc bằng change/blur/Escape/đóng panel hoặc lệnh lưu sẽ dựng lại bằng renderer đầy đủ, lưu và chốt history. PNG/PDF không hạ chất lượng. Tạm hoãn tác vụ tự lưu trong cử chỉ, giải phóng trạng thái khi chốt hoặc lỗi/pagehide; dữ liệu thiết kế và bitmap vẫn cập nhật trong từng lượt.
+
+Kiểm thử Chromium Linux, ảnh 2400 × 1600 px, 60 lượt input liên tục sau khi chuẩn bị cache:
+- Không có full preview trong 60 lượt; một history trước cử chỉ, một full preview khi chốt.
+- Độ trễ từ input đến hoàn tất paint, gồm chờ requestAnimationFrame, bỏ lượt chuẩn bị đầu: trung vị 17 ms, p95 17–19 ms, tối đa 28–38 ms qua các lượt chạy.
+- So toàn bộ canvas live với renderer cùng mức lấy mẫu: bằng nhau. Sau chốt, so với renderer đầy đủ: bằng nhau.
+
+Số liệu này tách riêng giai đoạn rê màu; bước mở/chuẩn bị panel và dựng bản đầy đủ cuối thao tác vẫn có chi phí. Không phải cam kết 60 FPS hoặc không giật trên mọi máy. Chưa đo native Windows/macOS. Có regression cho màu/gradient, vùng chọn/khóa, undo/redo, lưu lại và PNG/PDF.
