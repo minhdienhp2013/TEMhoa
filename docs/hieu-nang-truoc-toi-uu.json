@@ -1,0 +1,34 @@
+[
+  {
+    "count": 10,
+    "paintCalls": 640,
+    "domCreates": 2069,
+    "panelCalls": 3,
+    "p50": 33,
+    "p95": 34
+  },
+  {
+    "count": 50,
+    "paintCalls": 3100,
+    "domCreates": 10225,
+    "panelCalls": 3,
+    "p50": 33,
+    "p95": 34
+  },
+  {
+    "count": 100,
+    "paintCalls": 6200,
+    "domCreates": 20425,
+    "panelCalls": 3,
+    "p50": 33,
+    "p95": 35
+  },
+  {
+    "count": 300,
+    "paintCalls": 18600,
+    "domCreates": 61225,
+    "panelCalls": 3,
+    "p50": 42,
+    "p95": 65
+  }
+]

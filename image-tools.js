@@ -34,11 +34,12 @@
   function imagePixels(item) {
     const image=graphicImages.get(item.src);if(!image)return null;
     if(!['brightness','contrast','saturation','temperature','blur'].some(k=>item[k]))return image;
-    const key=JSON.stringify([item.src,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0),item.blur?item.width:0]);
+    const factor=window.TEMHOA_LIVE_DRAW?Math.min(1,1600/Math.max(image.width,image.height)):1;
+    const key=JSON.stringify([imageKey(image),factor,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0),item.blur?item.width:0]);
     if(processed.has(key))return processed.get(key);
-    const c=cv(image.width,image.height),ctx=c.getContext('2d');
-    ctx.filter=`brightness(${1+(item.brightness||0)/100}) contrast(${1+(item.contrast||0)/100}) saturate(${1+(item.saturation||0)/100}) blur(${(item.blur||0)*image.width/Math.max(1,item.width)}px)`;
-    ctx.drawImage(image,0,0);ctx.filter='none';
+    const c=cv(Math.max(1,Math.round(image.width*factor)),Math.max(1,Math.round(image.height*factor))),ctx=c.getContext('2d');
+    ctx.filter=`brightness(${1+(item.brightness||0)/100}) contrast(${1+(item.contrast||0)/100}) saturate(${1+(item.saturation||0)/100}) blur(${(item.blur||0)*c.width/Math.max(1,item.width)}px)`;
+    ctx.drawImage(image,0,0,c.width,c.height);ctx.filter='none';
     if(item.temperature){const pixels=ctx.getImageData(0,0,c.width,c.height),t=item.temperature*.45;for(let i=0;i<pixels.data.length;i+=4){pixels.data[i]+=t;pixels.data[i+2]-=t;}ctx.putImageData(pixels,0,0);}
     processed.set(key,c);while(processed.size>1&&[...processed.values()].reduce((n,c)=>n+c.width*c.height,0)>40000000)processed.delete(processed.keys().next().value);while(processed.size>4)processed.delete(processed.keys().next().value);return c;
   }
@@ -114,13 +115,14 @@
     }finally{paintLayerStack=oldStack;}
   }
   function paintTint(item){
+    window.TemPerformance?.frame();
     const prepared=prepareTint(item),{L,scale,below,above}=prepared,c=$('canvas'),ctx=c.getContext('2d');
     ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(below,0,0);
     const offset={...item,x:item.x+(L.graphicOffsetX??L.offsetX??0),y:item.y+(L.graphicOffsetY??L.offsetY??0)};
     const oldLive=window.TEMHOA_LIVE_DRAW;window.TEMHOA_LIVE_DRAW=true;
     try{paintLayerUnit(ctx,L,scale,{kind:'graphic',item:offset});}finally{window.TEMHOA_LIVE_DRAW=oldLive;}
     ctx.drawImage(above,0,0);
-    const label=currentLabel();label.settings.decorations=decorations.map(item=>({...item}));label.size=previewSize;
+    const label=currentLabel();label.size=previewSize;
     if(!label.bitmap||label.bitmap.width!==c.width||label.bitmap.height!==c.height)label.bitmap=cv(c.width,c.height);
     const bitmap=label.bitmap.getContext('2d');bitmap.clearRect(0,0,c.width,c.height);bitmap.drawImage(c,0,0);label.renderVersion=(label.renderVersion||0)+1;
   }
@@ -146,7 +148,7 @@
     queue=queue.then(async()=>{
       if(key){await new Promise(resolve=>requestAnimationFrame(resolve));if(pendingControls.get(key)===job)pendingControls.delete(key);}
       if(activeLabelId!==owner||!canEdit(item))return false;
-      if(['imageTint','strokeColor','shadowColor'].includes(controlKey)){
+      if(['imageTint','strokeColor','shadowColor',...Object.keys(limits)].includes(controlKey)){
         if(!tintLive){prepareTint(currentImage());recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();tintLive={owner,id:item.id,saveHeld:true,colors:new Set()};}
         tintLive.colors.add(controlKey);await job.change(currentImage());paintTint(currentImage());return true;
       }
@@ -185,7 +187,7 @@
     const row=document.createElement('label');row.className='imageSlider';const name=document.createElement('span');name.textContent=label;const range=document.createElement('input'),number=document.createElement('input');range.type='range';number.type='number';
     for(const input of [range,number]){input.min=min;input.max=max;input.step=step;input.value=Math.round((currentImage()?.[key]??defaults[key])*multiplier*100)/100;input.setAttribute('aria-label',label+(input===range?'':' — giá trị'));}
     const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier,key);};
-    range.oninput=()=>change(range);number.onchange=()=>change(number);row.append(name,range,number);node.append(row);
+    range.onfocus=()=>prepareTint(currentImage());range.oninput=()=>change(range);range.onchange=range.onblur=finishTint;number.onchange=()=>{change(number);finishTint();};row.append(name,range,number);node.append(row);
   }
   function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>{const value=input.value;mutate(item=>item[key]=value,key);};input.onfocus=()=>prepareTint(currentImage());input.onchange=input.onblur=finishTint;row.append(input);node.append(row);}
   function imageTintPanel(node){
@@ -327,33 +329,37 @@
     finally{layout=originalLayout;paintLayerStack=originalStack;}
     const add=(c,left,top,width,height)=>{Object.assign(c.style,{left:left+'px',top:top+'px',width:width+'px',height:height+'px'});root.append(c);return c;};
     add(background,0,0,L.width*sx,L.height*sy);
-    live={root,L,sx,sy,nodes:[],owner:activeLabelId};
+    live={root,L,sx,sy,nodes:[],owner:activeLabelId,selected:new Set((graphicDrag.group||[graphicDrag.original]).map(i=>i.id)),saveHeld:true};
+    clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();
     for(const unit of orderedLayerUnits(L)){
       if(unit.kind==='graphic'){const c=document.createElement('canvas');root.append(c);live.nodes.push({unit,c});}
       else{const c=cv($('canvas').width,$('canvas').height);paintLayerUnit(c.getContext('2d'),L,c.width/L.width,unit);add(c,0,0,L.width*sx,L.height*sy);}
     }
-    surface.classList.add('liveGraphicActive');$('canvas').style.visibility='hidden';paint();
+    surface.classList.add('liveGraphicActive');$('canvas').style.visibility='hidden';paint(true);
   }
-  function paint(){
+  function paint(initial=false){
     if(!live)return;
+    window.TemPerformance?.frame();
     const {L,sx,sy}=live,dpr=Math.min(2,devicePixelRatio||1);
     window.TEMHOA_LIVE_DRAW=true;
     try{for(const {unit,c} of live.nodes){
+      if(!initial&&!live.selected.has(unit.item.id))continue;
       const raw=decorations.find(i=>i.id===unit.item.id);if(!raw)continue;
-      const item={...raw,x:raw.x+(L.graphicOffsetX??L.offsetX??0),y:raw.y+(L.graphicOffsetY??L.offsetY??0)},b=graphicBounds(item),pad=2;
+      const item={...raw,x:raw.x+(L.graphicOffsetX??L.offsetX??0),y:raw.y+(L.graphicOffsetY??L.offsetY??0)},b=graphicBounds(item),pad=2+((item.strokeWidth||0)/2+(item.shadowOpacity?2*(item.shadowBlur||0)+Math.abs(item.shadowX||0)+Math.abs(item.shadowY||0):0))*Math.max(sx,sy);
       const w=Math.max(1,b.width*sx+pad*2),h=Math.max(1,b.height*sy+pad*2);
-      c.width=Math.ceil(w*dpr);c.height=Math.ceil(h*dpr);
+      const width=Math.ceil(w*dpr),height=Math.ceil(h*dpr);if(c.width!==width||c.height!==height){c.width=width;c.height=height;}
       Object.assign(c.style,{left:(b.x*sx-pad)+'px',top:(b.y*sy-pad)+'px',width:w+'px',height:h+'px'});
-      const ctx=c.getContext('2d');ctx.scale(dpr,dpr);ctx.translate(pad,pad);ctx.scale(sx,sy);ctx.translate(-b.x,-b.y);drawGraphic(ctx,item);
+      const ctx=c.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);ctx.scale(dpr,dpr);ctx.translate(pad,pad);ctx.scale(sx,sy);ctx.translate(-b.x,-b.y);drawGraphic(ctx,item);
     }}finally{window.TEMHOA_LIVE_DRAW=false;}
   }
   function draw(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;paint();});}
-  function clear(){cancelAnimationFrame(frame);frame=0;live?.root.remove();live=null;surface.classList.remove('liveGraphicActive');$('canvas').style.visibility='';window.TEMHOA_INTERACTION_VIEWPORT=null;}
+  function release(){if(live?.saveHeld){live.saveHeld=false;autoSuspended--;colorSaveGate.leave();}}
+  function clear(){cancelAnimationFrame(frame);frame=0;release();live?.root.remove();live=null;surface.classList.remove('liveGraphicActive');$('canvas').style.visibility='';window.TEMHOA_INTERACTION_VIEWPORT=null;}
   const previous=preview;
   preview=async function(...args){
     if(live&&graphicDrag){draw();return;}
     const finishing=!!live;
-    try{return await previous(...args);}
+    release();try{return await previous(...args);}
     finally{if(finishing){const stage=$('previewStage'),before=stage.getBoundingClientRect();clear();viewport();zoom();const after=stage.getBoundingClientRect();preservePreviewOrigin(area,$('previewBounds'),area.scrollLeft+after.left-before.left,area.scrollTop+after.top-before.top);window.TEMHOA_INTERACTION_VIEWPORT=null;}}
   };
   window.addEventListener('pointerdown',e=>{
@@ -363,6 +369,7 @@
   function end(){queueMicrotask(()=>{if(!live){window.TEMHOA_INTERACTION_VIEWPORT=null;}});}
   window.addEventListener('pointerup',end,true);window.addEventListener('pointercancel',end,true);
   window.addEventListener('blur',()=>{if(live){graphicDrag=null;preview();}else window.TEMHOA_INTERACTION_VIEWPORT=null;});
+  window.addEventListener('pagehide',()=>{graphicDrag=null;clear();});
   window.addEventListener('resize',()=>{closeCaseMenu();});
   area.addEventListener('scroll',()=>{if(!$('caseMenu').hidden)closeCaseMenu();},{passive:true});
   window.TemLivePreview={startGraphic,draw,get active(){return !!live;}};
