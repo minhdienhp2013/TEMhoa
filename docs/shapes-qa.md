@@ -38,3 +38,7 @@ Kết quả: PASS các bài kiểm thử nêu trên, `studio-core.cjs`, `delete-
 ![Bộ hình cửa sổ rộng](shapes-screenshots/shapes-desktop.png)
 
 ![Bộ hình cửa sổ hẹp](shapes-screenshots/shapes-small.png)
+
+## Sửa bộ chọn màu
+
+Cập nhật trực tiếp bằng sự kiện input của bộ chọn màu, không chờ đóng hộp chọn. Chọn màu tô bật lại tô nền; chọn màu viền khi viền bằng 0 bật viền 2 px. Giữ độ dày viền đã đặt. Hàng đợi xác định đối tượng bằng id, bảo vệ khóa và vùng chọn; tránh đồng bộ giá trị cũ vào bộ chọn màu đang có focus. Kiểm thử bổ sung chuỗi input màu nhanh, pixel tô và viền, undo/redo, lưu/mở lại và màu trong PNG thực tế.
