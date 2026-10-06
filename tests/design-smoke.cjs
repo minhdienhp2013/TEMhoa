@@ -23,4 +23,16 @@ assert.ok(await page.evaluate(()=>decorations.every(item=>item.locked)),'Lock mu
 await page.locator('.graphicOverlay').last().click({button:'right'});
 await page.getByRole('menuitem',{name:'Mở khóa',exact:true}).click();
 assert.ok(await page.evaluate(()=>decorations.every(item=>!item.locked)),'Unlock must apply to the whole group');
+
+assert.equal(await page.locator('#paint-body').count(),0);
+assert.equal(await page.getByText('Nền tem',{exact:true}).count(),0);
+const backgroundCheck=await page.evaluate(async()=>{
+ const base=copyLabelData(homeBaseSettings);await restoreLabelDocument({...base,designKind:'cloud',wordFrame:'',text:'Tem không nền',richHTML:'<div>Tem không nền</div>',decorations:[],body:'#00ff00',colorStyles:{fill:{type:'solid'},body:{type:'solid'},edge:{type:'solid'}}});await ensureDocumentFonts();
+ const restoredClear=colorStyles.body.type==='clear';
+ const pixels=()=>{const c=render(false,1,false).c;return c.getContext('2d').getImageData(0,0,c.width,c.height).data};
+ colorStyles.body={type:'solid'};const solid=pixels(),svgSolid=oneLabelSVG();colorStyles.body={type:'clear'};const clear=pixels(),svgClear=oneLabelSVG();
+ return {restoredClear,samePixels:solid.every((value,index)=>value===clear[index]),sameSVG:svgSolid===svgClear,hasInk:clear.some((value,index)=>index%4===3&&value>0),hasTransparent:clear.some((value,index)=>index%4===3&&value===0)};
+});
+assert.deepEqual(backgroundCheck,{restoredClear:true,samePixels:true,sameSVG:true,hasInk:true,hasTransparent:true});
+
 assert.deepEqual(errors,[]);console.log('PASS: text creation, free drag, save/open, second text, render, cloud mode');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
