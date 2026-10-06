@@ -1423,8 +1423,8 @@ window.addEventListener('pointerdown',event=>{
 
 function ctxDivider(){const d=document.createElement('div');d.className='ctxDivider';return d}
 function ctxItem(label,icon='',shortcut='',action=null,disabled=false,extraClass=''){
- const button=document.createElement('button');button.type='button';button.className='ctxItem '+extraClass;button.disabled=disabled;button.setAttribute('role','menuitem');const i=document.createElement('span');i.className='ctxIcon';i.textContent=icon;const t=document.createElement('span');t.className='ctxText';t.textContent=label;button.append(i,t);
- if(shortcut){const s=document.createElement('span');s.className='ctxShortcut';s.textContent=shortcut;button.append(s)}
+ const button=document.createElement('button');button.type='button';button.className='ctxItem '+extraClass;button.disabled=disabled;button.setAttribute('role','menuitem');button.setAttribute('aria-label',label);const i=document.createElement('span');i.className='ctxIcon';i.textContent=icon;i.setAttribute('aria-hidden','true');const t=document.createElement('span');t.className='ctxText';t.textContent=label;button.append(i,t);
+ if(shortcut){const s=document.createElement('span');s.className='ctxShortcut';s.textContent=shortcut;s.setAttribute('aria-hidden','true');button.append(s)}
  if(action)button.onclick=async event=>{event.stopPropagation();labelMenu.hidden=true;try{await action()}catch(error){$('status').textContent=error.message}};return button
 }
 function ctxSub(label,icon,items){const host=ctxItem(label,icon,'',null,false,'ctxHasSub'),arrow=document.createElement('span');arrow.className='ctxArrow';arrow.textContent='›';host.append(arrow);const sub=document.createElement('div');sub.className='ctxSub';sub.setAttribute('role','menu');for(const item of items)sub.append(item);host.append(sub);return host}
