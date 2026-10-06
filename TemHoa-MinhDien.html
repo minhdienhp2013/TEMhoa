@@ -1288,7 +1288,7 @@ const labelLockControl=document.createElement('input');labelLockControl.type='ch
 const contextSetLabelSettings=setLabelSettings;setLabelSettings=function(value,ui=false){if(value?.labelLocked===undefined)labelLockControl.checked=false;return contextSetLabelSettings(value,ui)};
 
 let contextClipboardKind='',contextGraphicClipboard=null,contextStyleClipboard=null;
-const contextClone=value=>JSON.parse(JSON.stringify(value));
+const contextClone=value=>value===undefined?undefined:JSON.parse(JSON.stringify(value));
 
 function contextGraphicUnits(){
  const chosen=new Set(graphicSelection().map(item=>item.id)),seen=new Set(),units=[];
