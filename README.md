@@ -193,3 +193,9 @@ Giữ Shift để chọn các khối chữ/ảnh trên canvas hoặc panel Lớp
 **Xuất → PDF / Dàn tem…** chọn A5/A4/A3 ngang/dọc, xuất toàn trang hoặc dàn toàn bộ nội dung thành nhiều tem. Có chọn trang preview, lề, khoảng cách và dấu cắt. PDF dùng raster, mục tiêu 300 DPI, có báo độ phân giải thực tế; chưa hỗ trợ PDF vector/CMYK. Khổ editor được giữ nguyên.
 
 Chi tiết kiểm thử và giới hạn: [studio-upgrade-qa.md](docs/studio-upgrade-qa.md). Trên Mac chạy `bash Mo-TemHoa-Mac.command`.
+
+### Thanh ảnh theo vùng chọn
+
+Chọn một ảnh để dùng thanh ngang ngay dưới hàng điều hướng: chỉnh sáng/màu/blur, thay ảnh giữ khung, xóa nền, viền, bo góc/mask, crop trực tiếp, lật, độ mờ, vị trí và bóng đổ. Ở cửa sổ hẹp mở **Thêm**. **Chỉnh sửa → Khôi phục ảnh gốc** trả lại toàn ảnh; phần mở rộng có xóa nền theo màu. Ảnh khóa có **Mở khóa**. Chuyển động trình chiếu chưa hỗ trợ.
+
+Kết quả kiểm tra và giới hạn: [image-toolbar-qa.md](docs/image-toolbar-qa.md).

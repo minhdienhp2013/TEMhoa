@@ -108,7 +108,10 @@
 (() => {
  function compact(){
   if(window.TEMHOA_STUDIO_ADDING||!isDesign()||editorText().trim()||!decorations.length||graphicDrag||labelGroupDrag||!$('wordFrame').value)return;
-  const L=layout(),r=render(false,1,false),b=graphicGroupBounds(decorations),ox=L.graphicOffsetX||0,oy=L.graphicOffsetY||0;
+  const L=layout(),b=graphicGroupBounds(decorations),ox=L.graphicOffsetX||0,oy=L.graphicOffsetY||0;
+  const frame=JSON.parse($('wordFrame').value);
+  if(Math.abs(b.x)<.001&&Math.abs(b.y)<.001&&Math.abs(frame.width-b.width)<.001&&Math.abs(frame.height-b.height)<.001)return;
+  const r=render(false,1,false);
   const sx=Number($('labelScaleX').value||1),sy=Number($('labelScaleY').value||1),ux=r.cm*sx/L.width,uy=r.heightCm*sy/L.height;
   const x=$('labelX').value===''?(previewPage().width-r.cm)/2:Number($('labelX').value),y=$('labelY').value===''?1:Number($('labelY').value),cx=x+r.cm*sx/2,cy=y+r.heightCm*sy/2,w=b.width*ux,h=b.height*uy,a=Number($('labelAngle').value||0)*Math.PI/180;
   const vx=x+(b.x+ox+b.width/2)*ux-cx,vy=y+(b.y+oy+b.height/2)*uy-cy,base=Math.max(3,Math.min(previewPage().width-2,w));
