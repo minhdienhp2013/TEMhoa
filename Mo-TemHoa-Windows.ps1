@@ -6,10 +6,6 @@ if (!(Test-Path -LiteralPath $taskHtml)) { throw 'TemHoa-MinhDien.html is missin
 $taskToken = [Guid]::NewGuid().ToString('N')
 $taskTemplateRoot = if ($env:TEMHOA_TEMPLATE_ROOT) { $env:TEMHOA_TEMPLATE_ROOT } else { Join-Path $taskRoot 'Mau-Tem-Hoa' }
 $taskHtmlText = [System.IO.File]::ReadAllText($taskHtml, [System.Text.Encoding]::UTF8)
-$taskUiCss = Join-Path $taskRoot 'professional-ui.css'
-$taskUiBytes = if (Test-Path -LiteralPath $taskUiCss) { [System.IO.File]::ReadAllBytes($taskUiCss) } else { [byte[]]::new(0) }
-$taskUiLink = '<link rel="stylesheet" href="/professional-ui.css">'
-if ($taskHtmlText.Contains('</head>')) { $taskHtmlText = $taskHtmlText.Replace('</head>', $taskUiLink + '</head>') } else { $taskHtmlText = $taskHtmlText.Replace('<style>', $taskUiLink + '<style>') }
 $taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;window.TEMHOA_DESKTOP=$($env:TEMHOA_DESKTOP -eq '1' | ConvertTo-Json -Compress);</script><script>")
 $taskBytes = [System.Text.Encoding]::UTF8.GetBytes($taskHtmlText)
 function Get-TemplatePath([string]$name) {
@@ -74,8 +70,6 @@ try {
             $taskStatus = '200 OK'; $taskMime = 'application/json; charset=utf-8'; $taskResult = $null
             if ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/' -or $taskRoute -eq '/TemHoa-MinhDien.html')) {
                 $taskBody = $taskBytes; $taskMime = 'text/html; charset=utf-8'
-            } elseif ($taskParts[0] -eq 'GET' -and $taskRoute -eq '/professional-ui.css') {
-                $taskBody = $taskUiBytes; $taskMime = 'text/css; charset=utf-8'
             } elseif ($taskRoute -eq '/api/background' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     $taskRequest = $null
