@@ -751,8 +751,8 @@ $('previewArea').addEventListener('pointerdown',event=>{if(event.button!==0||eve
 const beforeWholeGroupPaste=pasteLabel;pasteLabel=async function(){if(!labelClipboard)return;const original=labelClipboard;labelClipboard={...copyLabelData(original),labelGroup:''};try{await beforeWholeGroupPaste()}finally{labelClipboard=original;selectedLabelSet=new Set([activeLabelId]);drawLabelGroupFrame()}};
 const beforeWholeGroupRestore=restoreLabelDocument;restoreLabelDocument=async function(data){selectedLabelSet.clear();await beforeWholeGroupRestore(data);selectedLabelSet=new Set(labelGroupMembers(currentLabel()).map(label=>label.id));syncGraphicControls()};
 let wholeGroupClipboard=null;
-const beforeWholeGroupCopy=copyLabel;copyLabel=async function(){await beforeWholeGroupCopy();const members=labelGroupMembers(currentLabel());wholeGroupClipboard=members.length>1?members.map(label=>copyLabelData(label.settings)):null};
-const beforeClipboardGroupPaste=pasteLabel;pasteLabel=async function(){if(!wholeGroupClipboard)return beforeClipboardGroupPaste();if(labelOperation||labelGroupDrag)return;if(labels.length+wholeGroupClipboard.length>20){$('status').textContent='Một trang tối đa 20 tem.';return}labelOperation=true;try{await preview();saveActiveLabel(true);recordHistory();labelGroupSequence=Math.max(labelGroupSequence,...labels.map(label=>Number(labelGroupKey(label).split('-')[1])||0));const key='temgroup-'+(++labelGroupSequence),copies=wholeGroupClipboard.map(settings=>{const data=copyLabelData(settings),geometry=labelGeometry({settings:data,size:{cm:Number(data.width),heightCm:3}});data.labelGroup=key;data.labelX=String(geometry.x+.7);data.labelY=String(geometry.y+.7);return {id:'tem-'+(++labelSequence),settings:data}});labels.push(...copies);activeLabelId=copies[0].id;selectedLabelSet=new Set(copies.map(label=>label.id));setLabelSettings(copies[0].settings,true);await ensureDocumentFonts();withLabels(label=>{if(!copies.includes(label))return;try{const output=render();label.bitmap=output.c;label.size={cm:output.cm,heightCm:output.heightCm,L:layout()};label.renderVersion=1}catch{}});await preview();recordHistory();$('status').textContent='Đã dán một nhóm '+copies.length+' tem riêng.'}finally{labelOperation=false;syncGraphicControls()}};
+const beforeWholeGroupCopy=copyLabel;copyLabel=async function(){await beforeWholeGroupCopy();const members=selectedLabels();wholeGroupClipboard=members.length>1?members.map(label=>copyLabelData(label.settings)):null};
+const beforeClipboardGroupPaste=pasteLabel;pasteLabel=async function(){if(!wholeGroupClipboard)return beforeClipboardGroupPaste();if(labelOperation||labelGroupDrag)return;if(labels.length+wholeGroupClipboard.length>20){$('status').textContent='Một trang tối đa 20 tem.';return}labelOperation=true;try{await preview();saveActiveLabel(true);recordHistory();labelGroupSequence=Math.max(labelGroupSequence,...labels.map(label=>Number(labelGroupKey(label).split('-')[1])||0));const groupKeys=new Map(),copies=wholeGroupClipboard.map(settings=>{const data=copyLabelData(settings),geometry=labelGeometry({settings:data,size:{cm:Number(data.width),heightCm:3}});if(data.labelGroup&&!groupKeys.has(data.labelGroup))groupKeys.set(data.labelGroup,'temgroup-'+(++labelGroupSequence));data.labelGroup=groupKeys.get(data.labelGroup)||'';data.labelX=String(geometry.x+.7);data.labelY=String(geometry.y+.7);return {id:'tem-'+(++labelSequence),settings:data}});labels.push(...copies);activeLabelId=copies[0].id;selectedLabelSet=new Set(copies.map(label=>label.id));setLabelSettings(copies[0].settings,true);await ensureDocumentFonts();withLabels(label=>{if(!copies.includes(label))return;try{const output=render();label.bitmap=output.c;label.size={cm:output.cm,heightCm:output.heightCm,L:layout()};label.renderVersion=1}catch{}});await preview();recordHistory();$('status').textContent='Đã dán một nhóm '+copies.length+' tem riêng.'}finally{labelOperation=false;syncGraphicControls()}};
 function wholeLabelBlocks(){const blocks=[];for(const label of labels){const last=blocks.at(-1),key=labelGroupKey(label);if(key&&labelGroupKey(last?.[0])===key)last.push(label);else blocks.push([label])}return blocks}
 const beforeWholeGroupLayerTarget=layerTarget;layerTarget=function(){if(selectedGraphic())return beforeWholeGroupLayerTarget();const blocks=wholeLabelBlocks();return {items:blocks,index:blocks.findIndex(block=>block.includes(currentLabel())),kind:'label'}};
 const beforeWholeGroupLayerMove=moveObjectLayer;moveObjectLayer=async function(delta,graphicOnly=false){if(selectedGraphic())return beforeWholeGroupLayerMove(delta,graphicOnly);if(graphicOnly||layerBusy||groupBusy||labelGroupDrag||labelOperation)return;const target=layerTarget(),next=target.index+delta;if(next<0||next>=target.items.length)return;layerBusy=true;try{recordHistory();const [block]=target.items.splice(target.index,1);target.items.splice(next,0,block);labels=target.items.flat();await preview();recordHistory()}finally{layerBusy=false;syncGraphicControls()}};
@@ -1017,6 +1017,7 @@ async function selectLayerUnit(labelId,key,additive=false,preserve=false){
  selectedUnitKey=key;
  if(key.startsWith('graphic-')){const item=decorations.find(item=>item.id===key);if(!item)return;selectGraphicItems(item);selectedGraphicSet=new Set(decorations.filter(graphic=>selectedLayerUnits.has(layerSelectionId(activeLabelId,graphic.id))).map(graphic=>graphic.id));$('editLayer').value='image'}
  else{selectedGraphicId=null;selectedGraphicSet.clear();$('editLayer').value='text';if(key.startsWith('text-')){const runs=(previewSize?.L.runs||[]).filter(run=>(run.layerKey||'text-0')===key);if(runs.length){const start=Math.min(...runs.map(run=>run.textStart)),end=Math.max(...runs.map(run=>run.textEnd));if(Number.isFinite(start)&&Number.isFinite(end)){savedSelection=rangeOffsets($('temEditor'),{start,end});$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}}}}
+ if(selectedLayerUnits.size>1){selectedLabelSet=new Set([...selectedLayerUnits].map(value=>JSON.parse(value)[0]));if(selectedLabelSet.size>1){selectedGraphicId=null;selectedGraphicSet.clear()}}
  positionGraphicOverlays();syncGraphicControls();renderLayersPanel();
 }
 async function reorderLayerUnit(labelId,key,targetKey,after=false){
@@ -1039,7 +1040,7 @@ function renderLayersPanel(){
  [...labels].reverse().forEach(label=>{
   const L=label.id===activeLabelId?previewSize.L:label.size?.L;if(!L)return;
   const section=document.createElement('section');section.className='layerSection';
-  const title=document.createElement('button');title.type='button';title.className='layerSectionTitle';title.textContent='Tem '+(labels.indexOf(label)+1);title.onclick=()=>activateLabel(label.id).then(renderLayersPanel);section.append(title);
+  const title=document.createElement('button');title.type='button';title.className='layerSectionTitle';title.textContent='Tem '+(labels.indexOf(label)+1);title.onclick=async event=>{if(event.shiftKey)selectWholeLabel(label,true);else{await activateLabel(label.id);selectWholeLabel(label)}renderLayersPanel()};section.append(title);
   const stack=readLayerStack(label.id===activeLabelId?$('layerStack').value:label.settings.layerStack||'{}');
   for(const unit of orderedLayerUnits(L,stack).reverse()){
    const row=document.createElement('div');row.className='layerRow';row.tabIndex=0;row.setAttribute('role','button');row.dataset.labelId=label.id;row.dataset.unitKey=unit.key;
@@ -1166,9 +1167,9 @@ $('previewArea').addEventListener('pointerdown',async event=>{
  if(event.shiftKey)return;
  event.preventDefault();event.stopImmediatePropagation();designEditing=false;
  const pointer=event.pointerId,startX=event.clientX,startY=event.clientY,stage=$('previewStage');stage.setPointerCapture(pointer);
- const pending={pointer,startX,startY,id};designDrag=pending;await activateLabel(id);if(designDrag!==pending)return;recordHistory();saveActiveLabel();const g=labelGeometry(currentLabel());Object.assign(pending,{x:g.x,y:g.y,unit:stage.getBoundingClientRect().width/previewPage().width});zoom();
+ const pending={pointer,startX,startY,id};designDrag=pending;await activateLabel(id);if(designDrag!==pending)return;recordHistory();saveActiveLabel();const g=labelGeometry(currentLabel());Object.assign(pending,{x:g.x,y:g.y,items:selectedLabels().map(label=>({id:label.id,...labelGeometry(label)})),unit:stage.getBoundingClientRect().width/previewPage().width});zoom();
 },true);
-$('previewStage').addEventListener('pointermove',event=>{const d=designDrag;if(!d||d.pointer!==event.pointerId||!d.unit)return;event.preventDefault();$('labelX').value=String(d.x+(event.clientX-d.startX)/d.unit);$('labelY').value=String(d.y+(event.clientY-d.startY)/d.unit);saveActiveLabel();zoom()});
+$('previewStage').addEventListener('pointermove',event=>{const d=designDrag;if(!d||d.pointer!==event.pointerId||!d.unit)return;event.preventDefault();const dx=(event.clientX-d.startX)/d.unit,dy=(event.clientY-d.startY)/d.unit;for(const original of d.items||[]){const label=labels.find(item=>item.id===original.id);label.settings.labelX=String(original.x+dx);label.settings.labelY=String(original.y+dy)}$('labelX').value=String(d.x+dx);$('labelY').value=String(d.y+dy);saveActiveLabel();zoom()});
 async function finishDesignDrag(event){if(!designDrag||designDrag.pointer!==event.pointerId)return;designDrag=null;await preview();recordHistory()}
 for(const event of ['pointerup','pointercancel','lostpointercapture'])$('previewStage').addEventListener(event,finishDesignDrag);
 $('previewArea').addEventListener('dblclick',event=>{if(!isDesign()||event.target.closest('.graphicOverlay'))return;editDesignText()});
@@ -1336,7 +1337,7 @@ async function contextDuplicateSelection(){
  else await duplicateLabel()
 }
 async function contextDeleteSelection(){
- if(selectedGraphic()){const idsToDelete=new Set(graphicSelection().map(item=>item.id));if(!idsToDelete.size)return;recordHistory();decorations=decorations.filter(item=>!idsToDelete.has(item.id));selectedGraphicId=null;selectedGraphicSet.clear();await contextCommit('Đã xóa '+idsToDelete.size+' thành phần.');return}
+ if(selectedGraphic()){const idsToDelete=new Set(graphicSelection().map(item=>item.id));if(!idsToDelete.size)return;recordHistory();decorations=decorations.filter(item=>!idsToDelete.has(item.id));selectedGraphicId=null;selectedGraphicSet.clear();saveActiveLabel();await contextCommit('Đã xóa '+idsToDelete.size+' thành phần.');return}
  saveActiveLabel();const chosen=selectedLabels(),remove=new Set(chosen.map(label=>label.id));if(labels.length-remove.size<1){$('status').textContent='Cần giữ lại ít nhất một khối thiết kế.';return}
  recordHistory();labels=labels.filter(label=>!remove.has(label.id));activeLabelId=labels.at(-1).id;selectedLabelSet=new Set([activeLabelId]);setLabelSettings(currentLabel().settings,true);previewSize=currentLabel().size;await contextCommit('Đã xóa '+remove.size+' khối.')
 }
@@ -1465,5 +1466,12 @@ document.addEventListener('keydown',event=>{
  if(!mod&&!event.altKey&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();event.stopImmediatePropagation();contextDeleteSelection().catch(error=>$('status').textContent=error.message)}
 },true);
 
+
+// Keep legacy control IDs available to shared toolbar/zoom synchronizers.
+const legacyContextControls=document.createElement('div');legacyContextControls.hidden=true;legacyContextControls.append(...labelMenu.childNodes);document.body.append(legacyContextControls);
+$('groupGraphics').onclick=()=>contextGroupSelection(false).catch(error=>$('status').textContent=error.message);
+$('ungroupGraphics').onclick=()=>contextGroupSelection(true).catch(error=>$('status').textContent=error.message);
+
 </script></html>
+
 

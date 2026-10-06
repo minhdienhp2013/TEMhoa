@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
     paths: ['TemHoa-MinhDien.html', 'tests/**', '.github/workflows/design-editor.yml']
+  pull_request:
+    paths: ['TemHoa-MinhDien.html', 'tests/**', '.github/workflows/design-editor.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,3 +26,6 @@ jobs:
       - run: node tests/output-paper-smoke.cjs
 
       - run: node tests/autosave-smoke.cjs
+
+
+      - run: node tests/context-menu-smoke.cjs
