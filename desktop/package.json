@@ -29,6 +29,10 @@
         "to": "app/TemHoa-MinhDien.html"
       },
       {
+        "from": "../professional-ui.css",
+        "to": "app/professional-ui.css"
+      },
+      {
         "from": "../Mo-TemHoa-Windows.ps1",
         "to": "app/Mo-TemHoa-Windows.ps1"
       },
