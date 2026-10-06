@@ -55,13 +55,18 @@
       {
         "from": "../build-models",
         "to": "models"
+      },
+      {
+        "from": "../assets",
+        "to": "app/assets"
       }
     ],
     "win": {
       "target": [
         "nsis"
       ],
-      "artifactName": "TEMhoa-Setup-${version}-${arch}.exe"
+      "artifactName": "TEMhoa-Setup-${version}-${arch}.exe",
+      "icon": "../assets/temhoa.ico"
     },
     "nsis": {
       "oneClick": false,

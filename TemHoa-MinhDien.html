@@ -1461,5 +1461,231 @@ document.addEventListener('keydown',event=>{
  if(!mod&&!event.altKey&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();event.stopImmediatePropagation();contextDeleteSelection().catch(error=>$('status').textContent=error.message)}
 },true);
 
-</script></html>
+/* Presentation-only shell: existing editing, save and export handlers remain the source of truth. */
+const artPaths={back:'M15 5l-7 7 7 7',text:'M4 5h16M12 5v15M8 20h8',image:'M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4M8 8h.01',shapes:'M3 4h8v8H3zM17 3l4 8h-8zM12 18a4 4 0 1 0 8 0 4 4 0 0 0-8 0',print:'M6 9V3h12v6M6 17H3V9h18v8h-3M6 14h12v7H6zM17 11h.01',export:'M12 15V3M8 7l4-4 4 4M4 13v7h16v-7',undo:'M8 5L3 10l5 5M3 10h11a6 6 0 0 1 6 6',redo:'M16 5l5 5-5 5M21 10H10a6 6 0 0 0-6 6',layers:'M12 3L2 8l10 5 10-5-10-5M2 12l10 5 10-5M2 16l10 5 10-5',properties:'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M9 15v6',close:'M6 6l12 12M18 6L6 18',copy:'M8 8h13v13H8zM16 8V3H3v13h5',trash:'M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7',group:'M3 3h7v7H3zM14 14h7v7h-7zM14 3h7v7h-7zM3 14h7v7H3z',lock:'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4M12 15v2',crop:'M6 2v16h16M2 6h16v16',up:'M12 20V4M6 10l6-6 6 6',down:'M12 4v16M6 14l6 6 6-6',file:'M5 3h10l4 4v14H5zM15 3v5h4',cloud:'M7 18a5 5 0 1 1 1-10 5 5 0 0 1 9 1 4 4 0 1 1 1 9z',plus:'M12 4v16M4 12h16',theme:'M12 3v18M3 12h18M6 6l12 12M18 6L6 18',align:'M4 4v16M7 6h12M7 12h8M7 18h12'};
+function artIcon(name){return '<svg class="artIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="'+(artPaths[name]||artPaths.properties)+'"/></svg>'}
+const artMark='<svg class="artMark" viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="12" fill="#B92C3B"/><path d="M18 13h21l9 9v27H18z" fill="#fff"/><path d="M39 13v10h9" fill="none" stroke="#B92C3B" stroke-width="2"/><path d="M24 28h15M24 34h11" fill="none" stroke="#B92C3B" stroke-width="3"/><circle cx="45" cy="45" r="11" fill="#D9AD46"/><path d="M40 45l3 3 6-7" fill="none" stroke="#25262B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function artDecorate(button,name,label=null){if(!button)return;const accessible=button.getAttribute('aria-label')||button.textContent.trim().replace(/\s+/g,' ');button.setAttribute('aria-label',accessible);button.classList.add('artButton');button.innerHTML=artIcon(name)+(label===null?'': '<span>'+label+'</span>');button.classList.toggle('artIconButton',label===null);if(!button.title)button.title=accessible}
+function artButton(id,label,icon,action){const button=document.createElement('button');button.type='button';button.id=id;button.textContent=label;artDecorate(button,icon,null);button.onclick=action;return button}
+const artHeader=document.querySelector('.wordTitle'),artQuick=document.querySelector('.quickActions'),artIdentity=document.createElement('div');artIdentity.className='artIdentity';artIdentity.innerHTML=artMark+'<div><strong>TEMhoa</strong><small>Minh Điến · Thiết kế & in</small></div>';
+const artOldIdentity=artHeader.firstElementChild;artHeader.prepend(homeBack,artIdentity);artOldIdentity.remove();artDecorate(homeBack,'back',null);
+const artMain=document.createElement('div');artMain.className='artMainTools';artHeader.insertBefore(artMain,artQuick);
+for(const [id,icon,label] of [['designAddText','text','Văn bản'],['designAddImage','image','Ảnh'],['insertGraphics','shapes','Thành phần']]){artMain.append($(id));artDecorate($(id),icon,label)}
+const artUndo=artButton('artUndo','Hoàn tác','undo',()=>restoreHistory(-1)),artRedo=artButton('artRedo','Làm lại','redo',()=>restoreHistory(1));artMain.prepend(artUndo,artRedo);
+const artPropButton=artButton('artPropertiesButton','Thuộc tính','properties',()=>artOpenPanel('properties'));artQuick.prepend(artPropButton,toggleLayers);artDecorate(toggleLayers,'layers',null);artDecorate($('print'),'print','In');
+const artExport=artButton('artExportButton','Xuất file','export',()=>artToggleExport());artDecorate(artExport,'export','Xuất');artExport.setAttribute('aria-label','Mở menu xuất file');artExport.title='Mở menu xuất file';artExport.setAttribute('aria-haspopup','menu');artExport.setAttribute('aria-expanded','false');artQuick.append(artExport);
+const artExportMenu=document.createElement('div');artExportMenu.id='artExportMenu';artExportMenu.hidden=true;artExportMenu.setAttribute('role','menu');artExportMenu.setAttribute('aria-label','Xuất và mở thiết kế');document.body.append(artExportMenu);
+for(const id of ['png','svg','word','load']){const button=$(id);artExportMenu.append(button);button.setAttribute('role','menuitem');button.addEventListener('click',()=>artCloseExport())}
+normalTemplatesButton.hidden=true;saveAsButton.hidden=true;
+function artCloseExport(restore=false){artExportMenu.hidden=true;artExport.setAttribute('aria-expanded','false');if(restore)artExport.focus()}
+function artToggleExport(){if(!artExportMenu.hidden){artCloseExport(true);return}const rect=artExport.getBoundingClientRect();artExportMenu.style.left=Math.max(8,Math.min(innerWidth-228,rect.right-220))+'px';artExportMenu.style.top=(rect.bottom+7)+'px';artExportMenu.hidden=false;artExport.setAttribute('aria-expanded','true');artExportMenu.querySelector('button').focus()}
+document.addEventListener('pointerdown',event=>{if(!artExportMenu.contains(event.target)&&!artExport.contains(event.target))artCloseExport()});
+artExportMenu.onkeydown=event=>{const items=[...artExportMenu.querySelectorAll('button:not(:disabled)')],index=items.indexOf(document.activeElement);if(event.key==='Escape'){event.preventDefault();artCloseExport(true)}else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();items[event.key==='Home'?0:event.key==='End'?items.length-1:(index+(event.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus()}};
+/* Reparent original controls, preserving listeners, values and formatting selections. */
+const artRibbon=$('homeRibbon'),artFontGroup=document.querySelector('.fontGroup'),artFontRow=artFontGroup.firstElementChild,artParagraph=paragraphGroup;
+const artTextZone=document.createElement('div');artTextZone.className='artContextZone';artTextZone.id='artTextZone';artRibbon.append(artTextZone);
+const artContextLabel=document.createElement('span');artContextLabel.id='artContextLabel';artContextLabel.textContent='Chữ';artTextZone.append(artContextLabel,artFontRow);
+const artTextStyles=document.createElement('div');artTextStyles.className='ribbonRow';artTextZone.append(artTextStyles);for(const id of ['bold','italic','underline'])artTextStyles.append($(id).closest('label'));artTextStyles.append($('caseButton').closest('.casePicker'),document.querySelector('.alignTools'),$('paint-fill'));
+const artImageZone=document.createElement('div');artImageZone.className='artContextZone';artImageZone.id='artImageZone';artImageZone.hidden=true;artRibbon.append(artImageZone);
+for(const [id,label,icon,target]of [['artImageProperties','Ảnh đang chọn','properties',null],['artImageCrop','Cắt ảnh','crop','startGraphicCrop'],['artImageBackground','Tách nền','image','openBackgroundAI']]){const button=artButton(id,label,icon,()=>{graphicsDialog.show();if(target)$(target).click()});artDecorate(button,icon,label==='Ảnh đang chọn'?'Ảnh đang chọn':label);artImageZone.append(button)}
+artImageZone.append($('quickImageLock'));artDecorate($('quickImageLock'),'lock','Khóa');
+const artSelectionTools=document.createElement('div');artSelectionTools.id='artSelectionTools';artRibbon.append(artSelectionTools);for(const id of ['groupGraphics','ungroupGraphics','layerUp','layerDown','designEditText','designFinishText','designDuplicate','designDelete']){artSelectionTools.append($(id));const icon={groupGraphics:'group',ungroupGraphics:'group',layerUp:'up',layerDown:'down',designEditText:'text',designFinishText:'text',designDuplicate:'copy',designDelete:'trash'}[id];artDecorate($(id),icon,['layerUp','layerDown','designDuplicate','designDelete'].includes(id)?null:$(id).textContent.trim())}
+const artProperties=document.createElement('div');artProperties.id='artProperties';artProperties.hidden=true;layersPanel.append(artProperties);
+function artSection(title,nodes){const section=document.createElement('section');section.className='artPropertySection';const heading=document.createElement('h3');heading.textContent=title;section.append(heading,...nodes);artProperties.append(section)}
+artSection('Chữ & bố cục',[artFontGroup,artParagraph]);artProperties.firstElementChild.querySelector('h3').textContent='Chữ & bố cục';
+artSection('Viền tem mây',[document.querySelector('.colorGroup')]);artSection('Trang & kích cỡ',[document.querySelector('.printGroup'),document.querySelector('.dimensionsGroup')]);
+const artExtra=document.createElement('div');artExtra.innerHTML='<p style="font-size:12px;color:var(--ui-muted)">Ảnh: chọn đối tượng rồi mở Thành phần để cắt, xoay và tách nền.</p>';artSection('Công cụ trên máy',[$('scanFonts'),artExtra]);const extraActions=[...artQuick.children].filter(node=>node.tagName==='BUTTON'&&!['artPropertiesButton','toggleLayers','print','artExportButton','save'].includes(node.id)&&!node.hidden);if(extraActions.length)artSection('Nội dung mẫu',extraActions);
+artRibbon.replaceChildren(artTextZone,artImageZone,artSelectionTools);labelToolsGroup.remove();
+const artLayersHeading=layersPanel.querySelector('.layersHeading'),artPropsTab=document.createElement('button'),artLayersTab=document.createElement('button');
+for(const [button,id,label]of [[artPropsTab,'artPropertiesTab','Thuộc tính'],[artLayersTab,'artLayersTab','Lớp']]){button.id=id;button.type='button';button.className='artPanelTab';button.textContent=label;button.setAttribute('role','tab');button.onclick=()=>artOpenPanel(button===artPropsTab?'properties':'layers');artLayersHeading.prepend(button)}
+artPropsTab.setAttribute('aria-controls','artProperties');artLayersTab.setAttribute('aria-controls','layersList');artDecorate($('closeLayersPanel'),'close',null);artLayersHeading.setAttribute('role','tablist');artLayersHeading.setAttribute('aria-label','Bảng thiết kế');
+let artPanel='layers';function artSelectPanel(panel){artPanel=panel;artProperties.hidden=panel!=='properties';$('layersList').hidden=panel!=='layers';layersPanel.querySelector('.layersHint').hidden=panel!=='layers';artPropsTab.setAttribute('aria-selected',String(panel==='properties'));artLayersTab.setAttribute('aria-selected',String(panel==='layers'));artPropButton.setAttribute('aria-expanded',String(panel==='properties'&&!document.body.classList.contains('layersCollapsed')))}
+function artOpenPanel(panel){document.body.classList.remove('layersCollapsed');layersPanel.inert=false;toggleLayers.setAttribute('aria-expanded','true');artSelectPanel(panel);artEnter(panel==='properties'?artProperties:$('layersList'),'panel');zoom()}
+const artToggleLayers=toggleLayers.onclick;toggleLayers.onclick=()=>{if(artPanel!=='layers'||document.body.classList.contains('layersCollapsed'))artOpenPanel('layers');else{artToggleLayers();layersPanel.inert=document.body.classList.contains('layersCollapsed')}};$('closeLayersPanel').onclick=()=>{document.body.classList.add('layersCollapsed');layersPanel.inert=true;toggleLayers.setAttribute('aria-expanded','false');artPropButton.setAttribute('aria-expanded','false');toggleLayers.focus()};artSelectPanel('layers');
+function artSyncContext(){const graphic=selectedGraphic(),multiple=graphic?graphicSelection().length>1:selectedLabels().length>1;artTextZone.hidden=!!graphic;artImageZone.hidden=!graphic;artContextLabel.textContent=isDesign()?(designKind.value==='text'?'Chữ':'Trang'):'Tem mây';for(const id of ['groupGraphics','ungroupGraphics'])$(id).hidden=!multiple;artProperties.children[1].hidden=isDesign();artUndo.disabled=historyIndex<=0;artRedo.disabled=historyIndex>=history.length-1;artIdentity.querySelector('strong').textContent=currentTemplateName||'Thiết kế mới';}
+const artZoom=zoom;zoom=function(...args){const value=artZoom(...args);artSyncContext();return value};const artRecord=recordHistory;recordHistory=function(...args){const value=artRecord(...args);artUndo.disabled=historyIndex<=0;artRedo.disabled=historyIndex>=history.length-1;return value};
+/* One token-driven animation controller; no animation schedules data or navigation. */
+const artAnimations=new WeakMap(),artReduced=matchMedia('(prefers-reduced-motion: reduce)');
+function artEnter(node,kind='menu',translate=true){if(!node||!node.isConnected)return;artAnimations.get(node)?.cancel();if(artReduced.matches)return;const style=getComputedStyle(document.documentElement),duration=parseFloat(style.getPropertyValue('--motion-'+kind));if(!duration||!node.animate)return;const animation=node.animate([{opacity:0,transform:translate?'translateY(6px)':'none'},{opacity:1,transform:'none'}],{duration,easing:style.getPropertyValue('--motion-ease').trim()});artAnimations.set(node,animation)}
+artReduced.addEventListener('change',()=>{if(artReduced.matches)document.getAnimations().forEach(animation=>animation.cancel())});
+const artKicker=document.createElement('span');artKicker.className='artHomeKicker';artKicker.textContent='XƯỞNG THIẾT KẾ · MINH ĐIẾN';home.querySelector('.homeHero').prepend(artKicker);$('homeAddTemplate').querySelector('.homeThumb span').innerHTML=artIcon('plus');$('homeAddTemplate').querySelector('.homeThumb svg').style.cssText='width:42px;height:42px';
+for(const [type,icon]of [['all','layers'],['cloud','cloud'],['normal','file']])home.querySelector('[data-home-type="'+type+'"] .homeTypeIcon').innerHTML=artIcon(icon);$('homeAddTheme').querySelector('.homeTypeIcon').innerHTML=artIcon('plus');
+const artRenderThemes=renderHomeThemes;renderHomeThemes=function(...args){const result=artRenderThemes(...args);home.querySelectorAll('[data-home-theme] .homeTypeIcon').forEach(icon=>icon.innerHTML=artIcon('theme'));return result};renderHomeThemes();
+const artCtxItem=ctxItem;ctxItem=function(label,icon,shortcut,action,disabled,extraClass){const button=artCtxItem(label,icon,shortcut,action,disabled,extraClass);const key=/xóa/i.test(label)?'trash':/chép|nhân bản/i.test(label)?'copy':/nhóm/i.test(label)?'group':/khóa/i.test(label)?'lock':/tải/i.test(label)?'export':/lớp/i.test(label)?'layers':/căn/i.test(label)?'align':'properties';button.querySelector('.ctxIcon').innerHTML=artIcon(key);return button};
+let artHomeScroll=0,artHomeOrigin=null,artLastType=homeType;
+const artEnterEditor=enterHomeEditor;enterHomeEditor=function(...args){artHomeScroll=home.scrollTop;artHomeOrigin=document.activeElement?.closest?.('.homeCardOpen,#homeAddTemplate');artEnterEditor(...args);artEnter(document.querySelector('.wordWorkspace'),'page',false);artEnter(artHeader,'page');artSyncContext()};
+const artShowHome=showTemHome;showTemHome=async function(...args){artCloseExport();await artShowHome(...args);home.scrollTop=artHomeScroll;if(artHomeOrigin?.isConnected)artHomeOrigin.focus({preventScroll:true});artEnter(home,'page',false)};homeBack.onclick=showTemHome;
+const artFilterHome=filterHome;filterHome=function(...args){const result=artFilterHome(...args);if(artLastType!==homeType){artLastType=homeType;artEnter($('homeGrid'),'menu',false);artEnter($('homeRecentGrid'),'menu',false)}return result};$('homeSearch').oninput=filterHome;
+const artObserver=new MutationObserver(records=>{for(const record of records){const node=record.target;if(record.type==='attributes'&&((node.tagName==='DIALOG'&&node.open)||(node.hasAttribute('hidden')===false&&['labelContextMenu','caseMenu','artExportMenu'].includes(node.id))))artEnter(node,node.tagName==='DIALOG'?'panel':'menu');for(const child of record.addedNodes){if(child.nodeType===1&&child.classList.contains('fontPickerMenu'))artEnter(child)}}});artObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden','open'],childList:true});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!labelMenu.hidden){labelMenu.hidden=true;$('labelSurface').focus({preventScroll:true})}});
+const artFavicon=document.createElement('link');artFavicon.rel='icon';artFavicon.href='data:image/svg+xml,'+encodeURIComponent(artMark.replace('class="artMark"','xmlns="http://www.w3.org/2000/svg"'));document.head.append(artFavicon);
+if(matchMedia('(max-width:800px)').matches){document.body.classList.add('layersCollapsed');layersPanel.inert=true;toggleLayers.setAttribute('aria-expanded','false')}artSyncContext();
+
+/* Redraw controls whose base handlers update their text dynamically. */
+const artLayerRender=renderLayersPanel;renderLayersPanel=function(...args){const result=artLayerRender(...args);layersPanel.querySelectorAll('.layerLock').forEach(button=>{button.setAttribute('aria-label',button.title);artDecorate(button,'lock',null)});return result};
+const artAspectSync=syncAspectLock;syncAspectLock=function(...args){const result=artAspectSync(...args);const button=$('aspectLock');button.setAttribute('aria-label',button.title);artDecorate(button,'lock',$('lockRatio').checked?'Đã khóa tỷ lệ':'Tỷ lệ tự do');return result};
+const artGraphicSync=syncGraphicControls;syncGraphicControls=function(...args){const result=artGraphicSync(...args);quickImageLock.setAttribute('aria-label',quickImageLock.textContent);artDecorate(quickImageLock,'lock',quickImageLock.textContent);return result};
+$('sizeUp').innerHTML='A<span class="sup">+</span>';syncAspectLock();syncGraphicControls();renderLayersPanel();
+
+artProperties.setAttribute('role','tabpanel');artProperties.setAttribute('aria-labelledby','artPropertiesTab');$('layersList').setAttribute('role','tabpanel');$('layersList').setAttribute('aria-labelledby','artLayersTab');
+artLayersHeading.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||![artPropsTab,artLayersTab].includes(document.activeElement))return;event.preventDefault();const target=event.key==='Home'?artLayersTab:event.key==='End'?artPropsTab:document.activeElement===artLayersTab?artPropsTab:artLayersTab;target.click();target.focus()});
+$('zoomIn').textContent='+';$('zoomOut').textContent='−';
+
+</script><style id="artDirection">:root {
+ --ui-paper:#F4F3EF;--ui-surface:#fff;--ui-ink:#25262B;--ui-muted:#686B73;--ui-line:#E3E1DA;
+ --ui-brand:#B92C3B;--ui-brand-hover:#9F2331;--ui-tint:#F8E9EC;--ui-gold:#D9AD46;--ui-selection:#4967C9;
+ --ui-radius:6px;--ui-shadow:0 4px 18px #25262b14;--ui-font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ --motion-button:120ms;--motion-menu:160ms;--motion-panel:210ms;--motion-page:260ms;--motion-ease:cubic-bezier(.2,0,0,1);
+}
+body{font-family:var(--ui-font);background:var(--ui-paper);color:var(--ui-ink)}
+button,input,select,textarea{font-family:var(--ui-font)}
+button{color:var(--ui-ink);border-color:var(--ui-line);border-radius:var(--ui-radius);background:var(--ui-surface);transition:background-color var(--motion-button) var(--motion-ease),border-color var(--motion-button) var(--motion-ease),color var(--motion-button) var(--motion-ease)}
+button:not(.swatch):not(.paintButton):hover{background:var(--ui-paper);border-color:#b7b5ad;color:var(--ui-ink)}
+button:not(.swatch):not(.paintButton):active{background:#e9e7e1}
+button:disabled{color:var(--ui-muted);opacity:.48;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--ui-selection);outline-offset:3px}
+button.primary,#print,#confirmOutput,#confirmPrint,#homeContinue{color:white;background:var(--ui-brand);border-color:var(--ui-brand)}
+button.primary:hover,#print:hover,#confirmOutput:hover,#confirmPrint:hover,#homeContinue:hover{color:white;background:var(--ui-brand-hover);border-color:var(--ui-brand-hover)}
+input:not([type=checkbox]):not([type=range]):not([type=color]),select,textarea{border:1px solid var(--ui-line);border-radius:var(--ui-radius);color:var(--ui-ink);background:white;font-size:13px;min-height:34px}
+input[type=checkbox],input[type=range]{accent-color:var(--ui-brand)}
+.artIcon{width:19px;height:19px;flex-shrink:0;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.artButton{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 10px;font-size:13px;white-space:nowrap}
+.artIconButton{width:36px;padding:7px;flex-shrink:0}
+.wordTitle{height:54px;padding:8px 16px;gap:12px;flex-wrap:nowrap;background:var(--ui-surface);color:var(--ui-ink);border-bottom:1px solid var(--ui-line)}
+.artIdentity{display:flex;align-items:center;gap:10px;min-width:130px;flex:1;overflow:hidden}
+.artIdentity strong{font-size:15px;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artIdentity .artMark{width:28px;height:28px;flex-shrink:0}
+.artIdentity small{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ui-muted);display:block}
+.wordTitle span{margin:0;color:inherit;font-size:inherit}
+.artMainTools,.quickActions{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.quickActions button{color:var(--ui-ink);background:var(--ui-surface);border-color:var(--ui-line);font-size:13px;padding:7px 10px;min-height:36px}
+.artDivider{width:1px;height:22px;background:var(--ui-line);margin:0 4px}
+.wordTabs,.designTools,.fontInfo{display:none}
+#homeRibbon{height:48px;min-height:48px;flex-wrap:nowrap;padding:6px 16px;gap:8px;background:white;border-bottom:1px solid var(--ui-line);box-shadow:none;align-items:center;overflow-x:auto;overflow-y:hidden}
+.artContextZone{display:flex;align-items:center;gap:8px;white-space:nowrap;min-width:max-content}
+.artContextZone[hidden]{display:none}
+.artContextZone .ribbonRow{margin:0;gap:5px;min-height:34px}
+.artContextZone .fontPickerButton{width:190px;height:34px;min-height:34px;font-size:13px;border-color:var(--ui-line)}
+.artContextZone #size{width:62px;height:34px;font-size:13px}
+.artContextZone .styleToggle,.artContextZone .toolButton{width:32px;min-width:32px;height:34px;border-radius:4px}
+.styleToggle input:checked+span,.toolButton[aria-pressed=true]{background:var(--ui-tint);border-color:#e8c1c8;color:var(--ui-brand)}
+.artContextZone .paintButton{width:30px;min-width:30px;height:30px;border-radius:4px}
+#artContextLabel{font-size:12px;color:var(--ui-muted);padding-right:9px;border-right:1px solid var(--ui-line);min-width:50px}
+#artSelectionTools{display:flex;gap:5px;align-items:center}
+#artSelectionTools button{min-height:34px;font-size:12px;white-space:nowrap}
+#artSelectionTools button[hidden]{display:none}
+#artExportMenu{position:fixed;z-index:150;width:220px;padding:7px;border:1px solid var(--ui-line);border-radius:8px;background:white;box-shadow:var(--ui-shadow)}
+#artExportMenu[hidden]{display:none}
+#artExportMenu button{display:flex;width:100%;text-align:left;justify-content:flex-start;border:0;padding:10px 12px;font-size:13px}
+.wordWorkspace{background:var(--ui-paper);gap:0;position:relative}
+.preview{background:var(--ui-paper);background-image:none}
+.previewStage{box-shadow:0 2px 12px #25262b17;background:white}
+.rulerCorner,.rulerStrip{background:#edece7;border-color:var(--ui-line);color:var(--ui-muted)}
+.wordStatus{background:white;border-top:1px solid var(--ui-line);color:var(--ui-muted);font-size:12px;min-height:32px}
+#layersPanel{width:292px;flex-basis:292px;background:white;border-color:var(--ui-line);padding:0;transition:opacity var(--motion-panel) var(--motion-ease),transform var(--motion-panel) var(--motion-ease);will-change:auto}
+.layersCollapsed #layersPanel{display:block;opacity:0;transform:translateX(8px);pointer-events:none;visibility:hidden}
+.layersHeading{position:sticky;top:0;z-index:1;display:flex;padding:12px 14px;background:white;border-bottom:1px solid var(--ui-line);color:var(--ui-ink);gap:6px}
+.layersHeading>strong{display:none}
+.artPanelTab{border:0;background:transparent;padding:8px 10px;font-size:13px;min-height:36px}
+.artPanelTab[aria-selected=true]{background:var(--ui-tint);color:var(--ui-brand)}
+.layersHeading #closeLayersPanel{margin-left:auto;color:var(--ui-muted)}
+#layersList,.layersHint{margin:0;padding:12px 14px}
+.layersHint{font-size:12px;color:var(--ui-muted);line-height:1.5;padding-bottom:0}
+.layerSectionTitle{color:var(--ui-muted);font-size:12px;letter-spacing:.02em}
+.layerRow{border:1px solid var(--ui-line);border-radius:5px;background:white;min-height:48px;margin:5px 0}
+.layerRow.selected{border-color:var(--ui-selection);background:#eff2fc}
+.layerRow.dropBefore{border-top:3px solid var(--ui-selection)}.layerRow.dropAfter{border-bottom:3px solid var(--ui-selection)}
+.layerName{font-size:13px;color:var(--ui-ink)}.layerGrip{color:var(--ui-muted)}
+#artProperties{padding:0 14px 20px}
+#artProperties[hidden]{display:none}
+.artPropertySection{padding:16px 0;border-bottom:1px solid var(--ui-line)}
+.artPropertySection>h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px;color:var(--ui-muted);font-weight:600}
+#artProperties .ribbonGroup{width:auto;min-width:0;padding:0;border:0;gap:10px;margin-bottom:12px}
+#artProperties .ribbonRow{flex-wrap:wrap;gap:7px}
+#artProperties label{font-size:12px;color:var(--ui-muted);font-weight:normal}
+#artProperties input[type=number]{height:34px;min-height:34px;padding:6px;width:86px;font-size:13px}
+#artProperties select{width:100%;height:auto}
+#artProperties .row>div{flex:1;min-width:0}
+#artProperties .ribbonCaption{display:none}
+#artProperties .fontGroup .ribbonRow{display:block}
+#artProperties .smallButton{font-size:12px;min-height:34px}
+#artProperties .textLayerTools{gap:8px}
+.labelContextMenu,.ctxSubmenu,.fontPickerMenu,.caseMenu{background:white;color:var(--ui-ink);border-color:var(--ui-line);box-shadow:var(--ui-shadow);border-radius:8px}
+.labelContextMenu button,.ctxSubmenu button{color:var(--ui-ink);font-size:13px;min-height:36px}
+.labelContextMenu button:hover,.ctxSubmenu button:hover,.fontPickerOption:hover,.fontPickerOption:focus{background:var(--ui-paper);color:var(--ui-ink);outline:none}
+.fontPickerOption[aria-selected=true]{background:var(--ui-tint);color:var(--ui-brand)}
+.ctxDanger{color:var(--ui-brand)!important}
+dialog{font-family:var(--ui-font);color:var(--ui-ink);border-color:var(--ui-line);border-radius:10px;box-shadow:var(--ui-shadow)}
+dialog h2{font-size:20px;letter-spacing:-.3px}dialog p,dialog label{color:var(--ui-muted)}
+dialog::backdrop{background:#25262b55;animation:artBackdrop var(--motion-panel) var(--motion-ease)}
+@keyframes artBackdrop{from{background:#25262b00}to{background:#25262b55}}
+.printPagePreview{background:var(--ui-paper)}
+#status{color:var(--ui-ink);background:white;border:1px solid var(--ui-line);box-shadow:var(--ui-shadow);font-size:13px}
+#temHome{background:var(--ui-paper);color:var(--ui-ink);font-family:var(--ui-font)}
+.homeNav{padding:18px 40px;background:var(--ui-surface);border-color:var(--ui-line)}
+.homeBrand{color:var(--ui-brand);font-size:20px;letter-spacing:-.4px}.homeBrand span{color:var(--ui-ink);font-weight:500}
+.homeNav button{border-radius:6px;font-size:13px;min-height:38px}
+.homeHero{padding:48px 32px 24px;text-align:left;max-width:1480px;margin:auto}
+.artHomeKicker{display:block;color:var(--ui-muted);font-size:12px;letter-spacing:.12em;margin-bottom:15px;font-weight:600}
+.homeHero h1{font-family:Georgia,"Times New Roman",serif;font-weight:normal;font-size:clamp(32px,4vw,48px);letter-spacing:-1.1px;line-height:1.15;margin:0 0 26px;max-width:720px;color:var(--ui-ink)}
+.homeSearch{margin:0 0 25px;max-width:580px;width:100%;border:1px solid var(--ui-line);background:white;border-radius:6px;box-shadow:none}
+.homeSearch input{font-size:14px!important;color:var(--ui-ink)!important;min-width:0;border:0!important;background:transparent!important}
+.homeTypes{justify-content:flex-start;gap:10px;flex-wrap:wrap;align-items:center}
+.homeTypes button{display:flex;align-items:center;gap:8px;color:var(--ui-muted);font-size:13px;padding:9px 14px;border:1px solid var(--ui-line);border-radius:6px;background:transparent;min-height:40px}
+.homeTypes .homeTypeIcon{background:none!important;color:inherit!important;display:grid;place-items:center;width:20px;height:20px;line-height:20px;margin:0;border-radius:0;font-size:20px}
+.homeTypes button[aria-pressed=true]{background:white;color:var(--ui-brand);border-color:var(--ui-brand)}
+#homeAddTheme{border-style:dashed}
+.homeContent{max-width:1480px;padding:8px 32px 48px}
+.homeSectionTitle{margin:20px 0 16px;padding-top:18px;border-top:1px solid var(--ui-line)}
+.homeSectionTitle h2{font-size:19px;letter-spacing:-.3px;font-weight:600}.homeSectionTitle span{color:var(--ui-muted)}
+.homeGrid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px 22px}
+.homeCard{border-radius:0;background:transparent}.homeCard strong{color:var(--ui-ink);font-size:14px;font-weight:500}.homeCard small{color:var(--ui-muted);font-size:12px}
+.homeThumb{height:200px;background:#eceae3;border-radius:5px;padding:16px;border:1px solid var(--ui-line);box-shadow:none;transition:border-color var(--motion-button) var(--motion-ease),transform var(--motion-button) var(--motion-ease)}
+.homeCard:hover .homeThumb{box-shadow:none;border-color:var(--ui-brand);transform:translateY(-1px)}
+.homeAddTemplate .homeThumb{border:1px dashed #bbb7ab!important;background:white!important}
+.homeAddTemplate .homeThumb span{color:var(--ui-brand)!important;font-weight:200}
+.homeDelete{border-color:var(--ui-line);color:var(--ui-brand);background:white;border-radius:4px;width:28px;height:28px;line-height:24px}
+.homeDelete:hover{background:var(--ui-tint)!important;color:var(--ui-brand)!important}
+.homeRecentGrid{gap:18px}.homeRecentGrid .homeThumb{height:140px}
+.homeThemeSelect{color:var(--ui-muted);border-color:var(--ui-line)!important;min-height:34px}
+.homeStatus{color:var(--ui-muted)}
+#selectionFrame,.designMode #selectionFrame,.multiLabelPage #selectionFrame,.otherLabel:hover,.otherLabel:focus{outline-color:var(--ui-selection)!important}
+.resizeHandle,.graphicOverlay.selected,.graphicOverlay:hover,.graphicOverlay button{border-color:var(--ui-selection)!important}
+.graphicOverlay.selected:before{border-color:var(--ui-selection)!important}.snapGuide{background:var(--ui-selection)}
+.temEditor::selection,.temEditor *::selection{background:#4967c950}
+@media(max-width:1050px){.artIdentity{min-width:80px}.artIdentity strong{font-size:13px}.artIdentity small{display:none}.wordTitle{gap:6px;padding:8px}.artButton{padding:7px 8px}.artMainTools{gap:4px}.quickActions{gap:4px}.artIdentity .artMark{display:none}}
+@media(max-width:800px){#layersPanel{position:absolute;z-index:18;right:0;top:0;bottom:0;width:292px;box-shadow:-2px 0 14px #25262b14}.layersCollapsed #layersPanel{display:block}.artIdentity{display:none}#homeRibbon{padding:6px 10px}.wordTitle{overflow-x:auto}.homeNav{padding:16px}.homeHero{padding:30px 16px 24px}.homeContent{padding:0 16px 30px}.homeGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.homeThumb{height:160px}.homeBrand{font-size:16px}}
+@media(max-width:540px){#layersPanel{inset:auto 0 0;width:100%;max-height:65%;border-top:1px solid var(--ui-line);border-radius:12px 12px 0 0}.layersCollapsed #layersPanel{transform:translateY(8px)}.artButton{min-height:38px}.homeNav{align-items:flex-start;gap:10px}.homeNav #homeContinue{font-size:12px;padding:8px;white-space:normal;max-width:170px}.homeHero h1{font-size:32px}.homeTypes{gap:7px}.homeTypes button{padding:8px 10px}.homeThumb{height:130px;padding:10px}.wordStatus #dimensions{max-width:40%;font-size:11px}}
+@media(prefers-reduced-motion:reduce){:root{--motion-button:0ms;--motion-menu:0ms;--motion-panel:0ms;--motion-page:0ms}*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;scroll-behavior:auto!important}.homeCard:hover .homeThumb,.layersCollapsed #layersPanel{transform:none}}
+#labelContextMenu.canvaMenu{background:white;color:var(--ui-ink);border:1px solid var(--ui-line);border-radius:8px;box-shadow:var(--ui-shadow);font-family:var(--ui-font);padding:6px;width:272px}
+#labelContextMenu.canvaMenu .ctxItem{min-height:36px;border-radius:4px;font-size:13px}
+#labelContextMenu.canvaMenu .ctxItem:hover,#labelContextMenu.canvaMenu .ctxItem:focus-visible,#labelContextMenu.canvaMenu .ctxItem.ctxOpen{background:var(--ui-paper);color:var(--ui-ink)}
+#labelContextMenu.canvaMenu .ctxShortcut{background:var(--ui-paper);color:var(--ui-muted);font-size:11px}
+#labelContextMenu.canvaMenu .ctxDivider{background:var(--ui-line)}
+#labelContextMenu.canvaMenu .ctxSub{background:white;border-color:var(--ui-line);border-radius:6px;box-shadow:var(--ui-shadow)}
+#labelContextMenu.canvaMenu .ctxDanger{color:var(--ui-brand)}
+
+.homeHero{background:transparent;background-image:none}
+.wordTitle .homeBackButton{color:var(--ui-ink);background:white;border-color:var(--ui-line)}
+.artIdentity{max-width:360px}
+.artMainTools{margin-left:auto}
+.artPropertySection>button{min-height:34px;margin:4px 4px 4px 0;font-size:12px}
+
+@media(max-width:600px){#labelContextMenu.canvaMenu .ctxSub{position:fixed;left:8px!important;right:8px!important;top:auto;bottom:8px;width:auto;max-height:55dvh;overflow:auto}}
+
+dialog{opacity:0;transform:translateY(6px);transition:opacity var(--motion-panel) var(--motion-ease),transform var(--motion-panel) var(--motion-ease),display var(--motion-panel) allow-discrete,overlay var(--motion-panel) allow-discrete}dialog[open]{opacity:1;transform:none}@starting-style{dialog[open]{opacity:0;transform:translateY(6px)}}
+@media(prefers-reduced-motion:reduce){dialog{transform:none!important}dialog::backdrop{animation:none}}
+
+.wordStatus #dimensions{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.homeRecentGrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:1050px){.homeRecentGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:540px){.homeRecentGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#artProperties .ribbonRow:empty,#artProperties .fontGroup>.ribbonRow:has(>#customFont[hidden]):not(:has(>button)){display:none}
+#artProperties .colorGroup label[for=fill]{display:none}
+.artPropertySection[hidden]{display:none}
+#artProperties .textLayerTools>.ribbonRow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px}
+#artProperties .textLayerTools>.ribbonRow input{width:100%}
+</style></html>
+
 
