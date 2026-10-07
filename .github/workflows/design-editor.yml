@@ -26,6 +26,7 @@ jobs:
       - run: node tests/studio-core.cjs
       - run: node tests/design-smoke.cjs
       - run: node tests/curve-smoke.cjs
+      - run: node tests/text-box-layer-smoke.cjs
       - run: node tests/delete-template-smoke.cjs
       - run: node tests/output-paper-smoke.cjs
       - run: node tests/autosave-smoke.cjs
