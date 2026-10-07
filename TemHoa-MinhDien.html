@@ -927,7 +927,7 @@ function selectedCurveLines(runs,offsets){
  return curveGroups(runs).flatMap((line,index)=>line.runs.some(run=>run.textStart<offsets.end&&run.textEnd>offsets.start)?[index]:[]);
 }
 async function applyCurveControls(amount){
- if(labelOperation||occasionBusy)return;
+ if(labelOperation)return;
  captureSelection();const offsets=selectionOffsets(),selected=offsets&&offsets.start!==offsets.end;
  const value=Math.max(-360,Math.min(360,Number(amount)||0));
  const chosen=selected?selectedCurveLines(beforeCurvedLayout().runs,offsets):[];
