@@ -193,7 +193,7 @@ function rangeOffsets(root,offsets){let nodes=textNodes(root),r=document.createR
 function formatOffsets(root,offsets,style,family){if(!offsets||offsets.start===offsets.end)return;let count=0;for(let n of textNodes(root)){let start=Math.max(0,offsets.start-count),end=Math.min(n.length,offsets.end-count),len=n.length;count+=len;if(start>=end)continue;let target=n;if(end<len)n.splitText(end);if(start>0)target=n.splitText(start);let span=document.createElement('span');Object.assign(span.style,style);if(family)span.dataset.family=family;target.replaceWith(span);span.append(target)}}
 function applyToolbar(id){
  let offsets=selectionOffsets(),selected=offsets&&offsets.start!==offsets.end,style={},value;
- const wholeText=selected&&offsets.start===0&&offsets.end===editorText().length;
+ const wholeLength=textNodes($('temEditor')).reduce((sum,node)=>sum+node.length,0),wholeText=selected&&offsets.start===0&&offsets.end===wholeLength;
  const oldSize=Number(defaultTextStyle.size)||64;
  if(id==='font'){value=$('font').value;style.fontFamily=cssFamily(computerFamily(value))}else if(id==='size'){value=number('size',6,800);style.fontSize=value*96/72+'px'}else{value=$(id).checked;style[id==='bold'?'fontWeight':id==='italic'?'fontStyle':'textDecoration']=id==='bold'?(value?'700':'400'):id==='italic'?(value?'italic':'normal'):(value?'underline':'none')}
  if(selected&&!(id==='size'&&wholeText)){
@@ -940,9 +940,9 @@ async function applyCurveControls(amount){
   $('curveAmount').value=base;for(const index of chosen)overrides[index]=value;
   $('curveOverrides').value=JSON.stringify(overrides);await preview();
  }else{
-  const documentData=settings();
-  for(const data of documentData.labels){data.curveAmount=String(value);data.curveLine='0';data.curveOverrides='{}'}
-  await restoreLabelDocument(documentData);
+  // One text box is one layer: curvature belongs only to the active text box.
+  $('curveAmount').value=String(value);$('curveLine').value='0';$('curveOverrides').value='{}';
+  await preview();saveActiveLabel(true);
  }
  recordHistory();
  if(selected){savedSelection=rangeOffsets($('temEditor'),offsets);$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}
