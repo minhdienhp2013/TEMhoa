@@ -2244,4 +2244,74 @@ body.showPrintSafeZone #printSafeZone{display:block}
 })();
 </script>
 
+
+<style id="layersIndependentScroll20261007">
+#layersPanel{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden!important;
+  min-height:0;
+  max-height:100%;
+}
+#layersPanel .layersHeading{
+  flex:0 0 auto;
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#fff;
+}
+#layersPanel .layersHint{
+  flex:0 0 auto;
+}
+#layersList,
+#artProperties{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding-right:3px;
+}
+#layersList{
+  scroll-behavior:smooth;
+}
+#layersList::-webkit-scrollbar,
+#artProperties::-webkit-scrollbar{
+  width:9px;
+}
+#layersList::-webkit-scrollbar-thumb,
+#artProperties::-webkit-scrollbar-thumb{
+  background:#b8bec8;
+  border-radius:10px;
+  border:2px solid #fff;
+}
+#layersList::-webkit-scrollbar-track,
+#artProperties::-webkit-scrollbar-track{
+  background:transparent;
+}
+@media(max-width:600px){
+  #layersPanel{
+    height:100%;
+    max-height:100%;
+  }
+}
+</style>
+<script>
+(()=> {
+ const list=$('layersList');
+ if(!list)return;
+ // Keep the active layer visible when selection changes in long layer lists.
+ const oldSelectLayerForScroll=selectLayerUnit;
+ selectLayerUnit=async function(...args){
+   const result=await oldSelectLayerForScroll(...args);
+   requestAnimationFrame(()=>{
+     const selected=list.querySelector('.layerRow.selected');
+     if(selected)selected.scrollIntoView({block:'nearest',inline:'nearest'});
+   });
+   return result;
+ };
+})();
+</script>
+
 </html>
