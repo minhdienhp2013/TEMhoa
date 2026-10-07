@@ -28,10 +28,10 @@ const assert=require('node:assert/strict');
   const state=await page.evaluate(()=>({previews:window.__resizePerf.previews,historyDelta:history.length-window.__resizePerf.history,size:Number($('size').value),transform:readLayerStack().transforms['text-box']}));
   assert.ok(state.previews<=3,'live resize should not run full preview on every pointer move');
   assert.ok(state.historyDelta<=3,'resize should be one bounded history transaction');
-  assert.ok(state.transform?.sx>1&&state.transform?.sy>1);
-  assert.ok(state.size>64);
+  assert.ok(Math.abs((state.transform?.sx??1)-1)<.03&&Math.abs((state.transform?.sy??1)-1)<.03,'proportional resize should bake scale back into real font size');
+  assert.ok(state.size>64,'dragging larger must increase the real font size');
   assert.ok(elapsed<5000,'80-step resize should complete without severe lag');
   assert.deepEqual(errors,[]);
-  console.log('PASS: 80-step proportional text resize is frame-coalesced; '+JSON.stringify({elapsed,...state}));
+  console.log('PASS: 80-step proportional text resize is frame-coalesced and baked into real font size; '+JSON.stringify({elapsed,...state}));
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
