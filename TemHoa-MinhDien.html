@@ -879,7 +879,7 @@ function selectedCurveLines(runs,offsets){
 async function applyCurveControls(amount){
  if(labelOperation||occasionBusy)return;
  captureSelection();const offsets=selectionOffsets(),selected=offsets&&offsets.start!==offsets.end;
- const value=Math.max(-100,Math.min(100,Number(amount)||0));
+ const value=Math.max(-360,Math.min(360,Number(amount)||0));
  const chosen=selected?selectedCurveLines(beforeCurvedLayout().runs,offsets):[];
  if(selected&&!chosen.length)return;
  const base=currentLabel().settings.curveAmount??0;
