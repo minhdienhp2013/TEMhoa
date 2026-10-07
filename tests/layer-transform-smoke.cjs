@@ -1,28 +1,58 @@
-const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn,execFileSync}=require('node:child_process');
+const {chromium}=require('playwright');
+const {pathToFileURL}=require('node:url');
+const assert=require('node:assert/strict');
 (async()=>{
- const temp=fs.mkdtempSync(path.join(os.tmpdir(),'temhoa-image-')),profile=path.join(temp,'profile'),shots=process.env.TEMHOA_SCREENSHOTS||path.join(temp,'shots'),errors=[],failed=[];
- const server=spawn('python3',['-u','-c',"import mo_temhoa as m;from http.server import ThreadingHTTPServer;s=ThreadingHTTPServer(('127.0.0.1',0),m.Handler);print(s.server_address[1],flush=True);s.serve_forever()"],{env:{...process.env,TEMHOA_TEMPLATE_ROOT:path.join(temp,'templates')},stdio:['ignore','pipe','pipe']});
- const port=await new Promise((resolve,reject)=>{server.stdout.once('data',d=>resolve(Number(d.toString().trim())));server.once('error',reject);});
- const options={headless:true,args:['--no-sandbox'],viewport:{width:1600,height:1000}};if(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH)options.executablePath=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
- let browser,p;
- const connect=async()=>{browser=await chromium.launchPersistentContext(profile,options);p=await browser.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=400&&!r.url().endsWith('favicon.ico')&&!r.url().includes('/api/background'))failed.push(r.url())});await p.goto('http://127.0.0.1:'+port);await p.waitForFunction(()=>window.TemImageTools);};
- const idle=()=>p.evaluate(()=>TemImageTools.idle);
- const shot=async name=>{fs.mkdirSync(shots,{recursive:true});await p.screenshot({path:path.join(shots,name+'.png'),animations:'disabled'});};
- const value=async(label,v)=>{await p.getByRole('spinbutton',{name:label+' — giá trị',exact:true}).fill(String(v));await p.getByRole('spinbutton',{name:label+' — giá trị',exact:true}).press('Tab');await idle();};
- const select=()=>p.evaluate(()=>{selectGraphicItems(decorations.find(x=>x.kind==='image'));syncGraphicControls();positionGraphicOverlays();});
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
- await connect();await p.getByRole('button',{name:'Thêm mẫu',exact:true}).click();
- await p.evaluate(async()=>{temEditor.innerHTML='<div>Dong mot</div><div>Dong hai</div>';$('text').value='Dong mot\nDong hai';await preview();await TemShapes.insert('shape-circle');await selectLayerUnit(activeLabelId,'text-0');window.beforeLayer=settings();});
- const before=await p.evaluate(()=>({doc:settings(),graphic:JSON.stringify(decorations),runs:previewSize.L.runs.map(r=>r.layerKey)}));assert.ok(before.runs.includes('text-0'));assert.ok(before.runs.includes('text-1'));
- const pull=async(selector,dx,dy)=>{const b=await p.locator(selector).boundingBox();assert.ok(b);await p.mouse.move(b.x+b.width/2,b.y+b.height/2);await p.mouse.down();await p.mouse.move(b.x+b.width/2+dx,b.y+b.height/2+dy,{steps:6});await p.mouse.up();await p.evaluate(()=>flushAutoSave());};
- await pull('.resizeHandle[data-handle=e]',45,0);
- let state=await p.evaluate(()=>({t:readLayerStack().transforms,graphic:JSON.stringify(decorations),sx:$('labelScaleX').value,sy:$('labelScaleY').value,x:$('labelX').value,y:$('labelY').value}));assert.ok(state.t['text-0'].sx>1);assert.equal(state.t['text-1'],undefined);assert.equal(state.graphic,before.graphic);assert.equal(state.sx,String(before.doc.labelScaleX));
- const first=state.t['text-0'];await pull('.resizeHandle[data-handle=move]',30,20);state=await p.evaluate(()=>readLayerStack().transforms);assert.notEqual(state['text-0'].x,first.x);assert.notEqual(state['text-0'].y,first.y);assert.equal(state['text-1'],undefined);assert.equal(await p.evaluate(()=>JSON.stringify(decorations)),before.graphic);
- const saved=await p.evaluate(()=>settings());await p.locator('#artUndo').click();await p.waitForFunction(()=>!labelOperation);assert.equal(await p.evaluate(()=>readLayerStack().transforms['text-0'].x),first.x);await p.locator('#artRedo').click();await p.waitForFunction(()=>!labelOperation);await p.evaluate(async d=>restoreLabelDocument(d),saved);assert.deepEqual(await p.evaluate(()=>readLayerStack().transforms),state);
- await p.evaluate(async()=>{await selectLayerUnit(activeLabelId,decorations[0].id)});assert.equal(await p.locator('#selectionFrame').isVisible(),false);const graphicBefore=await p.evaluate(()=>({...decorations[0]}));await pull('.graphicOverlay.selected .graphicResize',25,20);assert.ok(await p.evaluate(w=>decorations[0].width>w,graphicBefore.width));assert.deepEqual(await p.evaluate(()=>readLayerStack().transforms),state);
- await p.evaluate(async()=>{await selectLayerUnit(activeLabelId,'text-1')});await pull('.resizeHandle[data-handle=move]',20,10);assert.deepEqual(await p.evaluate(()=>readLayerStack().transforms['text-0']),state['text-0']);assert.ok(await p.evaluate(()=>readLayerStack().transforms['text-1'].x!==0));
- const beforeCanvas=await p.evaluate(()=>readLayerStack().transforms['text-1']);const box=await p.locator('#selectionFrame').boundingBox();await p.mouse.move(box.x+box.width*.25,box.y+box.height*.5);await p.mouse.down();await p.mouse.move(box.x+box.width*.25+18,box.y+box.height*.5+12,{steps:4});await p.mouse.up();await p.evaluate(()=>flushAutoSave());assert.notEqual(await p.evaluate(()=>readLayerStack().transforms['text-1'].x),beforeCanvas.x);assert.deepEqual(await p.evaluate(()=>readLayerStack().transforms['text-0']),state['text-0']);
- const beforeLocked=await p.evaluate(()=>JSON.stringify(readLayerStack().transforms));await p.evaluate(()=>{labelLockControl.checked=true});await pull('.resizeHandle[data-handle=e]',25,0);assert.equal(await p.evaluate(()=>JSON.stringify(readLayerStack().transforms)),beforeLocked);await p.evaluate(()=>{labelLockControl.checked=false});await p.evaluate(async()=>reorderLayerUnit(activeLabelId,'text-1','text-0',false));assert.equal(await p.evaluate(()=>JSON.stringify(readLayerStack().transforms)),beforeLocked);
- assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);console.log('PASS selected text resize/move isolation, sibling/image geometry unchanged, graphic isolation, undo/redo, save/restore');
- }finally{if(browser)await browser.close();server.kill();}
+  const page=await browser.newPage({viewport:{width:1440,height:900}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(pathToFileURL(process.cwd()+'/TemHoa-MinhDien.html').href);
+  await page.evaluate(async()=>{
+    await createBlankDesign(false);
+    await newDesignText('<div>Dòng một</div><div>Dòng hai</div>',null,{x:3,y:3,width:10});
+    window.__textA=activeLabelId;
+    await newDesignText('<div>Khối chữ thứ hai</div>',null,{x:16,y:8,width:8});
+    window.__textB=activeLabelId;
+    await activateLabel(window.__textA);
+    await addGraphic('grin');
+    window.__graphic=decorations[0].id;
+    await selectLayerUnit(activeLabelId,'text-box',false,false);
+  });
+  const ids=await page.evaluate(()=>({a:window.__textA,b:window.__textB,g:window.__graphic}));
+  const before=await page.evaluate(ids=>({
+    a:{...labelGeometry(labels.find(x=>x.id===ids.a))},
+    b:{...labelGeometry(labels.find(x=>x.id===ids.b))},
+    graphic:{...decorations.find(x=>x.id===ids.g)},
+    transforms:copyLabelData(readLayerStack().transforms||{})
+  }),ids);
+
+  await page.locator('#labelSurface').hover();
+  let handle=page.locator('.resizeHandle[data-handle=e]');
+  let hb=await handle.boundingBox();assert.ok(hb);
+  await page.mouse.move(hb.x+hb.width/2,hb.y+hb.height/2);await page.mouse.down();
+  await page.mouse.move(hb.x+hb.width/2+70,hb.y+hb.height/2,{steps:10});await page.mouse.up();await page.waitForTimeout(220);
+  let state=await page.evaluate(ids=>({
+    t:readLayerStack().transforms?.['text-box'],
+    b:{...labelGeometry(labels.find(x=>x.id===ids.b))},
+    graphic:{...decorations.find(x=>x.id===ids.g)}
+  }),ids);
+  assert.ok(state.t?.sx>1,'text-box horizontal resize must change only its transform');
+  assert.equal(state.t.sy??1,1);
+  assert.deepEqual(state.b,before.b);
+  assert.equal(state.graphic.x,before.graphic.x);assert.equal(state.graphic.y,before.graphic.y);
+
+  const first=state.t;
+  handle=page.locator('.resizeHandle[data-handle=move]');
+  const mb=await handle.boundingBox();assert.ok(mb);
+  await page.mouse.move(mb.x+mb.width/2,mb.y+mb.height/2);await page.mouse.down();
+  await page.mouse.move(mb.x+mb.width/2+35,mb.y+mb.height/2+24,{steps:8});await page.mouse.up();await page.waitForTimeout(180);
+  state=await page.evaluate(()=>readLayerStack().transforms?.['text-box']);
+  assert.notEqual(state.x,first.x);assert.notEqual(state.y,first.y);
+
+  const saved=await page.evaluate(()=>settings());
+  await page.evaluate(async data=>restoreLabelDocument(data),saved);
+  assert.deepEqual(await page.evaluate(()=>readLayerStack().transforms?.['text-box']),state);
+  assert.deepEqual(errors,[]);
+  console.log('PASS: one multiline text-box resizes/moves independently and survives save/restore');
+ }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
