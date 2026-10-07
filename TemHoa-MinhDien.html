@@ -2356,12 +2356,14 @@ body.showPrintSafeZone #printSafeZone{display:block}
  const previousSync=syncGraphicControls;syncGraphicControls=function(...args){const result=previousSync(...args);syncEffectiveSize();return result};
 
  // While a proportional text resize is happening, keep the displayed size in sync frame-by-frame.
- const stage=$('previewStage');
+ // Coalesce high-frequency pointer events so trackpads/mice cannot queue dozens of callbacks per frame.
+ const stage=$('previewStage');let sizeSyncFrame=0;
+ const scheduleSizeSync=()=>{if(sizeSyncFrame)return;sizeSyncFrame=requestAnimationFrame(()=>{sizeSyncFrame=0;syncEffectiveSize()})};
  stage?.addEventListener('pointermove',event=>{
    if(!$('labelSurface')?.classList.contains('resizing'))return;
-   requestAnimationFrame(syncEffectiveSize);
+   scheduleSizeSync();
  },{passive:true});
- stage?.addEventListener('pointerup',()=>requestAnimationFrame(syncEffectiveSize),true);
+ stage?.addEventListener('pointerup',scheduleSizeSync,true);
 
  // Prevent an old saved text selection from unexpectedly taking over the whole-box size control.
  sizeInput.addEventListener('pointerdown',()=>{if(!designEditing&&activeUnitKey?.()==='text-box')savedSelection=null},true);
