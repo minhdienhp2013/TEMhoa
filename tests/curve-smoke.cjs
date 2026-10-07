@@ -9,7 +9,10 @@ const assert=require('node:assert/strict');
   await page.goto(pathToFileURL(process.cwd()+'/TemHoa-MinhDien.html').href);
   await page.evaluate(async()=>{
     await createBlankDesign(false);
+    await newDesignText('<div>LAYER KHÁC</div>',null,{x:3,y:8,width:8});
+    window.__otherCurveLabel=activeLabelId;
     await newDesignText('<div>CHÚC MỪNG KHAI TRƯƠNG</div>',null,{x:3,y:3,width:12});
+    window.__curveLabel=activeLabelId;
     await selectLayerUnit(activeLabelId,'text-box',false,false);
   });
   assert.equal(await page.locator('#curveAmount').getAttribute('min'),'-360');
@@ -19,6 +22,7 @@ const assert=require('node:assert/strict');
   await page.evaluate(async()=>{await curveRainbow.onclick()});
   await page.waitForFunction(()=>String(settings().curveAmount)==='40');
   assert.equal(await page.evaluate(()=>Number(settings().curveAmount)),40);
+  assert.equal(await page.evaluate(()=>Number(labels.find(x=>x.id===window.__otherCurveLabel).settings.curveAmount||0)),0);
   assert.equal(await page.locator('#curveRainbow').textContent(),'— Chữ thẳng');
   await page.evaluate(async()=>{await curveRainbow.onclick()});
   await page.waitForFunction(()=>Number(settings().curveAmount)===0);
