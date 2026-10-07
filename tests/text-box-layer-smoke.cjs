@@ -12,8 +12,8 @@ const assert=require('node:assert/strict');
   await page.getByRole('button',{name:/Văn bản/}).click();
   await page.waitForTimeout(200);
   await page.evaluate(async()=>{
-    editorHTML('<div>Dòng 1</div><div>Dòng 2</div><div>Dòng 3</div>');
-    await preview();saveActiveLabel(true);renderLayersPanel();
+    $('temEditor').innerHTML='<div>Dòng 1</div><div>Dòng 2</div><div>Dòng 3</div>';
+    $('text').value=editorText();await preview();saveActiveLabel(true);renderLayersPanel();
   });
   const state=await page.evaluate(()=>({
     labels:labels.filter(x=>x.settings.designKind==='text').length,
