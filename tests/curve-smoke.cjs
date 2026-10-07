@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
   await page.goto(pathToFileURL(process.cwd()+'/TemHoa-MinhDien.html').href);
   await page.getByRole('button',{name:'Thêm mẫu',exact:true}).click();
   await page.waitForTimeout(300);
-  await page.evaluate(async()=>{editorHTML('<div>CHÚC MỪNG KHAI TRƯƠNG</div>');await preview();});
+  await page.evaluate(async()=>{$('temEditor').innerHTML='<div>CHÚC MỪNG KHAI TRƯƠNG</div>';$('text').value=editorText();await preview();saveActiveLabel(true);});
   assert.equal(await page.locator('#curveAmount').getAttribute('min'),'-360');
   assert.equal(await page.locator('#curveAmount').getAttribute('max'),'360');
   assert.equal(await page.locator('#curveReset').count(),0);
