@@ -983,7 +983,8 @@ const compactRibbonStyle=document.createElement('style');compactRibbonStyle.text
 /* Per-unit layer stack. Order is bottom-to-top; the panel displays top first. */
 function readLayerStack(value=$('layerStack').value){try{const data=JSON.parse(value);return data&&typeof data==='object'&&!Array.isArray(data)?data:{}}catch{return {}}}
 function layerUnits(L){
- const texts=[...new Set(L.runs.map(run=>run.layerKey||'text-0'))].map(key=>({key,kind:'text',text:L.runs.filter(run=>(run.layerKey||'text-0')===key).map(run=>run.text).join('')}));
+ // One text box is always one layer, even when it contains many lines.
+ const texts=L.runs.length?[{key:'text-box',kind:'text',text:L.runs.map(run=>run.text).join('')}]:[];
  return [...(L.graphics||[]).filter(item=>item.behindText).map(item=>({key:item.id,kind:'graphic',item})),...texts,...(L.graphics||[]).filter(item=>!item.behindText).map(item=>({key:item.id,kind:'graphic',item}))];
 }
 function orderedLayerUnits(L,stack=readLayerStack()){
@@ -992,7 +993,7 @@ function orderedLayerUnits(L,stack=readLayerStack()){
  return result.concat([...map.values()]);
 }
 function paintLayerUnit(ctx,L,scale,unit,color='fill'){
- if(unit.kind==='text')textOnlyDraw(ctx,{...L,runs:L.runs.filter(run=>(run.layerKey||'text-0')===unit.key)},scale,color);
+ if(unit.kind==='text')textOnlyDraw(ctx,{...L,runs:unit.key==='text-box'?L.runs:L.runs.filter(run=>(run.layerKey||'text-0')===unit.key)},scale,color);
  if(unit.kind==='graphic'){ctx.save();ctx.scale(scale,scale);drawGraphic(ctx,unit.item,color!=='fill');ctx.restore()}
 }
 function paintLayerStack(ctx,L,scale,paintBackground){
@@ -1038,7 +1039,7 @@ async function selectLayerUnit(labelId,key,additive=false,preserve=false){
  if(labelId!==activeLabelId)await activateLabel(labelId);
  selectedUnitKey=key;
  if(key.startsWith('graphic-')){const item=decorations.find(item=>item.id===key);if(!item)return;selectGraphicItems(item);selectedGraphicSet=new Set(decorations.filter(graphic=>selectedLayerUnits.has(layerSelectionId(activeLabelId,graphic.id))).map(graphic=>graphic.id));$('editLayer').value='image'}
- else{selectedGraphicId=null;selectedGraphicSet.clear();$('editLayer').value='text';if(key.startsWith('text-')){const runs=(previewSize?.L.runs||[]).filter(run=>(run.layerKey||'text-0')===key);if(runs.length){const start=Math.min(...runs.map(run=>run.textStart)),end=Math.max(...runs.map(run=>run.textEnd));if(Number.isFinite(start)&&Number.isFinite(end)){savedSelection=rangeOffsets($('temEditor'),{start,end});$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}}}}
+ else{selectedGraphicId=null;selectedGraphicSet.clear();$('editLayer').value='text';if(key==='text-box'||key.startsWith('text-')){const runs=key==='text-box'?(previewSize?.L.runs||[]):(previewSize?.L.runs||[]).filter(run=>(run.layerKey||'text-0')===key);if(runs.length){const start=Math.min(...runs.map(run=>run.textStart)),end=Math.max(...runs.map(run=>run.textEnd));if(Number.isFinite(start)&&Number.isFinite(end)){savedSelection=rangeOffsets($('temEditor'),{start,end});$('temEditor').focus({preventScroll:true});const selection=getSelection();selection.removeAllRanges();selection.addRange(savedSelection)}}}}
  positionGraphicOverlays();syncGraphicControls();renderLayersPanel();
 }
 async function reorderLayerUnit(labelId,key,targetKey,after=false){
@@ -1096,7 +1097,7 @@ moveObjectLayer=async function(delta,graphicOnly=false){
 const beforeUnitLayerButtons=syncLayerButtons;syncLayerButtons=function(){beforeUnitLayerButtons();const key=activeUnitKey(),L=previewSize?.L;if(!key||!L)return;const order=orderedLayerUnits(L).map(unit=>unit.key),index=order.indexOf(key);for(const prefix of ['layer','menuLayer']){$(prefix+'Up').disabled=layerBusy||index<0||index===order.length-1;$(prefix+'Down').disabled=layerBusy||index<=0}};
 const beforeUnitPanelZoom=zoom;zoom=function(){beforeUnitPanelZoom();renderLayersPanel()};
 $('previewArea').addEventListener('pointerdown',()=>selectedLayerUnits.clear(),true);
-$('temEditor').addEventListener('pointerup',()=>{captureSelection();const offsets=selectionOffsets(),run=previewSize?.L.runs.find(run=>run.textStart<=offsets?.start&&run.textEnd>offsets?.start);selectedUnitKey=run?.layerKey||'text-0';renderLayersPanel();syncLayerButtons()});
+$('temEditor').addEventListener('pointerup',()=>{captureSelection();selectedUnitKey='text-box';renderLayersPanel();syncLayerButtons()});
 const beforeUnitOverlays=positionGraphicOverlays;positionGraphicOverlays=function(){beforeUnitOverlays();const order=previewSize?.L?orderedLayerUnits(previewSize.L).map(unit=>unit.key):[];$('labelSurface').querySelectorAll('.graphicOverlay').forEach(box=>box.style.zIndex=6+order.indexOf(box.dataset.graphicId))};
 renderLayersPanel();
 
