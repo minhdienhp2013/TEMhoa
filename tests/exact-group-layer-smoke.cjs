@@ -34,7 +34,7 @@ const assert=require('node:assert/strict');
   const individual=await page.evaluate(id=>{const item=decorations.find(x=>x.id===id),L=previewSize.L,sx=parseFloat(labelSurface.style.width)/L.width,sy=parseFloat(labelSurface.style.height)/L.height;return {w:item.width*sx,h:item.height*sy}},ids[0]);
   assert.ok(Math.abs(ob.width-individual.w)<3&&Math.abs(ob.height-individual.h)<3,'exact layer overlay must match one graphic, not the whole group');
 
-  await page.evaluate(()=>{window.__exactDragDebug={down:0,move:0};labelSurface.addEventListener('pointerdown',()=>window.__exactDragDebug.down++,true);labelSurface.addEventListener('pointermove',()=>window.__exactDragDebug.move++,true)});
+  await page.evaluate(()=>{window.__exactDragDebug={down:0,move:0,live:[]};labelSurface.addEventListener('pointerdown',()=>window.__exactDragDebug.down++,true);labelSurface.addEventListener('pointermove',()=>{window.__exactDragDebug.move++;const item=selectedGraphic();window.__exactDragDebug.live.push({drag:graphicDrag&&{id:graphicDrag.id,mode:graphicDrag.mode},x:item?.x,y:item?.y})})});
   await page.mouse.move(ob.x+ob.width/2,ob.y+ob.height/2);await page.mouse.down();
   await page.mouse.move(ob.x+ob.width/2+80,ob.y+ob.height/2+35,{steps:8});await page.mouse.up();await page.waitForTimeout(180);
   const after=await page.evaluate(ids=>ids.map(id=>{const x=decorations.find(g=>g.id===id);return {x:x.x,y:x.y,groupId:x.groupId}}),ids);
