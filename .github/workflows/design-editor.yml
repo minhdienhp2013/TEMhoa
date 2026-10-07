@@ -29,6 +29,7 @@ jobs:
       - run: node tests/text-box-layer-smoke.cjs
       - run: node tests/precise-layer-drag-smoke.cjs
       - run: node tests/canva-workflow-smoke.cjs
+      - run: node tests/layers-scroll-smoke.cjs
       - run: node tests/delete-template-smoke.cjs
       - run: node tests/output-paper-smoke.cjs
       - run: node tests/autosave-smoke.cjs
