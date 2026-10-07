@@ -1890,4 +1890,15 @@ $('systemPaste').hidden=true;$('systemPaste').inert=true;document.body.append($(
   }
 })();
 </script>
+<style id="displayHotfix20261007">
+@media(max-width:800px){body.layersCollapsed #layersPanel{display:none!important;visibility:hidden!important;pointer-events:none!important}}
+#artProperties{max-height:calc(100dvh - 16px);overscroll-behavior:contain}
+#labelContextMenu.canvaMenu{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+#labelContextMenu.canvaMenu .ctxSub{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+@media(max-width:600px){
+#artProperties{width:min(340px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 112px)}
+#labelContextMenu.canvaMenu{width:calc(100vw - 16px);max-width:calc(100vw - 16px);left:8px!important;right:8px!important}
+#labelContextMenu.canvaMenu .ctxSub{left:8px!important;right:8px!important;width:auto!important;max-width:none}}
+@media(max-width:420px){.wordTitle{scrollbar-width:none}.wordTitle::-webkit-scrollbar{display:none}#compactInsertTools{z-index:8}}
+</style>
 </html>
