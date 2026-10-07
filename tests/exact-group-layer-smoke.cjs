@@ -19,6 +19,13 @@ const assert=require('node:assert/strict');
   const ids=await page.evaluate(()=>window.__ids);
   assert.equal(await page.evaluate(()=>graphicSelection().length),1);
   const before=await page.evaluate(ids=>ids.map(id=>{const x=decorations.find(g=>g.id===id);return {id,x:x.x,y:x.y,w:x.width,h:x.height,groupId:x.groupId}}),ids);
+  await page.evaluate(async()=>{await $('copyGraphic').onclick()});
+  const duplicate=await page.evaluate(()=>decorations.at(-1));
+  assert.equal(duplicate.groupId,'','duplicating an exact group member must create an independent layer');
+  assert.equal(await page.evaluate(()=>decorations.length),3);
+  await page.evaluate(async id=>{await selectLayerUnit(activeLabelId,id,false,false);await $('deleteGraphic').onclick()},duplicate.id);
+  assert.equal(await page.evaluate(()=>decorations.length),2);
+  await page.evaluate(async id=>{await selectLayerUnit(activeLabelId,id,false,false)},ids[0]);
   assert.ok(before[0].groupId&&before[0].groupId===before[1].groupId);
 
   const selectedOverlay=page.locator('.graphicOverlay.selected');
