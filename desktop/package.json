@@ -87,6 +87,14 @@
       {
         "from": "../clipboard-tools.js",
         "to": "app/clipboard-tools.js"
+      },
+      {
+        "from": "../shape-tools.js",
+        "to": "app/shape-tools.js"
+      },
+      {
+        "from": "../color-tools.js",
+        "to": "app/color-tools.js"
       }
     ],
     "win": {

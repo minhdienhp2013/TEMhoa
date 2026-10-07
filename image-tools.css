@@ -53,3 +53,6 @@
 #labelSurface .graphicOverlay{z-index:6}
 
 .liveGraphicActive #selectionFrame{visibility:hidden}
+
+/* Page controls are available in the compact top toolbar. */
+#imagePageTools{display:none!important}

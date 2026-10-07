@@ -8,6 +8,11 @@
     shadowBlur:[0,100],shadowX:[-200,200],shadowY:[-200,200],brightness:[-100,100],
     contrast:[-100,100],saturation:[-100,100],temperature:[-100,100],blur:[0,30]};
   const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+  function safeImageTint(value) {
+    const paint=safePaint(value);
+    return {enabled:value?.enabled===true,type:['linear','radial'].includes(paint.type)?paint.type:'solid',
+      color:safeHex(value?.color||'#B92C3B'),colors:paint.colors||['#B92C3B','#D9AD46'],angle:paint.angle??90};
+  }
   const beforeSafe = safeGraphic;
   safeGraphic = function(value) {
     const item=beforeSafe(value);if(!item)return item;
@@ -15,6 +20,7 @@
       item[key]=limits[key] ? (Number.isFinite(+value[key])?clamp(+value[key],...limits[key]):fallback)
         : ['strokeColor','shadowColor'].includes(key)?safeHex(value[key]||fallback):fallback;
     }
+    item.imageTint=safeImageTint(value.imageTint);
     item.strokeStyle=['solid','dash','dot'].includes(value.strokeStyle)?value.strokeStyle:'solid';
     item.imageMask=['rect','ellipse'].includes(value.imageMask)?value.imageMask:'rect';
     const c=value.imageCrop;
@@ -23,15 +29,17 @@
   };
   // Upgrade in-memory old documents too; setLabelSettings handles future loads.
   decorations=decorations.map(safeGraphic).filter(Boolean);
-  const processed=new Map(),frames=new Map();
+  const processed=new Map(),frames=new Map(),sourceFrames=new Map();let liveColorFrame=null,imageIdentity=0;const imageIdentities=new WeakMap();
+  function imageKey(image){if(!imageIdentities.has(image))imageIdentities.set(image,++imageIdentity);return imageIdentities.get(image);}
   function imagePixels(item) {
     const image=graphicImages.get(item.src);if(!image)return null;
     if(!['brightness','contrast','saturation','temperature','blur'].some(k=>item[k]))return image;
-    const key=JSON.stringify([item.src,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0),item.blur?item.width:0]);
+    const factor=window.TEMHOA_LIVE_DRAW?Math.min(1,1600/Math.max(image.width,image.height)):1;
+    const key=JSON.stringify([imageKey(image),factor,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0),item.blur?item.width:0]);
     if(processed.has(key))return processed.get(key);
-    const c=cv(image.width,image.height),ctx=c.getContext('2d');
-    ctx.filter=`brightness(${1+(item.brightness||0)/100}) contrast(${1+(item.contrast||0)/100}) saturate(${1+(item.saturation||0)/100}) blur(${(item.blur||0)*image.width/Math.max(1,item.width)}px)`;
-    ctx.drawImage(image,0,0);ctx.filter='none';
+    const c=cv(Math.max(1,Math.round(image.width*factor)),Math.max(1,Math.round(image.height*factor))),ctx=c.getContext('2d');
+    ctx.filter=`brightness(${1+(item.brightness||0)/100}) contrast(${1+(item.contrast||0)/100}) saturate(${1+(item.saturation||0)/100}) blur(${(item.blur||0)*c.width/Math.max(1,item.width)}px)`;
+    ctx.drawImage(image,0,0,c.width,c.height);ctx.filter='none';
     if(item.temperature){const pixels=ctx.getImageData(0,0,c.width,c.height),t=item.temperature*.45;for(let i=0;i<pixels.data.length;i+=4){pixels.data[i]+=t;pixels.data[i+2]-=t;}ctx.putImageData(pixels,0,0);}
     processed.set(key,c);while(processed.size>1&&[...processed.values()].reduce((n,c)=>n+c.width*c.height,0)>40000000)processed.delete(processed.keys().next().value);while(processed.size>4)processed.delete(processed.keys().next().value);return c;
   }
@@ -49,13 +57,32 @@
     const image=imagePixels(item);if(!image)return;
     // Clip into a transparent frame first. This also gives shadows the correct mask.
     const factor=Math.min(window.TEMHOA_LIVE_DRAW?1:4,Math.max(1,image.width/item.width),5000/item.width,5000/item.height,Math.sqrt(16000000/(item.width*item.height)));
-    const frameKey=JSON.stringify([factor,item.src,item.width,item.height,item.imageCrop,item.radius,item.imageMask,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
-    let frame=frames.get(frameKey);if(!frame){
-    frame=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=frame.getContext('2d');fc.scale(factor,factor);path(fc,item);fc.clip();
-    const c=item.imageCrop||{x:0,y:0,width:1,height:1};
-    // Preserve legacy stretch unless a new replacement/crop provides an explicit region.
-    fc.drawImage(image,c.x*image.width,c.y*image.height,c.width*image.width,c.height*image.height,0,0,item.width,item.height);
-    frames.set(frameKey,frame);while(frames.size>1&&[...frames.values()].reduce((n,c)=>n+c.width*c.height,0)>20000000)frames.delete(frames.keys().next().value);while(frames.size>8)frames.delete(frames.keys().next().value);}
+    const sourceKey=JSON.stringify([factor,imageKey(image),item.width,item.height,item.imageCrop,item.radius,item.imageMask,...['brightness','contrast','saturation','temperature','blur'].map(k=>item[k]||0)]);
+    const tint=safeImageTint(item.imageTint),frameKey=sourceKey+JSON.stringify(tint);
+    let source=sourceFrames.get(sourceKey);
+    if(!source){
+      source=cv(Math.max(1,Math.ceil(item.width*factor)),Math.max(1,Math.ceil(item.height*factor)));const fc=source.getContext('2d');fc.scale(factor,factor);path(fc,item);fc.clip();
+      const c=item.imageCrop||{x:0,y:0,width:1,height:1};
+      fc.drawImage(image,c.x*image.width,c.y*image.height,c.width*image.width,c.height*image.height,0,0,item.width,item.height);
+      sourceFrames.set(sourceKey,source);while(sourceFrames.size>1&&([...sourceFrames.values()].reduce((n,c)=>n+c.width*c.height,0)>16000000||sourceFrames.size>4))sourceFrames.delete(sourceFrames.keys().next().value);
+    }
+    let frame=tint.enabled?frames.get(frameKey):source;
+    if(tint.enabled&&window.TEMHOA_LIVE_DRAW){
+      if(!liveColorFrame||liveColorFrame.width!==source.width||liveColorFrame.height!==source.height)liveColorFrame=cv(source.width,source.height);
+      frame=null;
+    }
+    if(!frame){
+      frame=window.TEMHOA_LIVE_DRAW?liveColorFrame:cv(source.width,source.height);
+      const fc=frame.getContext('2d');fc.resetTransform();fc.clearRect(0,0,frame.width,frame.height);fc.drawImage(source,0,0);fc.scale(factor,factor);
+      // Source-in changes visible RGB only; source alpha, crop and mask survive.
+      fc.globalCompositeOperation='source-in';let fill=tint.color;
+      if(tint.type!=='solid'){
+        fill=tint.type==='radial'?fc.createRadialGradient(item.width/2,item.height/2,0,item.width/2,item.height/2,Math.hypot(item.width,item.height)/2):fc.createLinearGradient(...gradientPoints(item.width,item.height,tint.angle));
+        tint.colors.forEach((color,index)=>fill.addColorStop(index,color));
+      }
+      fc.fillStyle=fill;fc.fillRect(0,0,item.width,item.height);fc.globalCompositeOperation='source-over';
+      if(!window.TEMHOA_LIVE_DRAW){frames.set(frameKey,frame);while(frames.size>1&&[...frames.values()].reduce((n,c)=>n+c.width*c.height,0)>20000000)frames.delete(frames.keys().next().value);while(frames.size>8)frames.delete(frames.keys().next().value);}
+    }
     ctx.save();ctx.translate(item.x,item.y);ctx.rotate(item.angle*Math.PI/180);ctx.scale(item.flipX?-1:1,item.flipY?-1:1);ctx.translate(-item.width/2,-item.height/2);ctx.globalAlpha*=item.opacity??1;
     if(!mask&&(item.shadowOpacity||0)>0){const hex=item.shadowColor||defaults.shadowColor;ctx.shadowColor=hex+Math.round(item.shadowOpacity*255).toString(16).padStart(2,'0');const scale=Math.hypot(ctx.getTransform().a,ctx.getTransform().b);ctx.shadowBlur=(item.shadowBlur||0)*scale;const m=ctx.getTransform();ctx.shadowOffsetX=(item.shadowX||0)*m.a+(item.shadowY||0)*m.c;ctx.shadowOffsetY=(item.shadowX||0)*m.b+(item.shadowY||0)*m.d;}
     ctx.drawImage(frame,0,0,item.width,item.height);ctx.shadowColor='transparent';
@@ -69,12 +96,78 @@
   // One mutation queue prevents async edits from applying to a different selection.
   let noneSelected=false,busy=false,queue=Promise.resolve(),popover=null,crop=null,styleClipboard=null;
   const currentImage=()=>selectedGraphic()?.kind==='image'&&graphicSelection().length===1&&!labelGroupKey(currentLabel())?selectedGraphic():null;
-  const canEdit=item=>item&&item.id===currentImage()?.id&&!item.locked&&!labelLockControl.checked;
+  const canEdit=item=>item&&item.id===currentImage()?.id&&!currentImage().locked&&!item.locked&&!labelLockControl.checked;
   const message=text=>{$('status').textContent=text;const status=$('imageToolStatus');if(status)status.textContent=text;};
-  function mutate(change) {
-    const item=currentImage(),owner=activeLabelId;if(!canEdit(item)||busy)return Promise.resolve(false);
-    queue=queue.then(async()=>{if(activeLabelId!==owner||!canEdit(item))return false;recordHistory();await change(currentImage());await ensureGraphics();await preview();recordHistory();syncGraphicControls();renderLayersPanel();return true;}).catch(error=>{message(error.message);return false;});return queue;
+  let tintPrepared=null,tintLive=null;
+  function prepareTint(item){
+    if(tintPrepared?.owner===activeLabelId&&tintPrepared.id===item.id)return tintPrepared;
+    const oldStack=paintLayerStack;let L,scale,above;
+    try{
+      paintLayerStack=(ctx,l,s,background)=>{
+        L=l;scale=s;background();above=cv(ctx.canvas.width,ctx.canvas.height);let passed=false;
+        for(const unit of orderedLayerUnits(l)){
+          if(unit.kind==='graphic'&&unit.item.id===item.id){passed=true;continue;}
+          paintLayerUnit(passed?above.getContext('2d'):ctx,l,s,unit);
+        }
+      };
+      const below=render().c;
+      tintPrepared={owner:activeLabelId,id:item.id,L,scale,below,above};return tintPrepared;
+    }finally{paintLayerStack=oldStack;}
   }
+  function paintTint(item){
+    window.TemPerformance?.frame();
+    const prepared=prepareTint(item),{L,scale,below,above}=prepared,c=$('canvas'),ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(below,0,0);
+    const offset={...item,x:item.x+(L.graphicOffsetX??L.offsetX??0),y:item.y+(L.graphicOffsetY??L.offsetY??0)};
+    const oldLive=window.TEMHOA_LIVE_DRAW;window.TEMHOA_LIVE_DRAW=true;
+    try{paintLayerUnit(ctx,L,scale,{kind:'graphic',item:offset});}finally{window.TEMHOA_LIVE_DRAW=oldLive;}
+    ctx.drawImage(above,0,0);
+    const label=currentLabel();label.size=previewSize;
+    if(!label.bitmap||label.bitmap.width!==c.width||label.bitmap.height!==c.height)label.bitmap=cv(c.width,c.height);
+    const bitmap=label.bitmap.getContext('2d');bitmap.clearRect(0,0,c.width,c.height);bitmap.drawImage(c,0,0);label.renderVersion=(label.renderVersion||0)+1;
+  }
+  function releaseTintSave(){if(tintLive?.saveHeld){autoSuspended--;colorSaveGate.leave();tintLive.saveHeld=false;}}
+  const tintPreview=preview;
+  preview=async function(...args){
+    const finishing=tintLive;releaseTintSave();tintLive=null;tintPrepared=null;
+    try{return await tintPreview(...args);}finally{if(finishing){
+      const item=finishing.owner===activeLabelId?decorations.find(i=>i.id===finishing.id):labels.find(l=>l.id===finishing.owner)?.settings.decorations?.find(i=>i.id===finishing.id);
+      if(item&&window.TemColors)for(const key of finishing.colors){if(key==='imageTint'){const tint=safeImageTint(item.imageTint);if(tint.enabled)TemColors.remember(tint);}else TemColors.remember({type:'solid',color:item[key]});}
+      recordHistory();renderLayersPanel();if(autoContext?.pending)tintFlush().catch(error=>message(error.message));}}
+  };
+  function finishTint(){queue=queue.then(async()=>{if(tintLive){const prepared=tintPrepared;await preview();if(prepared?.owner===activeLabelId&&prepared.id===currentImage()?.id)tintPrepared=prepared;}}).catch(error=>message(error.message));return queue;}
+  const pendingControls=new Map();
+  function mutate(change,controlKey=null) {
+    const item=currentImage(),owner=activeLabelId;if(!canEdit(item)||busy)return Promise.resolve(false);
+    // Native color pickers/sliders emit faster than a full preview can render.
+    // Keep one pending value per control and target, never replay stale colors.
+    const key=controlKey?`${owner}:${item.id}:${controlKey}`:null;
+    if(key&&pendingControls.has(key)){pendingControls.get(key).change=change;return queue;}
+    if(!key)pendingControls.clear();
+    const job={change};if(key)pendingControls.set(key,job);
+    queue=queue.then(async()=>{
+      if(key){await new Promise(resolve=>requestAnimationFrame(resolve));if(pendingControls.get(key)===job)pendingControls.delete(key);}
+      if(activeLabelId!==owner||!canEdit(item))return false;
+      if(['imageTint','strokeColor','shadowColor',...Object.keys(limits)].includes(controlKey)){
+        if(!tintLive){prepareTint(currentImage());recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();tintLive={owner,id:item.id,saveHeld:true,colors:new Set()};}
+        tintLive.colors.add(controlKey);await job.change(currentImage());paintTint(currentImage());return true;
+      }
+      if(tintLive)await preview();
+      recordHistory();await job.change(currentImage());await ensureGraphics();await preview();
+      recordHistory();syncGraphicControls();renderLayersPanel();return true;
+    }).catch(error=>{if(key&&pendingControls.get(key)===job)pendingControls.delete(key);if(tintLive){releaseTintSave();tintLive=null;tintPrepared=null;captureAutoChanges();}message(error.message);return false;});return queue;
+  }
+  document.addEventListener('click',event=>{
+    const undo=event.target.closest?.('#artUndo,#artRedo');if(!undo||(!tintLive&&!pendingControls.size))return;
+    event.preventDefault();event.stopImmediatePropagation();finishTint().then(()=>restoreHistory(undo.id==='artUndo'?-1:1));
+  },true);
+  document.addEventListener('keydown',event=>{
+    if((!tintLive&&!pendingControls.size)||!(event.ctrlKey||event.metaKey)||event.altKey||!['z','y'].includes(event.key.toLowerCase()))return;
+    event.preventDefault();event.stopImmediatePropagation();finishTint().then(()=>restoreHistory(event.key.toLowerCase()==='y'||event.shiftKey?1:-1));
+  },true);
+  const tintFlush=flushAutoSave;
+  flushAutoSave=async function(...args){await finishTint();return tintFlush(...args);};
+  window.addEventListener('pagehide',()=>{releaseTintSave();captureAutoChanges();tintFlush();});
   const icons={edit:'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M9 15v6',replace:'M4 8V4h16v16H4v-4M1 12h12M9 8l4 4-4 4',background:'M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4M8 8h.01M3 21L21 3',stroke:'M4 5h16M4 12h16M4 19h16',radius:'M4 20v-7a9 9 0 0 1 9-9h7',flip:'M12 3v18M3 6l6 6-6 6zM21 6l-6 6 6 6z',opacity:'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',style:'M4 3h16v7H4zM12 10v4h5v7h-4v-7',more:'M5 12h.01M12 12h.01M19 12h.01',unlock:'M6 11h12v10H6zM16 7a4 4 0 0 0-8 0v4'};
   Object.assign(artPaths,icons);
   const bar=artImageZone;bar.replaceChildren();bar.setAttribute('aria-label','Thanh công cụ ảnh');bar.setAttribute('role','toolbar');
@@ -87,26 +180,41 @@
   const replaceInput=document.createElement('input');replaceInput.id='image-replace-file';replaceInput.type='file';replaceInput.accept='image/png,image/jpeg,image/webp';replaceInput.hidden=true;document.body.append(replaceInput);
   buttons.replace.onclick=()=>{replaceInput.value='';replaceInput.click();};
   replaceInput.onchange=async()=>{const file=replaceInput.files[0],item=currentImage(),owner=activeLabelId;if(!file||!canEdit(item)||busy)return;busy=true;syncBar();message('Đang đọc ảnh thay thế…');try{const entry=await TemStudio.assetFromFile(file),image=await loadGraphic(entry.src);if(owner!==activeLabelId||!canEdit(item))throw Error('Vùng chọn đã đổi. Chọn lại ảnh để thay thế.');recordHistory();Object.assign(item,{src:entry.src,original:entry.src,sourceOriginal:entry.src,imageCrop:cover(image,item.width/item.height),removeWhite:false});delete item.crop;await preview();recordHistory();message('');}catch(e){message(e.message);}finally{busy=false;syncGraphicControls();}};
-  function closePopover(restore=false){if(!popover)return;const {node,anchor}=popover;popover=null;if(node.contains(manualBackground))legacy.append(manualBackground);node.remove();anchor?.setAttribute('aria-expanded','false');if(restore)anchor?.focus();}
+  function closePopover(restore=false){if(!popover)return;finishTint();const {node,anchor}=popover;popover=null;if(node.contains(manualBackground))legacy.append(manualBackground);node.remove();anchor?.setAttribute('aria-expanded','false');if(restore)anchor?.focus();}
   function shell(kind,title){closePopover();closeFontPicker();artCloseExport();labelMenu.hidden=true;const node=document.createElement('section');node.className='imagePopover';node.id='imagePanel';node.setAttribute('role','dialog');node.setAttribute('aria-label',title);const header=document.createElement('div');header.className='imagePanelHeader';const h=document.createElement('strong');h.textContent=title;header.append(h,button('image-close-panel','Đóng bảng ảnh','close',()=>closePopover(true),true));node.append(header);document.body.append(node);const anchor=buttons[kind]?.offsetParent?buttons[kind]:more;popover={node,anchor,owner:activeLabelId,id:currentImage()?.id};anchor.setAttribute('aria-expanded','true');anchor.setAttribute('aria-haspopup','dialog');const s=document.createElement('p');s.id='imageToolStatus';s.setAttribute('role','status');node.append(s);return node;}
   function place(){if(!popover)return;const {node,anchor}=popover,r=anchor.getBoundingClientRect();node.style.left=clamp(r.left,8,Math.max(8,innerWidth-node.offsetWidth-8))+'px';node.style.top=clamp(r.bottom+6,8,Math.max(8,innerHeight-node.offsetHeight-8))+'px';}
   function control(node,key,label,min,max,step=1,multiplier=1) {
     const row=document.createElement('label');row.className='imageSlider';const name=document.createElement('span');name.textContent=label;const range=document.createElement('input'),number=document.createElement('input');range.type='range';number.type='number';
     for(const input of [range,number]){input.min=min;input.max=max;input.step=step;input.value=Math.round((currentImage()?.[key]??defaults[key])*multiplier*100)/100;input.setAttribute('aria-label',label+(input===range?'':' — giá trị'));}
-    const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier);};
-    range.oninput=()=>change(range);number.onchange=()=>change(number);row.append(name,range,number);node.append(row);
+    const change=input=>{let val=Number(input.value);if(!Number.isFinite(val))return;val=clamp(val,min,max);range.value=number.value=val;mutate(item=>item[key]=val/multiplier,key);};
+    range.onfocus=()=>prepareTint(currentImage());range.oninput=()=>change(range);range.onchange=range.onblur=finishTint;number.onchange=()=>{change(number);finishTint();};row.append(name,range,number);node.append(row);
   }
-  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>mutate(item=>item[key]=input.value);row.append(input);node.append(row);}
+  function color(node,key,label){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='color';input.value=currentImage()?.[key]||defaults[key];input.setAttribute('aria-label',label);input.oninput=()=>{const value=input.value;mutate(item=>item[key]=value,key);};input.onfocus=()=>prepareTint(currentImage());input.onchange=input.onblur=finishTint;row.append(input);node.append(row);}
+  function imageTintPanel(node){
+    const tint=safeImageTint(currentImage().imageTint),section=document.createElement('div');
+    const title=document.createElement('strong');title.textContent='Đổi màu ảnh';section.append(title);
+    const make=(id,label,type)=>{const row=document.createElement('label');row.textContent=label;const input=document.createElement(type==='select'?'select':'input');input.id=id;if(type!=='select')input.type=type;input.setAttribute('aria-label',label);row.append(input);section.append(row);return input;};
+    const mode=make('imageTintMode','Kiểu tô ảnh','select');
+    for(const [v,t] of [['none','Giữ màu gốc'],['solid','Một màu'],['linear','Chuyển sắc thẳng'],['radial','Chuyển sắc tỏa tròn']])mode.add(new Option(t,v));
+    mode.value=tint.enabled?tint.type:'none';
+    const first=make('imageTintColor','Màu tô ảnh','color'),second=make('imageTintColor2','Màu cuối chuyển sắc ảnh','color'),angle=make('imageTintAngle','Góc chuyển sắc ảnh (độ)','number');
+    first.value=tint.type==='solid'?tint.color:tint.colors[0];second.value=tint.colors[1];angle.min=0;angle.max=360;angle.step=1;angle.value=tint.angle;
+    const sync=()=>{first.disabled=mode.value==='none';second.parentElement.hidden=!['linear','radial'].includes(mode.value);angle.parentElement.hidden=mode.value!=='linear';place();};
+    const commit=()=>{const value=safeImageTint({enabled:mode.value!=='none',type:mode.value,color:first.value,colors:[first.value,second.value],angle:Number(angle.value)});mutate(item=>item.imageTint=value,'imageTint');sync();};
+    mode.onchange=()=>{commit();finishTint();};first.oninput=commit;second.oninput=commit;first.onfocus=second.onfocus=()=>{if(canEdit(currentImage()))prepareTint(currentImage());};first.onchange=second.onchange=finishTint;first.onblur=second.onblur=finishTint;angle.onchange=()=>{commit();finishTint();};
+    section.append(button('image-tint-reset','Giữ màu ảnh gốc','undo',()=>{mode.value='none';commit();finishTint();}));
+    const note=document.createElement('p');note.textContent='Tô phần ảnh nhìn thấy; giữ nguyên vùng trong suốt và ảnh nguồn.';section.append(note);node.append(section);sync();
+  }
   function reset(node,keys,label='Đặt lại'){node.append(button('',label,'undo',async()=>{await mutate(item=>keys.forEach(k=>item[k]=defaults[k]));const kind=popover?.kind;if(kind){closePopover();openPanel(kind);}}));}
   function openPanel(kind){if(!currentImage()&&kind!=='more')return;if(!canEdit(currentImage())&&kind!=='more')return;
     if(popover?.kind===kind){closePopover(true);return;}const title={edit:'Chỉnh sửa ảnh',stroke:'Viền ảnh',radius:'Bo góc và mask',flip:'Lật ảnh',opacity:'Độ mờ',position:'Vị trí ảnh',style:'Kiểu dáng ảnh',more:'Thêm công cụ ảnh'}[kind];const node=shell(kind,title);popover.kind=kind;
     if(kind==='edit'){for(const [key,label,min,max] of [['brightness','Sáng',-100,100],['contrast','Tương phản',-100,100],['saturation','Bão hòa',-100,100],['temperature','Nhiệt độ màu',-100,100],['blur','Làm mờ',0,30]])control(node,key,label,min,max);reset(node,['brightness','contrast','saturation','temperature','blur']);node.append(button('image-restore','Khôi phục ảnh gốc','undo',()=>restoreOriginal()));node.append(manualBackground);node.append(document.createTextNode('Điều chỉnh giữ ảnh gốc. Chuyển động trình chiếu chưa hỗ trợ.'));}
-    if(kind==='stroke'){color(node,'strokeColor','Màu viền');control(node,'strokeWidth','Độ dày viền (px)',0,50,.5);const label=document.createElement('label');label.textContent='Kiểu nét';const select=document.createElement('select');select.setAttribute('aria-label','Kiểu nét');for(const [v,t] of [['solid','Liền'],['dash','Nét đứt'],['dot','Chấm']])select.add(new Option(t,v));select.value=currentImage().strokeStyle||'solid';select.onchange=()=>mutate(item=>item.strokeStyle=select.value);label.append(select);node.append(label);reset(node,['strokeColor','strokeWidth','strokeStyle']);}
+    if(kind==='stroke'){prepareTint(currentImage());color(node,'strokeColor','Màu viền');control(node,'strokeWidth','Độ dày viền (px)',0,50,.5);const label=document.createElement('label');label.textContent='Kiểu nét';const select=document.createElement('select');select.setAttribute('aria-label','Kiểu nét');for(const [v,t] of [['solid','Liền'],['dash','Nét đứt'],['dot','Chấm']])select.add(new Option(t,v));select.value=currentImage().strokeStyle||'solid';select.onchange=()=>mutate(item=>item.strokeStyle=select.value);label.append(select);node.append(label);reset(node,['strokeColor','strokeWidth','strokeStyle']);}
     if(kind==='radius'){control(node,'radius','Bo góc (%)',0,50);const label=document.createElement('label');label.textContent='Mask';const select=document.createElement('select');select.setAttribute('aria-label','Mask ảnh');select.add(new Option('Chữ nhật','rect'));select.add(new Option('Elip','ellipse'));select.value=currentImage().imageMask||'rect';select.onchange=()=>mutate(item=>item.imageMask=select.value);label.append(select);node.append(label);reset(node,['radius','imageMask']);}
     if(kind==='flip')for(const [key,label] of [['flipX','Lật ngang'],['flipY','Lật dọc']])node.append(button('',label,'flip',async()=>{await mutate(item=>item[key]=!item[key]);closePopover(true);}));
     if(kind==='opacity'){control(node,'opacity','Độ mờ (%)',0,100,1,100);reset(node,['opacity']);}
     if(kind==='position')positionPanel(node);
-    if(kind==='style'){color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',()=>copyStyle()),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
+    if(kind==='style'){prepareTint(currentImage());imageTintPanel(node);color(node,'shadowColor','Màu bóng');control(node,'shadowOpacity','Độ mờ bóng (%)',0,100,1,100);control(node,'shadowBlur','Độ nhòe bóng (px)',0,100);control(node,'shadowX','Lệch ngang bóng (px)',-200,200);control(node,'shadowY','Lệch dọc bóng (px)',-200,200);reset(node,['shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY']);node.append(button('image-copy-style','Sao chép kiểu ảnh','copy',async()=>{await finishTint();copyStyle();}),button('image-paste-style','Dán kiểu ảnh','style',()=>pasteStyle()));$('image-paste-style').disabled=!styleClipboard;}
     if(kind==='more'){for(const key of ['delete','stroke','radius','crop','flip','opacity','position','style']){const source=buttons[key],b=button('',source.getAttribute('aria-label'),source.querySelector('svg')?'properties':'image',()=>{closePopover();source.click()});b.disabled=source.disabled;node.append(b);}const note=document.createElement('p');note.textContent='Chuyển động: dành cho trình chiếu, chưa hỗ trợ.';node.append(note);}
     place();artEnter(node,'menu');node.querySelector('input,select,button:not(#image-close-panel)')?.focus();
   }
@@ -129,8 +237,8 @@
   }
   function worldGeometry(item){const L=previewSize?.L||layout(),u=graphicUnits(),g=labelGeometry(currentLabel()),a=(Number($('labelAngle').value)||0)*Math.PI/180,cx=g.x+g.width/2,cy=g.y+g.height/2,vx=(item.x+(L.graphicOffsetX??L.offsetX??0))*u.x-g.width/2,vy=(item.y+(L.graphicOffsetY??L.offsetY??0))*u.y-g.height/2,w=item.width*u.x,h=item.height*u.y;return {x:cx+vx*Math.cos(a)-vy*Math.sin(a)-w/2,y:cy+vx*Math.sin(a)+vy*Math.cos(a)-h/2,width:w,height:h,angle:(item.angle||0)+a*180/Math.PI};}
   function setWorld(item,key,value){const g=worldGeometry(item),u=graphicUnits(),a=(Number($('labelAngle').value)||0)*Math.PI/180;if(key==='angle'){item.angle=value-a*180/Math.PI;return;}if(['width','height'].includes(key)){const size=value/u[key==='width'?'x':'y'];if(item.keepRatio!==false)item[key==='width'?'height':'width']*=size/item[key];item[key]=clamp(size,8,2500);return;}const dx=key==='x'?value-g.x:0,dy=key==='y'?value-g.y:0;item.x+=(dx*Math.cos(a)+dy*Math.sin(a))/u.x;item.y+=(-dx*Math.sin(a)+dy*Math.cos(a))/u.y;}
-  const styleKeys=['opacity','radius','imageMask','strokeWidth','strokeColor','strokeStyle','shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY','brightness','contrast','saturation','temperature','blur'];
-  function copyStyle(){const item=currentImage();if(item){styleClipboard=Object.fromEntries(styleKeys.map(k=>[k,item[k]??defaults[k]]));message('Đã sao chép kiểu ảnh.');if($('image-paste-style'))$('image-paste-style').disabled=false;}}
+  const styleKeys=['imageTint','opacity','radius','imageMask','strokeWidth','strokeColor','strokeStyle','shadowColor','shadowOpacity','shadowBlur','shadowX','shadowY','brightness','contrast','saturation','temperature','blur'];
+  function copyStyle(){const item=currentImage();if(item){styleClipboard=contextClone(Object.fromEntries(styleKeys.map(k=>[k,k==='imageTint'?safeImageTint(item[k]):item[k]??defaults[k]])));message('Đã sao chép kiểu ảnh.');if($('image-paste-style'))$('image-paste-style').disabled=false;}}
   function pasteStyle(){if(styleClipboard)return mutate(item=>Object.assign(item,contextClone(styleClipboard)));}
   async function restoreOriginal(){await mutate(async item=>{item.src=item.original=item.sourceOriginal||item.original||item.src;item.removeWhite=false;delete item.imageCrop;delete item.crop;const image=await loadGraphic(item.src);item.imageCrop={x:0,y:0,width:1,height:1};item.height=item.width*image.height/image.width;});}
 
@@ -173,7 +281,7 @@
   for(const id of ['graphicPhotoTools','lockGraphic','graphicList','manualBackground'])if($(id))legacy.append($(id));
   graphicsDialog.querySelectorAll('p,.graphicFields').forEach(node=>legacy.append(node));
   graphicsDialog.querySelectorAll('.graphicActions').forEach(node=>{if(!node.querySelector('#importGraphic'))legacy.append(node);});
-  graphicsDialog.querySelector('h3').firstChild.textContent='Thành phần ';artExtra.textContent='Ảnh: chọn trực tiếp trên canvas để mở thanh công cụ ảnh.';
+  graphicsDialog.querySelector('h3').firstChild.textContent='Thành phần ';
   $('graphicWhite').onchange=()=>{const enabled=$('graphicWhite').checked;return mutate(async item=>{item.sourceOriginal ||= item.original||item.src;item.removeWhite=enabled;await applyGraphicBackground(item);});};
   for(const id of ['graphicBackground','graphicTolerance'])$(id).onchange=()=>{const color=$('graphicBackground').value,tolerance=clamp(Number($('graphicTolerance').value)||0,0,150);return mutate(async item=>{item.sourceOriginal ||= item.original||item.src;item.backgroundColor=color;item.tolerance=tolerance;await applyGraphicBackground(item);});};
   let sampling=false;
@@ -200,7 +308,7 @@
   const change=changeGraphic;changeGraphic=async function(...args){if(contextSelectionLocked())return;return change(...args);};
   const move=moveObjectLayer;moveObjectLayer=async function(delta,...args){if(contextSelectionLocked())return;if(Math.abs(delta)>=1000){const t=layerTarget();return move(delta>0?t.items.length-1-t.index:-t.index,...args);}return move(delta,...args);};
   const restore=$('studioRestoreImage').onclick;$('studioRestoreImage').onclick=async function(...args){const result=await restore(...args);const item=selectedGraphic();if(item&&canEdit(item)&&item.imageCrop)await mutate(i=>delete i.imageCrop);return result;};
-  window.TemImageTools={defaults,mutate,worldGeometry,cover,imagePixels,openPanel,startCrop,applyCrop,cancelCrop,restoreOriginal,copyStyle,pasteStyle,get crop(){return crop},get idle(){return queue},sync:syncBar};
+  window.TemImageTools={defaults,mutate,worldGeometry,cover,imagePixels,openPanel,startCrop,applyCrop,cancelCrop,restoreOriginal,copyStyle,pasteStyle,get crop(){return crop},get pending(){return queue},get idle(){return finishTint()},sync:syncBar};
   syncGraphicControls();
 })();
 
@@ -221,33 +329,37 @@
     finally{layout=originalLayout;paintLayerStack=originalStack;}
     const add=(c,left,top,width,height)=>{Object.assign(c.style,{left:left+'px',top:top+'px',width:width+'px',height:height+'px'});root.append(c);return c;};
     add(background,0,0,L.width*sx,L.height*sy);
-    live={root,L,sx,sy,nodes:[],owner:activeLabelId};
+    live={root,L,sx,sy,nodes:[],owner:activeLabelId,selected:new Set((graphicDrag.group||[graphicDrag.original]).map(i=>i.id)),saveHeld:true};
+    clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();
     for(const unit of orderedLayerUnits(L)){
       if(unit.kind==='graphic'){const c=document.createElement('canvas');root.append(c);live.nodes.push({unit,c});}
       else{const c=cv($('canvas').width,$('canvas').height);paintLayerUnit(c.getContext('2d'),L,c.width/L.width,unit);add(c,0,0,L.width*sx,L.height*sy);}
     }
-    surface.classList.add('liveGraphicActive');$('canvas').style.visibility='hidden';paint();
+    surface.classList.add('liveGraphicActive');$('canvas').style.visibility='hidden';paint(true);
   }
-  function paint(){
+  function paint(initial=false){
     if(!live)return;
+    window.TemPerformance?.frame();
     const {L,sx,sy}=live,dpr=Math.min(2,devicePixelRatio||1);
     window.TEMHOA_LIVE_DRAW=true;
     try{for(const {unit,c} of live.nodes){
+      if(!initial&&!live.selected.has(unit.item.id))continue;
       const raw=decorations.find(i=>i.id===unit.item.id);if(!raw)continue;
-      const item={...raw,x:raw.x+(L.graphicOffsetX??L.offsetX??0),y:raw.y+(L.graphicOffsetY??L.offsetY??0)},b=graphicBounds(item),pad=2;
+      const item={...raw,x:raw.x+(L.graphicOffsetX??L.offsetX??0),y:raw.y+(L.graphicOffsetY??L.offsetY??0)},b=graphicBounds(item),pad=2+((item.strokeWidth||0)/2+(item.shadowOpacity?2*(item.shadowBlur||0)+Math.abs(item.shadowX||0)+Math.abs(item.shadowY||0):0))*Math.max(sx,sy);
       const w=Math.max(1,b.width*sx+pad*2),h=Math.max(1,b.height*sy+pad*2);
-      c.width=Math.ceil(w*dpr);c.height=Math.ceil(h*dpr);
+      const width=Math.ceil(w*dpr),height=Math.ceil(h*dpr);if(c.width!==width||c.height!==height){c.width=width;c.height=height;}
       Object.assign(c.style,{left:(b.x*sx-pad)+'px',top:(b.y*sy-pad)+'px',width:w+'px',height:h+'px'});
-      const ctx=c.getContext('2d');ctx.scale(dpr,dpr);ctx.translate(pad,pad);ctx.scale(sx,sy);ctx.translate(-b.x,-b.y);drawGraphic(ctx,item);
+      const ctx=c.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);ctx.scale(dpr,dpr);ctx.translate(pad,pad);ctx.scale(sx,sy);ctx.translate(-b.x,-b.y);drawGraphic(ctx,item);
     }}finally{window.TEMHOA_LIVE_DRAW=false;}
   }
   function draw(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;paint();});}
-  function clear(){cancelAnimationFrame(frame);frame=0;live?.root.remove();live=null;surface.classList.remove('liveGraphicActive');$('canvas').style.visibility='';window.TEMHOA_INTERACTION_VIEWPORT=null;}
+  function release(){if(live?.saveHeld){live.saveHeld=false;autoSuspended--;colorSaveGate.leave();}}
+  function clear(){cancelAnimationFrame(frame);frame=0;release();live?.root.remove();live=null;surface.classList.remove('liveGraphicActive');$('canvas').style.visibility='';window.TEMHOA_INTERACTION_VIEWPORT=null;}
   const previous=preview;
   preview=async function(...args){
     if(live&&graphicDrag){draw();return;}
     const finishing=!!live;
-    try{return await previous(...args);}
+    release();try{return await previous(...args);}
     finally{if(finishing){const stage=$('previewStage'),before=stage.getBoundingClientRect();clear();viewport();zoom();const after=stage.getBoundingClientRect();preservePreviewOrigin(area,$('previewBounds'),area.scrollLeft+after.left-before.left,area.scrollTop+after.top-before.top);window.TEMHOA_INTERACTION_VIEWPORT=null;}}
   };
   window.addEventListener('pointerdown',e=>{
@@ -257,6 +369,7 @@
   function end(){queueMicrotask(()=>{if(!live){window.TEMHOA_INTERACTION_VIEWPORT=null;}});}
   window.addEventListener('pointerup',end,true);window.addEventListener('pointercancel',end,true);
   window.addEventListener('blur',()=>{if(live){graphicDrag=null;preview();}else window.TEMHOA_INTERACTION_VIEWPORT=null;});
+  window.addEventListener('pagehide',()=>{graphicDrag=null;clear();});
   window.addEventListener('resize',()=>{closeCaseMenu();});
   area.addEventListener('scroll',()=>{if(!$('caseMenu').hidden)closeCaseMenu();},{passive:true});
   window.TemLivePreview={startGraphic,draw,get active(){return !!live;}};
