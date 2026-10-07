@@ -34,10 +34,13 @@ const assert=require('node:assert/strict');
   const individual=await page.evaluate(id=>{const item=decorations.find(x=>x.id===id),L=previewSize.L,sx=parseFloat(labelSurface.style.width)/L.width,sy=parseFloat(labelSurface.style.height)/L.height;return {w:item.width*sx,h:item.height*sy}},ids[0]);
   assert.ok(Math.abs(ob.width-individual.w)<3&&Math.abs(ob.height-individual.h)<3,'exact layer overlay must match one graphic, not the whole group');
 
+  await page.evaluate(()=>{window.__exactDragDebug={down:0,move:0};labelSurface.addEventListener('pointerdown',()=>window.__exactDragDebug.down++,true);labelSurface.addEventListener('pointermove',()=>window.__exactDragDebug.move++,true)});
   await page.mouse.move(ob.x+ob.width/2,ob.y+ob.height/2);await page.mouse.down();
   await page.mouse.move(ob.x+ob.width/2+80,ob.y+ob.height/2+35,{steps:8});await page.mouse.up();await page.waitForTimeout(180);
   const after=await page.evaluate(ids=>ids.map(id=>{const x=decorations.find(g=>g.id===id);return {x:x.x,y:x.y,groupId:x.groupId}}),ids);
-  assert.ok(after[0].x!==before[0].x||after[0].y!==before[0].y,'selected group member must move');
+  const debug=await page.evaluate(()=>({events:window.__exactDragDebug,selectedGraphicId,selected:[...selectedGraphicSet],editLayer:$('editLayer').value,drag:graphicDrag&&{id:graphicDrag.id,mode:graphicDrag.mode}}));
+  console.log('EXACT_DRAG_DEBUG '+JSON.stringify({before:before[0],after:after[0],debug}));
+  assert.ok(after[0].x!==before[0].x||after[0].y!==before[0].y,'selected group member must move: '+JSON.stringify(debug));
   assert.equal(after[1].x,before[1].x);assert.equal(after[1].y,before[1].y);
 
   await page.evaluate(async id=>{await selectLayerUnit(activeLabelId,id,false,false);await groupGraphics(true)},ids[0]);
