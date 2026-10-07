@@ -1108,7 +1108,7 @@ async function reorderLayerUnit(labelId,key,targetKey,after=false){
 }
 function renderLayersPanel(){
  if(!previewSize)return;
- const host=$('layersList'),scroll=layersPanel.scrollTop;host.replaceChildren();
+ const host=$('layersList'),scroll=host.scrollTop;host.replaceChildren();
  [...labels].reverse().forEach(label=>{
   const L=label.id===activeLabelId?previewSize.L:label.size?.L;if(!L)return;
   const section=document.createElement('section');section.className='layerSection';
@@ -1135,7 +1135,7 @@ function renderLayersPanel(){
    section.append(row);
   }
   host.append(section);
- });layersPanel.scrollTop=scroll;
+ });host.scrollTop=scroll;
 }
 const beforeUnitLayerMove=moveObjectLayer;
 moveObjectLayer=async function(delta,graphicOnly=false){
@@ -2160,8 +2160,8 @@ body.preciseLayerHover #selectionFrame .resizeHandle{opacity:1!important;pointer
 <style id="canvaWorkflow20261007">
 #marqueeSelectBox{position:fixed;z-index:190;pointer-events:none;border:1px solid #4967c9;background:#4967c91a}
 .canvasGuide{position:absolute;z-index:24;pointer-events:auto;background:#d24747;opacity:.8}
-.canvasGuide.vertical{width:1px;top:32px;bottom:0;cursor:ew-resize}
-.canvasGuide.horizontal{height:1px;left:32px;right:0;cursor:ns-resize}
+.canvasGuide.vertical{width:1px;top:0;bottom:0;cursor:ew-resize}
+.canvasGuide.horizontal{height:1px;left:0;right:0;cursor:ns-resize}
 .canvasGuide:hover{opacity:1;box-shadow:0 0 0 2px #d2474733}
 #printSafeZone{position:absolute;z-index:3;pointer-events:none;border:1px dashed #dc4a4a;display:none}
 body.showPrintSafeZone #printSafeZone{display:block}
