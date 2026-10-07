@@ -199,3 +199,9 @@ Chi tiết kiểm thử và giới hạn: [studio-upgrade-qa.md](docs/studio-upg
 Chọn một ảnh để dùng thanh ngang ngay dưới hàng điều hướng: chỉnh sáng/màu/blur, thay ảnh giữ khung, xóa nền, viền, bo góc/mask, crop trực tiếp, lật, độ mờ, vị trí và bóng đổ. Ở cửa sổ hẹp mở **Thêm**. **Chỉnh sửa → Khôi phục ảnh gốc** trả lại toàn ảnh; phần mở rộng có xóa nền theo màu. Ảnh khóa có **Mở khóa**. Chuyển động trình chiếu chưa hỗ trợ.
 
 Kết quả kiểm tra và giới hạn: [image-toolbar-qa.md](docs/image-toolbar-qa.md).
+
+### Dán và kéo thả trực tiếp
+
+Trong editor, dùng **⌘V trên Mac / Ctrl+V trên Windows** để dán ảnh PNG/JPG/WebP hoặc chữ từ clipboard máy tính. Có nút **Dán** trên thanh chính. Khi đang sửa chữ, dán văn bản vào vùng nhập hiện tại; trên canvas tạo khối chữ mới. **⌘C / Ctrl+C** và dán vẫn giữ đối tượng/nhóm nội bộ. Undo/redo và tự lưu giữ dữ liệu đã nhập.
+
+Kéo file ảnh từ Finder/Explorer hoặc kéo đoạn văn bản vào canvas; ảnh được chèn thành đối tượng có thể kéo, đổi cỡ, crop và xóa nền. File tối đa 12 MB, 40 triệu pixel. Ảnh liên kết web cần sao chép nội dung ảnh hoặc tải file trước. Nút Dán cần quyền clipboard của trình duyệt; nếu trình duyệt chặn nút, dùng phím tắt.

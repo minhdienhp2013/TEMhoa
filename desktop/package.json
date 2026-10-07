@@ -83,6 +83,10 @@
       {
         "from": "../image-tools.css",
         "to": "app/image-tools.css"
+      },
+      {
+        "from": "../clipboard-tools.js",
+        "to": "app/clipboard-tools.js"
       }
     ],
     "win": {
