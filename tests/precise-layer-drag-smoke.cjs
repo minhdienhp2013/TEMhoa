@@ -24,7 +24,10 @@ const assert=require('node:assert/strict');
   await page.evaluate(async ids=>{await selectLayerUnit(ids.a,'text-box',false,false)},ids);
   const selected=await page.evaluate(()=>selectedLabels().map(x=>x.id));
   assert.deepEqual(selected,[ids.a]);
-  const before=await page.evaluate(ids=>Object.fromEntries(labels.filter(x=>[ids.a,ids.b].includes(x.id)).map(x=>[x.id,{x:Number(x.settings.labelX),y:Number(x.settings.labelY)}])),ids);
+  const before=await page.evaluate(ids=>({
+    labels:Object.fromEntries(labels.filter(x=>[ids.a,ids.b].includes(x.id)).map(x=>[x.id,{x:Number(x.settings.labelX),y:Number(x.settings.labelY)}])),
+    transform:{...(readLayerStack().transforms?.['text-box']||{x:0,y:0,sx:1,sy:1})}
+  }),ids);
   const box=await page.locator('#labelSurface').boundingBox();
   assert.ok(box&&box.width>10&&box.height>10);
   await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
@@ -33,10 +36,13 @@ const assert=require('node:assert/strict');
   await page.mouse.move(box.x+box.width/2+70,box.y+box.height/2+35,{steps:4});
   await page.mouse.up();
   await page.waitForTimeout(180);
-  const after=await page.evaluate(ids=>Object.fromEntries(labels.filter(x=>[ids.a,ids.b].includes(x.id)).map(x=>[x.id,{x:Number(x.settings.labelX),y:Number(x.settings.labelY)}])),ids);
-  assert.ok(Math.abs(after[ids.a].x-before[ids.a].x)>.05||Math.abs(after[ids.a].y-before[ids.a].y)>.05,'chosen layer should move');
-  assert.equal(after[ids.b].x,before[ids.b].x);
-  assert.equal(after[ids.b].y,before[ids.b].y);
+  const after=await page.evaluate(ids=>({
+    labels:Object.fromEntries(labels.filter(x=>[ids.a,ids.b].includes(x.id)).map(x=>[x.id,{x:Number(x.settings.labelX),y:Number(x.settings.labelY)}])),
+    transform:{...(readLayerStack().transforms?.['text-box']||{x:0,y:0,sx:1,sy:1})}
+  }),ids);
+  assert.ok(Math.abs(after.transform.x-before.transform.x)>.05||Math.abs(after.transform.y-before.transform.y)>.05,'chosen text-box layer should move through its own transform');
+  assert.equal(after.labels[ids.b].x,before.labels[ids.b].x);
+  assert.equal(after.labels[ids.b].y,before.labels[ids.b].y);
   await page.mouse.move(5,5);
   assert.equal(await page.evaluate(()=>document.body.classList.contains('preciseLayerHover')),false);
   assert.deepEqual(errors,[]);
