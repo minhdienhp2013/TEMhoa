@@ -36,7 +36,7 @@ body{height:100dvh;overflow:hidden;padding-bottom:0;display:flex;flex-direction:
 <header class="wordTitle"><div><strong>Tem Hoa Minh Điến</strong><span>Soạn tem hoa</span></div><div class="quickActions"><button id="save" title="Lưu mẫu">Lưu mẫu</button><button id="load" title="Mở mẫu">Mở mẫu</button><button id="print" title="In đúng kích thước (Ctrl + P / Command + P)">🖨 In</button><button class="exportWord" id="word" title="Xuất Word · 600 DPI">Xuất Word</button><button id="png" title="Xuất ảnh PNG · 600 DPI">Ảnh PNG</button><button id="svg" title="Xuất vector SVG">Vector SVG</button><input id="template" type="file" accept=".json" hidden></div></header>
 <div class="wordTabs"><button id="tabHome" class="tabActive" type="button" aria-selected="true">Trang đầu</button><span class="documentName">Tem mới · Unicode · 600 DPI</span></div>
 <div class="wordRibbon" id="homeRibbon" role="toolbar" aria-label="Thanh công cụ định dạng">
- <div class="ribbonGroup fontGroup"><div class="ribbonRow"><select id="font" aria-label="Phông trên máy tính"><option value="">Phông hệ thống</option></select><input id="size" aria-label="Cỡ chữ" type="number" min="12" max="200" value="64" list="fontSizes"><datalist id="fontSizes"><option value="24"><option value="36"><option value="48"><option value="64"><option value="72"><option value="96"><option value="120"><option value="144"></datalist><button id="sizeUp" class="toolButton" title="Tăng cỡ chữ (Ctrl + ])" aria-label="Tăng cỡ chữ">A<span class="sup">＋</span></button><button id="sizeDown" class="toolButton" title="Giảm cỡ chữ (Ctrl + [)" aria-label="Giảm cỡ chữ">A<span class="sup">−</span></button></div><div class="ribbonRow"><label class="styleToggle" title="In đậm (Ctrl + B)"><input id="bold" type="checkbox" checked><span><b>B</b></span></label><label class="styleToggle" title="In nghiêng (Ctrl + I)"><input id="italic" type="checkbox"><span><i>I</i></span></label><label class="styleToggle" title="Gạch chân (Ctrl + U)"><input id="underline" type="checkbox"><span><u>U</u></span></label><div class="casePicker"><button id="caseButton" class="toolButton" type="button" title="Đổi chữ hoa/thường" aria-label="Đổi chữ hoa/thường" aria-haspopup="menu" aria-expanded="false">Aa ▾</button><div id="caseMenu" class="caseMenu" role="menu" aria-label="Đổi chữ hoa/thường" hidden><button type="button" role="menuitem" data-case="sentence">Viết hoa đầu câu</button><button type="button" role="menuitem" data-case="lower">chữ thường</button><button type="button" role="menuitem" data-case="upper">CHỮ HOA</button><button type="button" role="menuitem" data-case="title">Viết Hoa Từng Từ</button><button type="button" role="menuitem" data-case="toggle">đẢO cHỮ hOA/tHƯỜNG</button></div></div><input id="customFont" type="text" placeholder="Tên phông trên máy" hidden></div><div class="ribbonRow"><label for="inputEncoding">Bảng mã bộ gõ</label><select id="inputEncoding" style="width:175px"><option value="unicode">Unicode</option><option value="tcvn3">TCVN3 (ABC)</option></select></div><div class="ribbonCaption">Phông chữ · chữ bôi đen / toàn bộ</div></div>
+ <div class="ribbonGroup fontGroup"><div class="ribbonRow"><select id="font" aria-label="Phông trên máy tính"><option value="">Phông hệ thống</option></select><input id="size" aria-label="Cỡ chữ" type="number" min="6" max="800" step="1" value="64" list="fontSizes"><datalist id="fontSizes"><option value="24"><option value="36"><option value="48"><option value="64"><option value="72"><option value="96"><option value="120"><option value="144"></datalist><button id="sizeUp" class="toolButton" title="Tăng cỡ chữ (Ctrl + ])" aria-label="Tăng cỡ chữ">A<span class="sup">＋</span></button><button id="sizeDown" class="toolButton" title="Giảm cỡ chữ (Ctrl + [)" aria-label="Giảm cỡ chữ">A<span class="sup">−</span></button></div><div class="ribbonRow"><label class="styleToggle" title="In đậm (Ctrl + B)"><input id="bold" type="checkbox" checked><span><b>B</b></span></label><label class="styleToggle" title="In nghiêng (Ctrl + I)"><input id="italic" type="checkbox"><span><i>I</i></span></label><label class="styleToggle" title="Gạch chân (Ctrl + U)"><input id="underline" type="checkbox"><span><u>U</u></span></label><div class="casePicker"><button id="caseButton" class="toolButton" type="button" title="Đổi chữ hoa/thường" aria-label="Đổi chữ hoa/thường" aria-haspopup="menu" aria-expanded="false">Aa ▾</button><div id="caseMenu" class="caseMenu" role="menu" aria-label="Đổi chữ hoa/thường" hidden><button type="button" role="menuitem" data-case="sentence">Viết hoa đầu câu</button><button type="button" role="menuitem" data-case="lower">chữ thường</button><button type="button" role="menuitem" data-case="upper">CHỮ HOA</button><button type="button" role="menuitem" data-case="title">Viết Hoa Từng Từ</button><button type="button" role="menuitem" data-case="toggle">đẢO cHỮ hOA/tHƯỜNG</button></div></div><input id="customFont" type="text" placeholder="Tên phông trên máy" hidden></div><div class="ribbonRow"><label for="inputEncoding">Bảng mã bộ gõ</label><select id="inputEncoding" style="width:175px"><option value="unicode">Unicode</option><option value="tcvn3">TCVN3 (ABC)</option></select></div><div class="ribbonCaption">Phông chữ · chữ bôi đen / toàn bộ</div></div>
  <div class="ribbonGroup"><div class="ribbonRow alignTools"><button data-align="left" class="toolButton" title="Căn trái" aria-label="Căn trái"><span class="alignGlyph leftGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="center" class="toolButton" title="Căn giữa" aria-label="Căn giữa"><span class="alignGlyph centerGlyph"><i></i><i></i><i></i><i></i></span></button><button data-align="right" class="toolButton" title="Căn phải" aria-label="Căn phải"><span class="alignGlyph rightGlyph"><i></i><i></i><i></i><i></i></span></button><select id="align" hidden><option value="center">Giữa</option><option value="left">Trái</option><option value="right">Phải</option></select></div><div class="ribbonRow"><label for="spacing">Giãn dòng</label><input id="spacing" type="number" min="0" max="2" step="0.05" value="0.8"></div><div class="ribbonRow"><label for="curveAmount">Chữ cong</label><input id="curveAmount" type="number" min="-360" max="360" step="5" value="0" title="Độ cong: 0° là chữ thẳng; 40° là cong mặc định; 360° tạo vòng tròn; số âm cong ngược"></div><div class="ribbonRow"><select id="curveLine" hidden aria-label="Dòng chữ cong (mẫu cũ)"><option value="0" selected>Tất cả dòng</option><option value="1">Dòng đầu</option><option value="2">Dòng thứ 2</option><option value="3">Dòng thứ 3</option></select><button id="curveRainbow" class="smallButton" aria-pressed="false">⌒ Chữ cong</button></div><div class="ribbonCaption">Đoạn văn</div></div>
 <div class="ribbonGroup colorGroup"><div class="row"><div><label for="fill">Màu chữ</label><input id="fill" type="color" value="#ff0000"></div><div><label for="body">Màu nền mây</label><input id="body" type="color" value="#ffffff" hidden></div></div><div class="row"><div><label for="padding">Độ bo viền</label><input id="padding" type="number" min="4" max="90" value="40"></div><div><label for="border">Dày viền</label><input id="border" type="number" min="0" max="20" step="0.1" value="0.3"></div></div><label for="edge">Màu viền</label><input id="edge" type="color" value="#ec4c85"><div class="ribbonCaption">Màu sắc & viền mây</div></div><div class="ribbonGroup printGroup"><label for="width">Rộng tem (cm)</label><input id="width" type="number" min="3" max="27.7" step="0.1" value="27"><label for="page">Khổ giấy</label><select id="page"><option value="landscape">A4 ngang</option><option value="portrait">A4 dọc</option><option value="a3-landscape">A3 ngang</option><option value="a3-portrait">A3 dọc</option><option value="a5-landscape">A5 ngang</option></select><div class="ribbonCaption">Khổ thiết kế</div></div><div class="ribbonGroup dimensionsGroup"><div class="ribbonRow"><label for="temHeight">↕ Cao (cm)</label><input id="temHeight" type="number" min="0.01" step="0.1" aria-label="Chiều cao tem (cm)"></div><div class="ribbonRow"><label for="temWidth">↔ Rộng (cm)</label><input id="temWidth" type="number" min="0.01" step="0.1" aria-label="Chiều rộng tem (cm)"></div><input id="lockRatio" type="checkbox" hidden><button id="aspectLock" class="smallButton" type="button" aria-pressed="false" title="Bấm để khóa tỷ lệ">🔓 Tỷ lệ tự do</button><div class="ribbonCaption">Kích cỡ tem</div></div></div>
 <div id="lineFonts" hidden></div>
@@ -61,7 +61,7 @@ let defaultTextStyle={size:64,bold:true,italic:false,underline:false},history=[]
 
 function syncAlign(){document.querySelectorAll('[data-align]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.align===$('align').value)))}
 document.querySelectorAll('[data-align]').forEach(button=>button.onclick=()=>{$('align').value=button.dataset.align;preview()});
-function adjustSize(delta){$('size').value=Math.max(12,Math.min(200,number('size',12,200)+delta));applyToolbar('size')}
+function adjustSize(delta){$('size').value=Math.max(6,Math.min(800,number('size',6,800)+delta));applyToolbar('size')}
 $('sizeUp').onclick=()=>adjustSize(4);$('sizeDown').onclick=()=>adjustSize(-4);
 $('zoomOut').onclick=()=>{$('zoom').value=Math.max(30,+$('zoom').value-10);zoom()};$('zoomIn').onclick=()=>{$('zoom').value=Math.min(150,+$('zoom').value+10);zoom()};
 
@@ -193,7 +193,7 @@ function rangeOffsets(root,offsets){let nodes=textNodes(root),r=document.createR
 function formatOffsets(root,offsets,style,family){if(!offsets||offsets.start===offsets.end)return;let count=0;for(let n of textNodes(root)){let start=Math.max(0,offsets.start-count),end=Math.min(n.length,offsets.end-count),len=n.length;count+=len;if(start>=end)continue;let target=n;if(end<len)n.splitText(end);if(start>0)target=n.splitText(start);let span=document.createElement('span');Object.assign(span.style,style);if(family)span.dataset.family=family;target.replaceWith(span);span.append(target)}}
 function applyToolbar(id){
  let offsets=selectionOffsets(),selected=offsets&&offsets.start!==offsets.end,style={},value;
- if(id==='font'){value=$('font').value;style.fontFamily=cssFamily(computerFamily(value))}else if(id==='size'){value=number('size',12,200);style.fontSize=value*96/72+'px'}else{value=$(id).checked;style[id==='bold'?'fontWeight':id==='italic'?'fontStyle':'textDecoration']=id==='bold'?(value?'700':'400'):id==='italic'?(value?'italic':'normal'):(value?'underline':'none')}
+ if(id==='font'){value=$('font').value;style.fontFamily=cssFamily(computerFamily(value))}else if(id==='size'){value=number('size',6,800);style.fontSize=value*96/72+'px'}else{value=$(id).checked;style[id==='bold'?'fontWeight':id==='italic'?'fontStyle':'textDecoration']=id==='bold'?(value?'700':'400'):id==='italic'?(value?'italic':'normal'):(value?'underline':'none')}
  if(selected){let oldFamily=$('temEditor').dataset.baseFamily;if(id==='font'&&oldFamily)$('font').value=oldFamily;formatOffsets($('temEditor'),offsets,style,id==='font'?value:null);savedSelection=rangeOffsets($('temEditor'),offsets);$('temEditor').focus({preventScroll:true});let sel=window.getSelection();sel.removeAllRanges();sel.addRange(savedSelection)}else{if(id==='font'){lineStyles=lineStyles.map(()=>({choice:'',custom:''}));$('temEditor').querySelectorAll('[data-family]').forEach(n=>{delete n.dataset.family;n.style.fontFamily=''})}else{defaultTextStyle[id]=value;let property=Object.keys(style)[0];$('temEditor').querySelectorAll('span').forEach(n=>n.style[property]='')}}
  updateFontPicker($('font'));$('text').value=editorText();recordHistory();lineControls();preview();
 }
@@ -232,7 +232,7 @@ function initEditor(){let e=$('temEditor');e.innerHTML=plainHTML('Công ty Hòa 
   if(composing||event.isComposing||event.altKey||!(event.ctrlKey||event.metaKey))return;
   const key=event.key.toLowerCase(),bracket=event.code==='BracketRight'||key===']'?1:event.code==='BracketLeft'||key==='['?-1:0,grow=event.shiftKey&&(event.code==='Period'||key==='>'),shrink=event.shiftKey&&(event.code==='Comma'||key==='<');
   if(bracket||grow||shrink){event.preventDefault();captureSelection();if(savedSelection&&!savedSelection.collapsed){let node=savedSelection.startContainer,element=node.nodeType===Node.TEXT_NODE?node.parentElement:node;$('size').value=parseFloat(getComputedStyle(element).fontSize)*.75}else $('size').value=defaultTextStyle.size;
-   if(bracket)adjustSize(bracket);else{const steps=[12,14,16,18,20,22,24,26,28,36,48,64,72,96,120,144,168,200],current=number('size',12,200);$('size').value=grow?(steps.find(n=>n>current)||200):([...steps].reverse().find(n=>n<current)||12);applyToolbar('size')}
+   if(bracket)adjustSize(bracket);else{const steps=[6,8,10,12,14,16,18,20,22,24,26,28,36,48,64,72,96,120,144,168,200,240,300,360,480,600,800],current=number('size',6,800);$('size').value=grow?(steps.find(n=>n>current)||800):([...steps].reverse().find(n=>n<current)||6);applyToolbar('size')}
   }else if(key==='z'){event.preventDefault();restoreHistory(event.shiftKey?1:-1)}else if(key==='y'){event.preventDefault();restoreHistory(1)}else if(['b','i','u'].includes(key)){event.preventDefault();captureSelection();let id={b:'bold',i:'italic',u:'underline'}[key];$(id).checked=!$(id).checked;applyToolbar(id)}
  });
  for(let id of ['sizeUp','sizeDown'])$(id).addEventListener('mousedown',event=>{captureSelection();event.preventDefault()});
@@ -439,7 +439,7 @@ async function word(){let {png,cm,heightCm}=await exportPNG(),paper=activeOutput
  'word/document.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:wrapNone/><wp:docPr id="1" name="Tem hoa"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="tem.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImage"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p><w:sectPr><w:pgSz w:w="${Math.round(paper.width/2.54*1440)}" w:h="${Math.round(paper.height/2.54*1440)}"${land?' w:orient="landscape"':''}/><w:pgMar w:top="0" w:right="0" w:bottom="0" w:left="0" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>`};download(zip(files),'Tem-Hoa-Minh-Dien.docx');
 }
 async function action(fn,message){closeFontPicker();$('status').textContent='Đang tạo tệp…';try{await ensureDocumentFonts();await fn();$('status').textContent=message}catch(e){$('status').textContent=e.message}}
-ids.forEach(id=>$(id).addEventListener(id==='size'?'change':'input',()=>{if(id==='curveAmount')return;if(['font','size','bold','italic','underline'].includes(id)){applyToolbar(id);return}if(id==='page')syncPaperWidth();clearTimeout(timer);timer=setTimeout(preview,100)}));$('zoom').oninput=zoom;
+ids.forEach(id=>$(id).addEventListener('input',()=>{if(id==='curveAmount')return;if(['font','size','bold','italic','underline'].includes(id)){applyToolbar(id);return}if(id==='page')syncPaperWidth();clearTimeout(timer);timer=setTimeout(preview,100)}));$('zoom').oninput=zoom;
 $('png').onclick=()=>action(async()=>download(new Blob([(await exportPNG()).png],{type:'image/png'}),'Tem-Hoa-Minh-Dien.png'),'Đã tạo ảnh PNG. Kiểm tra thư mục Tải về.');$('word').onclick=()=>action(word,'Đã tạo Word. Kiểm tra thư mục Tải về.');
 let currentTemplateName='';
 async function templateAPI(query='',payload){
@@ -2311,6 +2311,60 @@ body.showPrintSafeZone #printSafeZone{display:block}
    });
    return result;
  };
+})();
+</script>
+
+
+<style id="fontSizeSmooth20261007">
+#size{font-variant-numeric:tabular-nums}
+</style>
+<script>
+(()=> {
+ const sizeInput=$('size');if(!sizeInput)return;
+ let syncing=false;
+
+ function textLayerTransform(){
+   const key=activeUnitKey?.();
+   if(!(key==='text-box'||key?.startsWith?.('text-')))return null;
+   const stack=readLayerStack();
+   const t=stack.transforms?.[key]||{};
+   return {key,stack,sx:Number.isFinite(Number(t.sx))?Number(t.sx):1,sy:Number.isFinite(Number(t.sy))?Number(t.sy):1};
+ }
+ function basePointSize(){
+   // If a text selection has its own inline font size, report that; otherwise use the box base size.
+   const offsets=selectionOffsets?.(),selected=offsets&&offsets.start!==offsets.end;
+   if(selected&&savedSelection){
+     let node=savedSelection.startContainer;
+     if(node?.nodeType!==Node.TEXT_NODE)node=node?.childNodes?.[savedSelection.startOffset]||node;
+     const el=node?.nodeType===Node.TEXT_NODE?node.parentElement:node;
+     const px=parseFloat(el&&getComputedStyle(el).fontSize);
+     if(Number.isFinite(px))return px*.75;
+   }
+   return Number(defaultTextStyle.size)||Number(sizeInput.value)||64;
+ }
+ function syncEffectiveSize(){
+   if(syncing||designEditing)return;
+   const info=textLayerTransform();if(!info)return;
+   // Only a proportional resize maps cleanly to a font size.
+   if(Math.abs(info.sx-info.sy)>.02)return;
+   const effective=Math.max(6,Math.min(800,basePointSize()*((info.sx+info.sy)/2)));
+   const rounded=Math.round(effective*10)/10;
+   if(Math.abs(Number(sizeInput.value)-rounded)>.05){syncing=true;sizeInput.value=String(rounded);syncing=false}
+ }
+ const previousZoom=zoom;zoom=function(...args){const result=previousZoom(...args);syncEffectiveSize();return result};
+ const previousSelect=selectLayerUnit;selectLayerUnit=async function(...args){const result=await previousSelect(...args);syncEffectiveSize();return result};
+ const previousSync=syncGraphicControls;syncGraphicControls=function(...args){const result=previousSync(...args);syncEffectiveSize();return result};
+
+ // While a proportional text resize is happening, keep the displayed size in sync frame-by-frame.
+ const stage=$('previewStage');
+ stage?.addEventListener('pointermove',event=>{
+   if(!$('labelSurface')?.classList.contains('resizing'))return;
+   requestAnimationFrame(syncEffectiveSize);
+ },{passive:true});
+ stage?.addEventListener('pointerup',()=>requestAnimationFrame(syncEffectiveSize),true);
+
+ // Prevent an old saved text selection from unexpectedly taking over the whole-box size control.
+ sizeInput.addEventListener('pointerdown',()=>{if(!designEditing&&activeUnitKey?.()==='text-box')savedSelection=null},true);
 })();
 </script>
 
