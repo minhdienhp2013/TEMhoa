@@ -1171,14 +1171,19 @@ $('designDuplicate').onclick=()=>duplicateLabel().catch(error=>$('status').textC
 $('designDelete').onclick=()=>deleteLabel().catch(error=>$('status').textContent=error.message);
 async function convertNormalText(){
  if(!isDesign()||designKind.value==='text')return;
- await preview();saveActiveLabel(true);const original=copyLabelData(oneLabelSettings()),root=document.createElement('div');root.innerHTML=original.richHTML||plainHTML(original.text||'');
- const blocks=[...root.children].filter(node=>node.textContent.trim());if(!blocks.length)return;
- if(labels.length+blocks.length>20)throw Error('Mẫu có quá nhiều dòng để tách: tối đa 20 khối trên trang.');
- const L=previewSize.L,g=labelGeometry(currentLabel()),unit=g.width/L.width;
- const pieces=blocks.map(block=>{const index=[...root.children].indexOf(block),runs=L.runs.filter(run=>run.layerKey==='text-'+index);return {html:block.outerHTML,index,x:runs.length?Math.min(...runs.map(r=>r.x)):0,y:runs.length?Math.min(...runs.map(r=>r.y-r.size*(r.scaleY||1))):0,width:runs.length?Math.max(...runs.map(r=>r.x+r.width))-Math.min(...runs.map(r=>r.x)):300}});
- recordHistory();$('temEditor').innerHTML='<div><br></div>';$('text').value='';designKind.value='design';await preview();saveActiveLabel(true);
- for(const piece of pieces){const scale=L.textScale||1,node=document.createElement('div');node.innerHTML=piece.html;for(const span of node.querySelectorAll('[style]'))if(span.style.fontSize)span.style.fontSize=parseFloat(span.style.fontSize)*scale+'px';const source={...original,size:Number(original.size)*scale,defaultTextStyle:{...original.defaultTextStyle,size:Number(original.defaultTextStyle?.size||original.size)*scale},lineStyles:[original.lineStyles?.[piece.index]||{}],font:original.lineStyles?.[piece.index]?.choice||original.font};await newDesignText(node.innerHTML,source,{x:g.x+piece.x*unit,y:g.y+piece.y*unit,width:Math.max(3,Math.min(previewPage().width-2,piece.width*unit+1))});const fresh=previewSize.L,newUnit=Number($('width').value)/fresh.width;if(fresh.runs.length){$('labelX').value=String(g.x+piece.x*unit-Math.min(...fresh.runs.map(r=>r.x))*newUnit);$('labelY').value=String(g.y+piece.y*unit-Math.min(...fresh.runs.map(r=>r.y-r.size*(r.scaleY||1)))*newUnit);await preview();saveActiveLabel(true)}}
+ await preview();saveActiveLabel(true);
+ const original=copyLabelData(oneLabelSettings()),html=original.richHTML||plainHTML(original.text||''),plain=(new DOMParser().parseFromString('<body>'+html+'</body>','text/html').body.textContent||'').trim();
+ if(!plain)return;
+ const L=previewSize.L,g=labelGeometry(currentLabel()),unit=g.width/L.width,runs=L.runs||[];
+ const left=runs.length?Math.min(...runs.map(r=>r.x)):0,top=runs.length?Math.min(...runs.map(r=>r.y-r.size*(r.scaleY||1))):0,right=runs.length?Math.max(...runs.map(r=>r.x+r.width)):Math.max(300,L.width*.6);
+ const scale=L.textScale||1,source={...original,size:Number(original.size)*scale,defaultTextStyle:{...original.defaultTextStyle,size:Number(original.defaultTextStyle?.size||original.size)*scale},lineStyles:copyLabelData(original.lineStyles||[])};
+ recordHistory();
+ $('temEditor').innerHTML='<div><br></div>';$('text').value='';designKind.value='design';await preview();saveActiveLabel(true);
+ await newDesignText(html,source,{x:g.x+left*unit,y:g.y+top*unit,width:Math.max(3,Math.min(previewPage().width-2,(right-left)*unit+1))});
+ const fresh=previewSize.L,newUnit=Number($('width').value)/fresh.width;
+ if(fresh.runs.length){$('labelX').value=String(g.x+left*unit-Math.min(...fresh.runs.map(r=>r.x))*newUnit);$('labelY').value=String(g.y+top*unit-Math.min(...fresh.runs.map(r=>r.y-r.size*(r.scaleY||1)))*newUnit);await preview();saveActiveLabel(true)}
  designEditing=false;await preview();recordHistory();
+ $('status').textContent='Khối chữ nhiều dòng được giữ trong một layer.';
 }
 const designApplyTemplate=applyTemplate;applyTemplate=async function(template){designEditing=false;await designApplyTemplate(template);if(isDesign()&&designKind.value!=='text')await convertNormalText();zoom()};
 $('previewArea').addEventListener('pointerdown',async event=>{
