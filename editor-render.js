@@ -61,9 +61,48 @@
       right = Math.max(right, rect.right);
       bottom = Math.max(bottom, rect.bottom);
     }
+    // Graphics live in the same local coordinates as the text. Account for them
+    // before shifting the origin so an image near the opposite edge cannot clip.
+    for (const g of layout.graphics || []) {
+      if (![g.x, g.y, g.width, g.height].every(v => Number.isFinite(Number(v)))) continue;
+      const gx = Number(g.x), gy = Number(g.y);
+      const hw = Math.abs(Number(g.width)) / 2, hh = Math.abs(Number(g.height)) / 2;
+      const theta = finite(g.angle, 0) * Math.PI / 180, cos = Math.cos(theta), sin = Math.sin(theta);
+      for (const [cx, cy] of [[-hw,-hh],[hw,-hh],[-hw,hh],[hw,hh]]) {
+        const px = gx + cx * cos - cy * sin, py = gy + cx * sin + cy * cos;
+        left = Math.min(left, px); top = Math.min(top, py);
+        right = Math.max(right, px); bottom = Math.max(bottom, py);
+      }
+    }
     if (!Number.isFinite(left)) return layout;
-    // Pixels near the bitmap edge can be removed by antialiasing/raster rounding.
+    // The host maps layout.width to a fixed physical width. Never silently grow
+    // that width when installed in the production editor: doing so shrinks text
+    // on the printed page. Move only when the original logical content is inside
+    // the page and its actual ink fits after a small origin adjustment.
     const inset = Math.max(MIN_SAFE_INSET, finite(effects.safeInset, MIN_SAFE_INSET));
+    if (effects.preserveCanvas) {
+      const w = finite(layout.width, 0), h = finite(layout.height, 0);
+      const inside = layout.runs.every(run =>
+        finite(run.x, -Infinity) >= 0 && finite(run.x, Infinity) + finite(run.width, 0) <= w &&
+        finite(run.y, -Infinity) >= 0 && finite(run.y, Infinity) <= h);
+      if (!inside) return layout; // User deliberately placed text across page boundary.
+      const minX = inset - left, maxX = w - inset - right;
+      const minY = inset - top, maxY = h - inset - bottom;
+      if (minX > maxX || minY > maxY) return layout; // Needs a host-level page-size decision.
+      const dx = Math.max(minX, Math.min(0, maxX));
+      const dy = Math.max(minY, Math.min(0, maxY));
+      if (!dx && !dy) return layout;
+      const move = item => ({...item, x:finite(item.x,0)+dx, y:finite(item.y,0)+dy});
+      return {
+        ...layout, runs:layout.runs.map(move),
+        graphics:Array.isArray(layout.graphics) ? layout.graphics.map(move) : layout.graphics,
+        offsetX:finite(layout.offsetX,0)+dx, offsetY:finite(layout.offsetY,0)+dy,
+        graphicOffsetX:finite(layout.graphicOffsetX,finite(layout.offsetX,0))+dx,
+        graphicOffsetY:finite(layout.graphicOffsetY,finite(layout.offsetY,0))+dy,
+        inkPadding:{left:dx,top:dy,right:0,bottom:0}
+      };
+    }
+    // Pixels near the bitmap edge can be removed by antialiasing/raster rounding.
     const addLeft = Math.max(0, Math.ceil(inset - left));
     const addTop = Math.max(0, Math.ceil(inset - top));
     const addRight = Math.max(0, Math.ceil(right + inset - finite(layout.width, 0)));
@@ -79,10 +118,10 @@
       ...layout, width, height,
       runs: layout.runs.map(move),
       graphics: Array.isArray(layout.graphics) ? layout.graphics.map(move) : layout.graphics,
-      offsetX: finite(layout.offsetX, 0) - addLeft,
-      offsetY: finite(layout.offsetY, 0) - addTop,
-      graphicOffsetX: finite(layout.graphicOffsetX, finite(layout.offsetX, 0)) - addLeft,
-      graphicOffsetY: finite(layout.graphicOffsetY, finite(layout.offsetY, 0)) - addTop,
+      offsetX: finite(layout.offsetX, 0) + addLeft,
+      offsetY: finite(layout.offsetY, 0) + addTop,
+      graphicOffsetX: finite(layout.graphicOffsetX, finite(layout.offsetX, 0)) + addLeft,
+      graphicOffsetY: finite(layout.graphicOffsetY, finite(layout.offsetY, 0)) + addTop,
       inkPadding: {left: addLeft, top: addTop, right: addRight, bottom: addBottom}
     };
   }
@@ -98,7 +137,7 @@
     const context = target.document.createElement('canvas').getContext('2d');
     const guarded = function (...args) {
       const result = previous.apply(this, args);
-      return context ? protectLayout(context, result) : result;
+      return context ? protectLayout(context, result, {preserveCanvas:true}) : result;
     };
     guarded.temhoaInkBoundsGuard = true;
     target.layout = guarded;
