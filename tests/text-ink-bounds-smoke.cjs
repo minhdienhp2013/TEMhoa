@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require('playwright');
 (async () => {
-  const browser = await chromium.launch({headless:true});
+  const browser = await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.TEMHOA_CHROMIUM ? {executablePath:process.env.TEMHOA_CHROMIUM} : {})});
   try {
     const page = await browser.newPage();
-    await page.goto('file://' + path.resolve(__dirname,'../editor-render.js').replace(/editor-render\.js$/,'TemHoa-MinhDien.html'));
+    await page.goto('about:blank');
     await page.addScriptTag({path:path.resolve(__dirname,'../editor-render.js')});
     const result = await page.evaluate(() => {
       const api=window.TEMHOA_TEXT_INK;
