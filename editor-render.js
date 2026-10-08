@@ -94,11 +94,11 @@
     if (typeof target.layout !== 'function' || !target.document) return false;
     if (target.layout.temhoaInkBoundsGuard) return true;
     const previous = target.layout;
+    // One tiny measurement context per editor; never allocate a canvas per preview.
+    const context = target.document.createElement('canvas').getContext('2d');
     const guarded = function (...args) {
       const result = previous.apply(this, args);
-      const canvas = target.document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      return ctx ? protectLayout(ctx, result) : result;
+      return context ? protectLayout(context, result) : result;
     };
     guarded.temhoaInkBoundsGuard = true;
     target.layout = guarded;
@@ -107,4 +107,11 @@
   const api = {inkBounds, protectLayout, install};
   root.TEMHOA_TEXT_INK = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  // Classic-script modules are loaded in order; wait until the final layout()
+  // wrapper from the host editor has been declared before instrumenting it.
+  if (root.document) {
+    if (root.document.readyState === 'loading') {
+      root.document.addEventListener('DOMContentLoaded', () => install(root), {once:true});
+    } else install(root);
+  }
 })(typeof window !== 'undefined' ? window : globalThis);
