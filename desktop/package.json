@@ -95,6 +95,62 @@
       {
         "from": "../color-tools.js",
         "to": "app/color-tools.js"
+      },
+      {
+        "from": "../editor-core.js",
+        "to": "app/editor-core.js"
+      },
+      {
+        "from": "../editor-render.js",
+        "to": "app/editor-render.js"
+      },
+      {
+        "from": "../editor-objects.js",
+        "to": "app/editor-objects.js"
+      },
+      {
+        "from": "../editor-documents.js",
+        "to": "app/editor-documents.js"
+      },
+      {
+        "from": "../editor-shell.js",
+        "to": "app/editor-shell.js"
+      },
+      {
+        "from": "../editor-topbar.js",
+        "to": "app/editor-topbar.js"
+      },
+      {
+        "from": "../editor-actions.js",
+        "to": "app/editor-actions.js"
+      },
+      {
+        "from": "../editor-text-transform.js",
+        "to": "app/editor-text-transform.js"
+      },
+      {
+        "from": "../editor-performance.js",
+        "to": "app/editor-performance.js"
+      },
+      {
+        "from": "../editor-selection-tools.js",
+        "to": "app/editor-selection-tools.js"
+      },
+      {
+        "from": "../editor-precise-selection.js",
+        "to": "app/editor-precise-selection.js"
+      },
+      {
+        "from": "../editor-canvas-interactions.js",
+        "to": "app/editor-canvas-interactions.js"
+      },
+      {
+        "from": "../editor-layer-scroll.js",
+        "to": "app/editor-layer-scroll.js"
+      },
+      {
+        "from": "../editor-font-size.js",
+        "to": "app/editor-font-size.js"
       }
     ],
     "win": {
