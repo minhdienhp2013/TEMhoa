@@ -10,10 +10,10 @@ const assert=require('node:assert/strict');
   await page.evaluate(async()=>{await createBlankDesign(false);await newDesignText('<div>FONT TEST</div>',null,{x:4,y:4,width:10});await selectLayerUnit(activeLabelId,'text-box',false,false);});
   const size=page.locator('#size');
   assert.equal(await size.getAttribute('max'),'800');
-  await size.fill('64');await size.dispatchEvent('input');await page.waitForTimeout(180);
+  await size.fill('64');await size.press('Enter');await size.blur();await page.waitForTimeout(180);
   const smallBox=await page.locator('#labelSurface').boundingBox();assert.ok(smallBox);
   await size.fill('320');
-  await size.dispatchEvent('input');
+  await size.press('Enter');await size.blur();
   await page.waitForTimeout(250);
   let state=await page.evaluate(()=>({input:Number($('size').value),base:Number(defaultTextStyle.size),run:previewSize?.L?.runs?.[0]?.size}));
   assert.equal(state.input,320);
@@ -25,7 +25,7 @@ const assert=require('node:assert/strict');
   state=await page.evaluate(()=>({input:Number($('size').value),base:Number(defaultTextStyle.size)}));
   assert.deepEqual(state,{input:320,base:320});
 
-  await size.fill('120');await size.dispatchEvent('input');await page.waitForTimeout(150);
+  await size.fill('120');await size.press('Enter');await size.blur();await page.waitForTimeout(150);
   await page.evaluate(()=>{
     const stack=readLayerStack();stack.transforms={...(stack.transforms||{}),'text-box':{x:0,y:0,sx:1.5,sy:1.5}};$('layerStack').value=JSON.stringify(stack);zoom();
   });
