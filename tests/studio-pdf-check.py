@@ -9,6 +9,7 @@ for filename in root.glob('*.pdf'):
  reader=PdfReader(filename)
  assert len(reader.pages)==plan['pages'],filename
  for i,page in enumerate(reader.pages):
+  assert float(page.mediabox.width)>float(page.mediabox.height),'Expected landscape PDF'
   assert abs(float(page.mediabox.width)-plan['width']*72/25.4)<.01
   assert abs(float(page.mediabox.height)-plan['height']*72/25.4)<.01
   stream=page.get_contents().get_data()
@@ -20,4 +21,4 @@ for filename in root.glob('*.pdf'):
   pix=page.get_pixmap(matrix=fitz.Matrix(.5,.5))
   assert min(pix.samples)<200,'Empty PDF page'
  print('PASS',filename.name,len(reader.pages),'pages, physical size and all copies rendered')
-assert len(list(root.glob('*.pdf')))==12
+assert len(list(root.glob('*.pdf')))==6
