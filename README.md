@@ -178,7 +178,7 @@ Kho 60 mẫu tự tạo theo chủ đề đã được gỡ bỏ. Trang chủ ch
 
 ## Khổ thiết kế và khổ in/xuất độc lập
 
-Khổ giấy trên màn hình là khổ thiết kế. Bấm In hoặc PNG/SVG/Word mới chọn khổ đích A5/A4/A3; chiều ngang/dọc theo trang thiết kế. Toàn bộ đối tượng được đổi tỷ lệ cùng trang, giữ bố cục và không sửa dữ liệu thiết kế. PNG giữ nền ngoài thiết kế trong suốt; Word xuất ảnh đầy đủ chiều cao trang, bỏ chế độ 50% cũ. DPI mặc định 300; 600 DPI chỉ dùng khi không vượt giới hạn 40 triệu pixel.
+Khổ giấy trên màn hình là khổ thiết kế. Bấm In hoặc PNG/SVG/Word mới chọn khổ đích A5/A4/A3; đầu ra luôn theo chiều ngang, kể cả khi trang thiết kế đang dọc. Toàn bộ đối tượng được đổi tỷ lệ cùng trang, giữ bố cục và không sửa dữ liệu thiết kế. PNG giữ nền ngoài thiết kế trong suốt; Word xuất ảnh đầy đủ chiều cao trang, bỏ chế độ 50% cũ. PNG ghi đúng DPI đã chọn để phần mềm đọc ảnh nhận đúng kích thước in. DPI mặc định 300; 600 DPI chỉ dùng khi không vượt giới hạn 40 triệu pixel.
 
 Bảo vệ mép khi in là tùy chọn riêng, mặc định tắt. Bật có thể thu nhỏ thêm bố cục. Các khổ ISO có sai số do làm tròn kích thước mm; phép fit giữ tỷ lệ, không kéo méo hoặc cắt nội dung. In sát mép thực tế còn phụ thuộc lề phần cứng và Borderless của máy in. Trên Mac, hộp thoại hệ thống cần chọn cùng khổ, tỷ lệ 100%, không header/footer.
 
@@ -190,7 +190,7 @@ Trang chính có **Mẫu điền nhanh**. Nhập người nhận, lời chúc, n
 
 Giữ Shift để chọn các khối chữ/ảnh trên canvas hoặc panel Lớp rồi **Nhóm**. Nhóm có tay kéo, resize và nút xoay; khi bỏ nhóm, các khối vẫn giữ biến đổi. **Khôi phục ảnh gốc** giữ nguyên nguồn sau crop.
 
-**Xuất → PDF / Dàn tem…** chọn A5/A4/A3 ngang/dọc, xuất toàn trang hoặc dàn toàn bộ nội dung thành nhiều tem. Có chọn trang preview, lề, khoảng cách và dấu cắt. PDF dùng raster, mục tiêu 300 DPI, có báo độ phân giải thực tế; chưa hỗ trợ PDF vector/CMYK. Khổ editor được giữ nguyên.
+**Xuất → PDF / Dàn tem…** chọn A5/A4/A3 ngang, xuất toàn trang hoặc dàn toàn bộ nội dung thành nhiều tem. Có chọn trang preview, lề, khoảng cách và dấu cắt. PDF dùng raster, mục tiêu 300 DPI, có báo độ phân giải thực tế; chưa hỗ trợ PDF vector/CMYK. Khổ editor được giữ nguyên.
 
 Chi tiết kiểm thử và giới hạn: [studio-upgrade-qa.md](docs/studio-upgrade-qa.md). Trên Mac chạy `bash Mo-TemHoa-Mac.command`.
 

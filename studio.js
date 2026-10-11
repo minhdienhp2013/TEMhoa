@@ -310,7 +310,7 @@
   const paperLabel = el('label', {}, 'Khổ giấy'), paperSelect = el('select', {id:'studioPaper'});
   for (const p of ['A5','A4','A3']) paperSelect.add(new Option(p,p)); paperLabel.append(paperSelect); controls.append(paperLabel);
   const orientationLabel = el('label', {}, 'Chiều giấy'), orientation = el('select', {id:'studioOrientation'});
-  orientation.add(new Option('Ngang','landscape')); orientation.add(new Option('Dọc','portrait')); orientationLabel.append(orientation); controls.append(orientationLabel);
+  orientation.add(new Option('Ngang','landscape')); orientation.disabled=true; orientationLabel.append(orientation); controls.append(orientationLabel);
   const widthInput = field(controls, 'Rộng mỗi tem (mm)', 'studioLabelWidth', 'number', '100');
   widthInput.min='10'; widthInput.max='420'; widthInput.step='.1';
   const copiesInput = field(controls, 'Số lượng tem', 'studioCopies', 'number', '6'); copiesInput.min='1'; copiesInput.max='500';
@@ -318,12 +318,12 @@
   const gapInput = field(controls, 'Khoảng cách (mm)', 'studioGap', 'number', '4'); gapInput.min='0'; gapInput.step='.5';
   const marksInput = field(controls, 'Dấu cắt', 'studioMarks', 'checkbox'); marksInput.checked=false;
   const productionInfo = el('p', {class:'studioHint'}); production.append(productionInfo);
-  production.append(el('p', {class:'studioHint'}, 'PDF dùng ảnh 300 DPI, giữ đúng màu hiển thị. Khi in PDF chọn khổ giấy tương ứng và tỷ lệ 100%. Chưa có chuyển đổi CMYK hoặc PDF vector.'));
+  production.append(el('p', {class:'studioHint'}, 'PDF luôn dùng khổ ngang, giữ tỷ lệ bố cục; dùng ảnh 300 DPI, giữ đúng màu hiển thị. Khi in PDF chọn khổ giấy tương ứng và tỷ lệ 100%. Chưa có chuyển đổi CMYK hoặc PDF vector.'));
   const pageLabel=el('label',{},'Trang xem trước'),pagePicker=el('select',{id:'studioPreviewPage'});pageLabel.append(pagePicker);controls.append(pageLabel);pagePicker.oninput=updateProduction;
   let productionSource = null, productionCrop = null, productionBusy = false;
   const pdfButton = button('Tải PDF', exportPDF, {id:'studioExportPDF', class:'primary'}); production.append(pdfButton);
   const productionMessage = feedback(production);
-  function targetPaper() {const p=outputPapers[paperSelect.value]; return orientation.value==='landscape'?{width:p.height*10,height:p.width*10}:{width:p.width*10,height:p.height*10};}
+  function targetPaper() {const p=outputPaperDimensions(paperSelect.value);return {width:p.width*10,height:p.height*10};}
   function printPlan() {
     const paper=targetPaper();
     if (mode.value==='page') {
@@ -354,7 +354,7 @@
     if(!home.hidden)throw Error('Hãy mở thiết kế trước khi xuất.');
     await ensureDocumentFonts();productionSource=renderOutputPage(previewPage(),{dpi:70,white:false});
     const b=productionSource.printInk;productionCrop=cv(b.width,b.height);productionCrop.getContext('2d').drawImage(productionSource,b.x,b.y,b.width,b.height,0,0,b.width,b.height);
-    mode.value=pack?'pack':'page';paperSelect.value=sourcePaperName();orientation.value=previewPage().width>previewPage().height?'landscape':'portrait';
+    mode.value=pack?'pack':'page';paperSelect.value=sourcePaperName();orientation.value='landscape';
     updateProduction();production.showModal();
   }
   async function exportPDF(){
