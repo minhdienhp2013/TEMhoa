@@ -45,8 +45,6 @@ const assert=require('node:assert/strict');
   assert.equal(after.labels[ids.b].y,before.labels[ids.b].y);
 
   await page.evaluate(async ids=>{
-    window.__selectionTrace=[];
-    for(const name of ['add','delete','clear']){const original=selectedLayerUnits[name];selectedLayerUnits[name]=function(...args){window.__selectionTrace.push({name,args,stack:new Error().stack});return original.apply(this,args)}}
     await selectLayerUnit(ids.a,'text-box',false,false);
     await selectLayerUnit(ids.b,'text-box',true,false);
   },ids);
@@ -60,14 +58,13 @@ const assert=require('node:assert/strict');
   await page.waitForTimeout(180);
   const groupAfter=await page.evaluate(ids=>({
     labels:Object.fromEntries(labels.filter(x=>[ids.a,ids.b].includes(x.id)).map(x=>[x.id,{x:Number(x.settings.labelX),y:Number(x.settings.labelY)}])),
-    selected:[...selectedLayerUnits],trace:window.__selectionTrace
+    selected:[...selectedLayerUnits]
   }),ids);
   const deltaA={x:groupAfter.labels[ids.a].x-groupBefore[ids.a].x,y:groupAfter.labels[ids.a].y-groupBefore[ids.a].y};
   const deltaB={x:groupAfter.labels[ids.b].x-groupBefore[ids.b].x,y:groupAfter.labels[ids.b].y-groupBefore[ids.b].y};
   assert.ok(Math.abs(deltaA.x)>.05||Math.abs(deltaA.y)>.05,'first selected layer should move');
   assert.ok(Math.abs(deltaB.x)>.05||Math.abs(deltaB.y)>.05,'second selected layer should move');
   assert.ok(Math.abs(deltaA.x-deltaB.x)<.01&&Math.abs(deltaA.y-deltaB.y)<.01,'all selected layers should keep their spacing while moving');
-  if(groupAfter.selected.length!==2)console.log(JSON.stringify(groupAfter.trace,null,2));
   assert.deepEqual(groupAfter.selected.sort(),[JSON.stringify([ids.a,'text-box']),JSON.stringify([ids.b,'text-box'])].sort(),'multi-layer selection should remain active after moving');
 
   await page.evaluate(()=>selectedLayerUnits.clear());
