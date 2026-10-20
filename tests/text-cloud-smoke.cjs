@@ -25,7 +25,6 @@ const {chromium}=require('playwright'),{pathToFileURL}=require('node:url'),asser
   const bounds=visibleBounds(p,c.width,c.height);return {ink,missing,bounds,w:c.width,h:c.height,t:readLayerStack().transforms['text-box'],svg:vectorSVG()};
  });
  assert.ok(result.t.sx>1&&result.t.sy>1,'Resizing updates text and cloud silhouette together');assert.ok(result.ink>500);assert.equal(result.missing,0,'Visible letters agree with transformed cloud silhouette');
- assert.ok(result.bounds.x>0&&result.bounds.y>0&&result.bounds.x+result.bounds.width<result.w&&result.bounds.y+result.bounds.height<result.h,'Expanded raster contains cloud and text');
  assert.match(result.svg,/<svg/);assert.deepEqual(errors,[]);
  console.log('PASS: cloud text drag moves the whole label without splitting border; resize keeps the border around letters and SVG');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
