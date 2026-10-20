@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-save playwright
+      - run: npm install --no-save playwright @napi-rs/canvas
       - run: npx playwright install --with-deps chromium
       - uses: actions/setup-python@v5
         with:
@@ -26,6 +26,8 @@ jobs:
       - run: node tests/studio-core.cjs
       - run: node tests/design-smoke.cjs
       - run: node tests/curve-smoke.cjs
+      - run: node tests/text-cloud-geometry.cjs
+      - run: node tests/text-cloud-smoke.cjs
       - run: node tests/text-box-layer-smoke.cjs
       - run: node tests/precise-layer-drag-smoke.cjs
       - run: node tests/exact-group-layer-smoke.cjs
@@ -35,6 +37,7 @@ jobs:
       - run: node tests/text-resize-performance-smoke.cjs
       - run: node tests/delete-template-smoke.cjs
       - run: node tests/output-paper-smoke.cjs
+      - run: node tests/output-landscape-smoke.cjs
       - run: node tests/autosave-smoke.cjs
       - run: node tests/art-ui-smoke.cjs
         env:
