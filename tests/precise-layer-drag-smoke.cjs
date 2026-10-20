@@ -65,7 +65,7 @@ const assert=require('node:assert/strict');
   assert.ok(Math.abs(deltaA.x)>.05||Math.abs(deltaA.y)>.05,'first selected layer should move');
   assert.ok(Math.abs(deltaB.x)>.05||Math.abs(deltaB.y)>.05,'second selected layer should move');
   assert.ok(Math.abs(deltaA.x-deltaB.x)<.01&&Math.abs(deltaA.y-deltaB.y)<.01,'all selected layers should keep their spacing while moving');
-  assert.equal(groupAfter.selected.length,2,'multi-layer selection should remain active after moving');
+  assert.deepEqual(groupAfter.selected.sort(),[JSON.stringify([ids.a,'text-box']),JSON.stringify([ids.b,'text-box'])].sort(),'multi-layer selection should remain active after moving');
 
   await page.evaluate(()=>selectedLayerUnits.clear());
   const rows=page.locator('.layerRow');
