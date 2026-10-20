@@ -17,7 +17,7 @@ const {chromium}=require('playwright'),{pathToFileURL}=require('node:url'),asser
  assert.ok(secondMove.x>moved.x&&secondMove.y>moved.y);assert.equal(secondMove.canvas,moved.canvas,'Both move handles keep border and text linked');
  const reopened=await page.evaluate(async()=>{const saved=settings();await restoreLabelDocument(saved);return {x:labelGeometry(currentLabel()).x,y:labelGeometry(currentLabel()).y,canvas:$('canvas').toDataURL()};});
  assert.ok(Math.abs(reopened.x-secondMove.x)<.001&&Math.abs(reopened.y-secondMove.y)<.001);assert.equal(reopened.canvas,secondMove.canvas,'Save/restore preserves the linked cloud and text');
- await page.evaluate(async()=>{const stack=readLayerStack();stack.transforms['text-box'].sx=1.7;stack.transforms['text-box'].sy=1.7;$('layerStack').value=JSON.stringify(stack);await preview();});
+ await page.evaluate(async()=>{const stack=readLayerStack();stack.transforms={...stack.transforms,'text-box':{...(stack.transforms?.['text-box']||{}),sx:1.7,sy:1.7}};$('layerStack').value=JSON.stringify(stack);await preview();});
  const result=await page.evaluate(()=>{
   const c=$('canvas'),L=previewSize.L,s=c.width/L.width,mask=cv(c.width,c.height);drawText(mask.getContext('2d'),L,s,'#ffffff');
   const a=mask.getContext('2d').getImageData(0,0,c.width,c.height).data,p=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
