@@ -1147,7 +1147,68 @@ moveObjectLayer=async function(delta,graphicOnly=false){
 };
 const beforeUnitLayerButtons=syncLayerButtons;syncLayerButtons=function(){beforeUnitLayerButtons();const key=activeUnitKey(),L=previewSize?.L;if(!key||!L)return;const order=orderedLayerUnits(L).map(unit=>unit.key),index=order.indexOf(key);for(const prefix of ['layer','menuLayer']){$(prefix+'Up').disabled=layerBusy||index<0||index===order.length-1;$(prefix+'Down').disabled=layerBusy||index<=0}};
 const beforeUnitPanelZoom=zoom;zoom=function(){beforeUnitPanelZoom();renderLayersPanel()};
-$('previewArea').addEventListener('pointerdown',()=>selectedLayerUnits.clear(),true);
+let selectedLayerMove=null,selectedLayerMoveFrame=0;
+function selectedLayerPointerOwner(event){
+ const overlay=event.target.closest('.graphicOverlay');
+ if(overlay&&selectedLayerUnits.has(layerSelectionId(activeLabelId,overlay.dataset.graphicId)))return activeLabelId;
+ const node=event.target.closest('.otherLabel,#labelSurface');if(!node)return '';
+ const owner=node.dataset.labelId||activeLabelId;
+ return [...selectedLayerUnits].some(id=>JSON.parse(id)[0]===owner)?owner:'';
+}
+function selectedLayerMoveData(){
+ saveActiveLabel();
+ const chosen=[...selectedLayerUnits].map(id=>JSON.parse(id)).map(([owner,key])=>({owner,key,label:labels.find(label=>label.id===owner)})).filter(item=>item.label);
+ const labelOwners=new Set(chosen.filter(({label,key})=>(key==='text-box'||key.startsWith('text-'))&&['cloud','text'].includes(label.settings.designKind)).map(item=>item.owner));
+ const movedLabels=[...labelOwners].map(owner=>{const label=labels.find(item=>item.id===owner),g=labelGeometry(label);return {label,x:g.x,y:g.y}});
+ const texts=[],graphics=[];
+ for(const {owner,key,label} of chosen){
+  if(labelOwners.has(owner))continue;
+  const size=label.size,L=size?.L;if(!size||!L)continue;
+  const cmPerX=size.cm/(L.width||1)*Number(label.settings.labelScaleX||1),cmPerY=size.heightCm/(L.height||1)*Number(label.settings.labelScaleY||1);
+  if(key==='text-box'||key.startsWith('text-')){const stack=readLayerStack(label.settings.layerStack||'{}'),transform=stack.transforms?.[key]||{};texts.push({label,key,stack,x:Number(transform.x)||0,y:Number(transform.y)||0,cmPerX,cmPerY})}
+  else if(key.startsWith('graphic-')){const graphic=(label.settings.decorations||[]).find(item=>item.id===key);if(graphic&&!graphic.locked)graphics.push({label,graphic,x:graphic.x,y:graphic.y,cmPerX,cmPerY})}
+ }
+ return {movedLabels,texts,graphics,changed:new Set([...movedLabels.map(item=>item.label.id),...texts.map(item=>item.label.id),...graphics.map(item=>item.label.id)])};
+}
+function drawSelectedLayerMove(){
+ selectedLayerMoveFrame=0;if(!selectedLayerMove)return;
+ const activeInternal=selectedLayerMove.texts.some(item=>item.label.id===activeLabelId)||selectedLayerMove.graphics.some(item=>item.label.id===activeLabelId);
+ if(activeInternal){const output=render(),canvas=$('canvas');canvas.width=output.c.width;canvas.height=output.c.height;canvas.getContext('2d').drawImage(output.c,0,0);previewSize={...previewSize,cm:output.cm,heightCm:output.heightCm,L:output.L}}
+ zoom();
+}
+function beginSelectedLayerMove(event){
+ if(selectedLayerUnits.size<2||selectedLayerMove)return false;
+ const selection=[...selectedLayerUnits],data=selectedLayerMoveData();if(!data.movedLabels.length&&!data.texts.length&&!data.graphics.length)return false;
+ event.preventDefault();event.stopImmediatePropagation();recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();
+ selectedLayerMove={...data,selection,pointer:event.pointerId,x:event.clientX,y:event.clientY,unit:$('previewStage').getBoundingClientRect().width/previewPage().width};
+ $('previewArea').setPointerCapture?.(event.pointerId);$('labelSurface').classList.add('resizing');return true;
+}
+function moveSelectedLayers(event){
+ const move=selectedLayerMove;if(!move||move.pointer!==event.pointerId)return;
+ event.preventDefault();const dx=(event.clientX-move.x)/move.unit,dy=(event.clientY-move.y)/move.unit;
+ for(const item of move.movedLabels){item.label.settings.labelX=String(item.x+dx);item.label.settings.labelY=String(item.y+dy)}
+ for(const item of move.texts){item.stack.transforms={...item.stack.transforms,[item.key]:{...(item.stack.transforms?.[item.key]||{}),x:item.x+dx/item.cmPerX,y:item.y+dy/item.cmPerY}};item.label.settings.layerStack=JSON.stringify(item.stack)}
+ for(const item of move.graphics){item.graphic.x=item.x+dx/item.cmPerX;item.graphic.y=item.y+dy/item.cmPerY}
+ const active=currentLabel();if(move.movedLabels.some(item=>item.label===active)){for(const id of ['labelX','labelY'])$(id).value=active.settings[id]}
+ const activeText=move.texts.find(item=>item.label===active);if(activeText)$('layerStack').value=active.settings.layerStack;
+ for(const item of move.graphics.filter(item=>item.label===active)){const live=decorations.find(graphic=>graphic.id===item.graphic.id);if(live){live.x=item.graphic.x;live.y=item.graphic.y}}
+ if(!selectedLayerMoveFrame)selectedLayerMoveFrame=requestAnimationFrame(drawSelectedLayerMove);
+}
+async function finishSelectedLayerMove(event){
+ const move=selectedLayerMove;if(!move||move.pointer!==event.pointerId)return;
+ event.stopImmediatePropagation();if(selectedLayerMoveFrame){cancelAnimationFrame(selectedLayerMoveFrame);drawSelectedLayerMove()}
+ selectedLayerMove=null;$('labelSurface').classList.remove('resizing');autoSuspended--;colorSaveGate.leave();
+ saveActiveLabel();withLabels(label=>{if(label.id===activeLabelId||!move.changed.has(label.id)||!move.texts.some(item=>item.label===label)&&!move.graphics.some(item=>item.label===label))return;const output=render();label.bitmap=output.c;label.size={cm:output.cm,heightCm:output.heightCm,L:output.L};label.renderVersion=(label.renderVersion||0)+1});
+ await preview();selectedLayerUnits.clear();for(const id of move.selection)selectedLayerUnits.add(id);recordHistory();renderLayersPanel();$('status').textContent='Đã di chuyển '+selectedLayerUnits.size+' layer cùng nhau.';
+}
+$('previewArea').addEventListener('pointerdown',event=>{
+ const owner=selectedLayerPointerOwner(event),resizeOnly=event.target.closest('.graphicResize,.graphicRotate,.resizeHandle:not([data-handle="move"])');
+ if(selectedLayerUnits.size>1&&owner&&!resizeOnly&&beginSelectedLayerMove(event))return;
+ if(!owner&&window.TemLayerMarquee?.start(event))return;
+ if(!owner)selectedLayerUnits.clear();
+},true);
+$('previewArea').addEventListener('pointermove',moveSelectedLayers,true);
+for(const type of ['pointerup','pointercancel','lostpointercapture'])$('previewArea').addEventListener(type,event=>finishSelectedLayerMove(event).catch(error=>$('status').textContent=error.message),true);
 $('temEditor').addEventListener('pointerup',()=>{captureSelection();selectedUnitKey='text-box';renderLayersPanel();syncLayerButtons()});
 const beforeUnitOverlays=positionGraphicOverlays;positionGraphicOverlays=function(){beforeUnitOverlays();const order=previewSize?.L?orderedLayerUnits(previewSize.L).map(unit=>unit.key):[];$('labelSurface').querySelectorAll('.graphicOverlay').forEach(box=>box.style.zIndex=6+order.indexOf(box.dataset.graphicId))};
 renderLayersPanel();
@@ -1871,8 +1932,15 @@ $('systemPaste').hidden=true;$('systemPaste').inert=true;document.body.append($(
  let drag=null,frame=0;
  function draw(){frame=0;if(!drag)return;{const output=render(),c=$('canvas');c.width=output.c.width;c.height=output.c.height;c.getContext('2d').drawImage(output.c,0,0);previewSize={...previewSize,cm:output.cm,heightCm:output.heightCm,L:output.L};zoom();}sync();}
  for(const handle of [...selectionFrame.querySelectorAll('.resizeHandle'),textMoveHandle]){
-  handle.addEventListener('pointerdown',event=>{const key=activeUnitKey();if(!(key==='text-box'||key?.startsWith('text-')))return;event.preventDefault();event.stopImmediatePropagation();if(event.button!==0||labelLockControl.checked||readLayerStack().locked?.includes(key))return;const b=bounds(key);if(!b)return;recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();drag={key,owner:activeLabelId,pointer:event.pointerId,x:event.clientX,y:event.clientY,b,t:getTransform(key),dir:handle===textMoveHandle?'move':handle.dataset.handle,ux:previewSize.L.width/parseFloat($('labelSurface').style.width),uy:previewSize.L.height/parseFloat($('labelSurface').style.height)};handle.setPointerCapture(event.pointerId);$('labelSurface').classList.add('resizing');},true);
-  handle.addEventListener('pointermove',event=>{if(!drag||drag.pointer!==event.pointerId)return;event.stopImmediatePropagation();const d=drag;if(d.owner!==activeLabelId)return;const dx=(event.clientX-d.x)*d.ux,dy=(event.clientY-d.y)*d.uy,t={...d.t},west=d.dir.includes('w'),north=d.dir.includes('n'),horizontal=/[ew]/.test(d.dir),vertical=/[ns]/.test(d.dir);if(d.dir==='move'){t.x+=dx;t.y+=dy}else{if(horizontal)t.sx=Math.max(.05,Math.min(10,d.t.sx+(west?-dx:dx)/d.b.w));if(vertical)t.sy=Math.max(.05,Math.min(10,d.t.sy+(north?-dy:dy)/d.b.h));if($('lockRatio').checked){const factor=horizontal?t.sx/d.t.sx:t.sy/d.t.sy;t.sx=Math.max(.05,Math.min(10,d.t.sx*factor));t.sy=Math.max(.05,Math.min(10,d.t.sy*factor))}t.x+=(d.b.x+(west?d.b.w:0))*(d.t.sx-t.sx);t.y+=(d.b.y+(north?d.b.h:0))*(d.t.sy-t.sy)}const stack=readLayerStack();stack.transforms={...stack.transforms,[d.key]:t};$('layerStack').value=JSON.stringify(stack);if(!frame)frame=requestAnimationFrame(draw);},true);
+  handle.addEventListener('pointerdown',event=>{const key=activeUnitKey();if(!(key==='text-box'||key?.startsWith('text-')))return;event.preventDefault();event.stopImmediatePropagation();if(event.button!==0||labelLockControl.checked||readLayerStack().locked?.includes(key))return;const b=bounds(key);if(!b)return;recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();const dir=handle===textMoveHandle?'move':handle.dataset.handle,cloudMove=designKind.value==='cloud'&&dir==='move',size=previewSize,L=size.L;
+  drag={key,owner:activeLabelId,pointer:event.pointerId,x:event.clientX,y:event.clientY,b,t:getTransform(key),dir,cloudMove,
+   labelX:$('labelX').value===''?(previewPage().width-(L.baseWidth||L.width)*size.cm/L.width)/2:Number($('labelX').value),
+   labelY:$('labelY').value===''?1:Number($('labelY').value),
+   cmPerX:size.cm/L.width*number('labelScaleX',.05,10),cmPerY:size.heightCm/L.height*number('labelScaleY',.05,10),
+   ux:L.width/parseFloat($('labelSurface').style.width),uy:L.height/parseFloat($('labelSurface').style.height)};handle.setPointerCapture(event.pointerId);$('labelSurface').classList.add('resizing');},true);
+  handle.addEventListener('pointermove',event=>{if(!drag||drag.pointer!==event.pointerId)return;event.stopImmediatePropagation();const d=drag;if(d.owner!==activeLabelId)return;const dx=(event.clientX-d.x)*d.ux,dy=(event.clientY-d.y)*d.uy;
+   if(d.cloudMove){$('labelX').value=String(d.labelX+dx*d.cmPerX);$('labelY').value=String(d.labelY+dy*d.cmPerY);zoom();return;}
+   const t={...d.t},west=d.dir.includes('w'),north=d.dir.includes('n'),horizontal=/[ew]/.test(d.dir),vertical=/[ns]/.test(d.dir);if(d.dir==='move'){t.x+=dx;t.y+=dy}else{if(horizontal)t.sx=Math.max(.05,Math.min(10,d.t.sx+(west?-dx:dx)/d.b.w));if(vertical)t.sy=Math.max(.05,Math.min(10,d.t.sy+(north?-dy:dy)/d.b.h));if($('lockRatio').checked){const factor=horizontal?t.sx/d.t.sx:t.sy/d.t.sy;t.sx=Math.max(.05,Math.min(10,d.t.sx*factor));t.sy=Math.max(.05,Math.min(10,d.t.sy*factor))}t.x+=(d.b.x+(west?d.b.w:0))*(d.t.sx-t.sx);t.y+=(d.b.y+(north?d.b.h:0))*(d.t.sy-t.sy)}const stack=readLayerStack();stack.transforms={...stack.transforms,[d.key]:t};$('layerStack').value=JSON.stringify(stack);if(!frame)frame=requestAnimationFrame(draw);},true);
   const finish=async event=>{if(!drag||drag.pointer!==event.pointerId)return;event.stopImmediatePropagation();if(frame){cancelAnimationFrame(frame);draw()}const completed=drag;drag=null;autoSuspended--;colorSaveGate.leave();$('labelSurface').classList.remove('resizing');await preview();if(window.TemTextSize?.bakeAfterResize)await window.TemTextSize.bakeAfterResize(completed);recordHistory();sync();};for(const event of ['pointerup','pointercancel','lostpointercapture'])handle.addEventListener(event,finish,true);
  }
  const settle=()=>{if(drag)selectionFrame.querySelector('[data-handle=move]').dispatchEvent(new PointerEvent('pointercancel',{pointerId:drag.pointer}));};window.addEventListener('blur',settle);window.addEventListener('pagehide',settle);
@@ -2196,14 +2264,21 @@ body.showPrintSafeZone #printSafeZone{display:block}
  let marqueeDrag=null;
  const intersects=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
  function emptyCanvasTarget(target){
-   return !!target.closest('#previewStage,#previewBounds,.preview')&&!target.closest('.graphicOverlay,.otherLabel,#labelSurface,.resizeHandle,#wholeGroupFrame,button,input,select,textarea,[contenteditable=true]');
+   if(target.closest('.graphicOverlay,.resizeHandle,#wholeGroupFrame,button,input,select,textarea,[contenteditable=true]'))return false;
+   const node=target.closest('.otherLabel,#labelSurface');
+   if(node){const id=node.dataset.labelId||activeLabelId,label=labels.find(item=>item.id===id);return label?.settings.designKind==='design'}
+   return !!target.closest('#previewStage,#previewBounds,.preview');
  }
- stage.addEventListener('pointerdown',event=>{
+ function startMarquee(event){
    if(event.button!==0||designEditing||!emptyCanvasTarget(event.target))return;
+   event.preventDefault();event.stopImmediatePropagation();
    marqueeDrag={pointer:event.pointerId,x:event.clientX,y:event.clientY};marquee.hidden=false;
    Object.assign(marquee.style,{left:event.clientX+'px',top:event.clientY+'px',width:'0px',height:'0px'});
    stage.setPointerCapture?.(event.pointerId);
- },true);
+   return true;
+ }
+ window.TemLayerMarquee={start:startMarquee};
+ stage.addEventListener('pointerdown',startMarquee,true);
  stage.addEventListener('pointermove',event=>{
    if(!marqueeDrag||event.pointerId!==marqueeDrag.pointer)return;
    const x=Math.min(marqueeDrag.x,event.clientX),y=Math.min(marqueeDrag.y,event.clientY),w=Math.abs(event.clientX-marqueeDrag.x),h=Math.abs(event.clientY-marqueeDrag.y);
@@ -2213,21 +2288,55 @@ body.showPrintSafeZone #printSafeZone{display:block}
    if(!marqueeDrag||event.pointerId!==marqueeDrag.pointer)return;
    const box=marquee.getBoundingClientRect();marqueeDrag=null;marquee.hidden=true;
    if(box.width<6&&box.height<6)return;
-   const graphics=[...surface.querySelectorAll('.graphicOverlay')].filter(node=>intersects(box,node.getBoundingClientRect()));
-   if(graphics.length){
-     selectedLabelSet=new Set([activeLabelId]);selectedGraphicSet.clear();graphicSelectionOwner=activeLabelId;
-     for(const node of graphics){const item=decorations.find(item=>item.id===node.dataset.graphicId);if(item){selectedGraphicSet.add(item.id);selectedGraphicId=item.id}}
-     positionGraphicOverlays();syncGraphicControls();renderLayersPanel();return;
-   }
+   const chosen=new Set(),graphics=[...surface.querySelectorAll('.graphicOverlay')].filter(node=>intersects(box,node.getBoundingClientRect()));
+   for(const node of graphics)chosen.add(layerSelectionId(activeLabelId,node.dataset.graphicId));
    const labelNodes=[...document.querySelectorAll('.otherLabel,#labelSurface')].filter(node=>intersects(box,node.getBoundingClientRect()));
-   if(labelNodes.length){
-     selectedGraphicId=null;selectedGraphicSet.clear();selectedLabelSet.clear();
-     for(const node of labelNodes){const id=node.dataset.labelId||activeLabelId;if(labels.some(label=>label.id===id))selectedLabelSet.add(id)}
-     const first=labels.find(label=>selectedLabelSet.has(label.id));if(first&&first.id!==activeLabelId)await activateLabel(first.id);
-     drawLabelGroupFrame();syncGraphicControls();renderLayersPanel();
+   for(const node of labelNodes){
+     const id=node.dataset.labelId||activeLabelId,label=labels.find(item=>item.id===id);if(!label)continue;
+     const L=id===activeLabelId?previewSize?.L:label.size?.L;if(!L)continue;
+     const units=orderedLayerUnits(L,readLayerStack(id===activeLabelId?$('layerStack').value:label.settings.layerStack||'{}'));
+     if(['cloud','text'].includes(label.settings.designKind))for(const unit of units)if(unit.kind==='text')chosen.add(layerSelectionId(id,unit.key));
+     else if(node.classList.contains('otherLabel'))for(const unit of units)chosen.add(layerSelectionId(id,unit.key));
    }
+   if(!chosen.size)return;
+   selectedLayerUnits.clear();for(const id of chosen)selectedLayerUnits.add(id);
+   selectedLabelSet=new Set([...chosen].map(id=>JSON.parse(id)[0]));
+   const current=[...chosen].filter(id=>JSON.parse(id)[0]===activeLabelId).map(id=>JSON.parse(id)[1]);
+   const firstOwner=JSON.parse([...chosen][0])[0];if(!current.length&&firstOwner!==activeLabelId)await activateLabel(firstOwner);
+   const activeKeys=[...chosen].filter(id=>JSON.parse(id)[0]===activeLabelId).map(id=>JSON.parse(id)[1]),graphicKeys=activeKeys.filter(key=>key.startsWith('graphic-'));
+   selectedGraphicSet=new Set(graphicKeys);selectedGraphicId=graphicKeys.at(-1)||null;graphicSelectionOwner=activeLabelId;
+   if(!selectedGraphicId)selectedUnitKey=activeKeys.find(key=>key==='text-box'||key.startsWith('text-'))||activeKeys[0]||'';
+   positionGraphicOverlays();drawLabelGroupFrame();syncGraphicControls();renderLayersPanel();
+   $('status').textContent='Đã chọn '+chosen.size+' layer trên màn hình làm việc.';
  }
  for(const type of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(type,finishMarquee,true);
+
+ // Drag vertically across the Layers panel to select a contiguous range.
+ const layersList=$('layersList');let layerRangeDrag=null,suppressLayerRangeClick=false;
+ function layerRows(){return [...layersList.querySelectorAll('.layerRow')]}
+ function layerRowId(row){return layerSelectionId(row.dataset.labelId,row.dataset.unitKey)}
+ layersList.addEventListener('pointerdown',event=>{
+   const row=event.target.closest('.layerRow');if(event.button!==0||!row||event.target.closest('.layerGrip,.layerLock,button,input'))return;
+   layerRangeDrag={pointer:event.pointerId,startX:event.clientX,startY:event.clientY,start:layerRowId(row),base:new Set(event.shiftKey||event.ctrlKey||event.metaKey?selectedLayerUnits:[]),moved:false,last:row};
+ },true);
+ layersList.addEventListener('pointermove',event=>{
+   const drag=layerRangeDrag;if(!drag||drag.pointer!==event.pointerId)return;
+   if(!drag.moved&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<5)return;
+   if(!drag.moved){drag.moved=true;layersList.setPointerCapture?.(event.pointerId);event.preventDefault()}
+   const rows=layerRows(),start=rows.findIndex(row=>layerRowId(row)===drag.start);if(start<0)return;
+   const current=rows.find(row=>{const r=row.getBoundingClientRect();return event.clientY>=r.top&&event.clientY<=r.bottom})||rows.reduce((best,row)=>Math.abs(row.getBoundingClientRect().top-event.clientY)<Math.abs(best.getBoundingClientRect().top-event.clientY)?row:best,rows[0]);
+   if(!current)return;drag.last=current;const end=rows.indexOf(current),from=Math.min(start,end),to=Math.max(start,end);
+   selectedLayerUnits.clear();for(const id of drag.base)selectedLayerUnits.add(id);for(const row of rows.slice(from,to+1))selectedLayerUnits.add(layerRowId(row));
+   renderLayersPanel();
+ },true);
+ async function finishLayerRange(event){
+   const drag=layerRangeDrag;if(!drag||drag.pointer!==event.pointerId)return;layerRangeDrag=null;if(!drag.moved)return;
+   event.preventDefault();event.stopImmediatePropagation();suppressLayerRangeClick=true;setTimeout(()=>suppressLayerRangeClick=false,0);
+   const [owner,key]=JSON.parse(layerRowId(drag.last));await selectLayerUnit(owner,key,true,true);renderLayersPanel();
+   $('status').textContent='Đã chọn '+selectedLayerUnits.size+' layer trong bảng Layer.';
+ }
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])layersList.addEventListener(type,event=>finishLayerRange(event).catch(error=>$('status').textContent=error.message),true);
+ layersList.addEventListener('click',event=>{if(suppressLayerRangeClick){event.preventDefault();event.stopImmediatePropagation();suppressLayerRangeClick=false}},true);
 
  // 2) Double-click a photo to enter Crop immediately.
  stage.addEventListener('dblclick',event=>{

@@ -78,8 +78,9 @@
   const finish=async event=>{if(!drag||event.pointerId!==drag.pointer)return;drag=null;labelGroupDrag=null;await preview();recordHistory();syncGraphicControls();};handle.onpointerup=handle.onpointercancel=handle.onlostpointercapture=finish;
  }
  const layerSelect=selectLayerUnit;selectLayerUnit=async function(owner,key,additive=false,preserve=false){
-  if(additive&&owner!==activeLabelId){const chosen=new Set(selectedLabels().map(x=>x.id));chosen.add(owner);await activateLabel(owner);selectedLabelSet=chosen;selectedGraphicId=null;selectedGraphicSet.clear();for(const label of selectedLabels())selectedLayerUnits.add(layerSelectionId(label.id,label.settings.decorations?.[0]?.id||'text-0'));drawLabelGroupFrame();syncGraphicControls();renderLayersPanel();return;}
-  await layerSelect(owner,key,additive,preserve);if(!additive&&labelGroupKey(currentLabel()))selectWholeLabel(currentLabel());
+  await layerSelect(owner,key,additive,preserve);
+  if(additive){selectedLabelSet=new Set([...selectedLayerUnits].map(id=>JSON.parse(id)[0]));drawLabelGroupFrame();syncGraphicControls();renderLayersPanel()}
+  else if(labelGroupKey(currentLabel()))selectWholeLabel(currentLabel());
  };
  window.addEventListener('contextmenu',event=>{
   if(!event.target.closest?.('.graphicOverlay')||!labelGroupKey(currentLabel()))return;
