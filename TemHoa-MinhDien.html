@@ -1178,9 +1178,9 @@ function drawSelectedLayerMove(){
 }
 function beginSelectedLayerMove(event){
  if(selectedLayerUnits.size<2||selectedLayerMove)return false;
- const data=selectedLayerMoveData();if(!data.movedLabels.length&&!data.texts.length&&!data.graphics.length)return false;
+ const selection=[...selectedLayerUnits],data=selectedLayerMoveData();if(!data.movedLabels.length&&!data.texts.length&&!data.graphics.length)return false;
  event.preventDefault();event.stopImmediatePropagation();recordHistory();clearTimeout(autoTimer);autoSuspended++;colorSaveGate.enter();
- selectedLayerMove={...data,pointer:event.pointerId,x:event.clientX,y:event.clientY,unit:$('previewStage').getBoundingClientRect().width/previewPage().width};
+ selectedLayerMove={...data,selection,pointer:event.pointerId,x:event.clientX,y:event.clientY,unit:$('previewStage').getBoundingClientRect().width/previewPage().width};
  $('previewArea').setPointerCapture?.(event.pointerId);$('labelSurface').classList.add('resizing');return true;
 }
 function moveSelectedLayers(event){
@@ -1199,7 +1199,7 @@ async function finishSelectedLayerMove(event){
  event.stopImmediatePropagation();if(selectedLayerMoveFrame){cancelAnimationFrame(selectedLayerMoveFrame);drawSelectedLayerMove()}
  selectedLayerMove=null;$('labelSurface').classList.remove('resizing');autoSuspended--;colorSaveGate.leave();
  saveActiveLabel();withLabels(label=>{if(label.id===activeLabelId||!move.changed.has(label.id)||!move.texts.some(item=>item.label===label)&&!move.graphics.some(item=>item.label===label))return;const output=render();label.bitmap=output.c;label.size={cm:output.cm,heightCm:output.heightCm,L:output.L};label.renderVersion=(label.renderVersion||0)+1});
- await preview();recordHistory();renderLayersPanel();$('status').textContent='Đã di chuyển '+selectedLayerUnits.size+' layer cùng nhau.';
+ await preview();selectedLayerUnits.clear();for(const id of move.selection)selectedLayerUnits.add(id);recordHistory();renderLayersPanel();$('status').textContent='Đã di chuyển '+selectedLayerUnits.size+' layer cùng nhau.';
 }
 $('previewArea').addEventListener('pointerdown',event=>{
  const owner=selectedLayerPointerOwner(event),resizeOnly=event.target.closest('.graphicResize,.graphicRotate,.resizeHandle:not([data-handle="move"])');
