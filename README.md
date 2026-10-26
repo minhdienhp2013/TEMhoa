@@ -73,16 +73,17 @@ Các mẫu cá nhân không được đưa lên GitHub. Khi cập nhật bằng 
 ## In trực tiếp đúng kích thước
 
 - Bấm **In** hoặc **Ctrl + P** (Mac: **Command + P**).
-- Bản in dùng khổ A4/A3/A5 đang chọn, vị trí tem trên trang và kích thước cả viền trong preview. Zoom màn hình không đổi kích thước in. Khoảng bảo vệ mặc định: trên/phải 1 mm, dưới/trái 0,3 mm. Có thể chỉnh từng mép 0–10 mm trong cửa sổ In; được ghi nhớ trên trình duyệt. Tem vượt vùng in được dịch vào trong, chỉ thu nhỏ khi không đủ chỗ; nhiều tem giữ nguyên vị trí tương đối. Đây là khoảng bảo vệ thử nghiệm, cần căn theo máy thật; không thay đổi trang làm việc hoặc các file xuất PNG/Word/SVG.
-- Mặc định **In màu**, tỷ lệ **100%**, trang ảnh **600 DPI**. Có lựa chọn trắng đen.
+- Thiết kế mới dùng khổ **A4 ngang**. Cửa sổ In mặc định A4 ngang; A5/A3 ngang được scale đồng đều từ trang thiết kế, căn giữa và không đổi dữ liệu thiết kế. Zoom màn hình không ảnh hưởng kích thước in.
+- Mặc định **In màu**, tỷ lệ vật lý **100%**, ảnh in **300 DPI**. Có thể chọn 600 DPI nếu khổ không vượt giới hạn 40 triệu điểm ảnh; A3 dùng 300 DPI.
+- Bảo vệ mép là tùy chọn riêng, mặc định tắt. Có thể chỉnh từng mép 0–10 mm; tem nằm ngoài vùng in có thể được dịch vào trong hoặc thu nhỏ nếu bật tùy chọn.
 - Windows: mở bằng `Mo-TemHoa-Windows.bat`, chọn máy in và bấm **Properties** để mở Printing Preferences của đúng driver. Chọn số bản rồi bấm **In…** trong phần mềm để gửi lệnh in trực tiếp, không mở hộp thoại Print hoặc tiến trình in mặc định của Windows.
 - Cập nhật đầy đủ `Print-TemHoa-Windows.ps1` cùng các file ứng dụng. Không cần cài thêm Python để in trên Windows.
-- Mac hoặc khi mở HTML trực tiếp: dùng hộp thoại in của trình duyệt/hệ thống. Chọn đúng khổ giấy, Scale 100%, không lề và tắt header/footer.
+- Mac: ứng dụng gửi PDF ngang đúng kích thước qua CUPS tới máy in đã chọn, đặt đúng A5/A4/A3 và `print-scaling=none`; không dựa vào khổ giấy mặc định của Chrome hay máy in. Chọn cùng khổ giấy đang nạp. Nếu CUPS không khả dụng, ứng dụng quay về hộp thoại in của trình duyệt; khi đó chọn đúng khổ, Scale 100% và tắt header/footer.
 - Với máy in màu: chọn đúng loại giấy, Color và chất lượng phù hợp trong driver. In sát mép cần driver hỗ trợ Borderless; đặt Expansion/mở rộng ảnh về 0 hoặc thấp nhất để hạn chế thay đổi kích thước. Máy không hỗ trợ Borderless vẫn có lề phần cứng.
 - Windows tải đầy đủ cấu hình DEVMODE của đúng máy in, giữ dữ liệu riêng của driver Canon (Borderless, khoảng mở rộng, loại giấy, chất lượng), rồi để driver xác nhận khổ/chiều giấy trước khi in. Tọa độ và vùng in lấy trực tiếp từ HDC của lệnh in theo DPI và PHYSICALOFFSETX/Y, tránh bù lề sai khi xoay ngang. Tem sát lề phần cứng được dịch vào vùng in, giữ kích thước khi đủ chỗ; tem quá lớn được thu nhỏ đồng đều để không mất viền. Cách này có thể thay đổi vị trí hoặc kích thước bản in so với trang làm việc.
 - In trực tiếp giữ bố cục trang khi nằm đủ trong vùng in; xuất Word/PNG/SVG vẫn giữ cách xuất hiện có.
 
-Đã kiểm tra bằng trình duyệt/PDF cho đủ năm lựa chọn khổ giấy và kiểm tra cú pháp PowerShell. Hộp thoại driver Windows và chất lượng màu cần kiểm tra thêm trên máy in thật.
+Kiểm tra A5/A4/A3 qua CUPS bằng job giữ rồi hủy: hàng đợi Canon iX6770 nhận khổ ngang, orientation và `print-scaling=none`; không in giấy trong bước này. Kiểm tra PDF/MediaBox và API in bằng bài kiểm thử cục bộ. Chưa đo kích thước trên giấy thật bằng thước. Hộp thoại driver Windows và chất lượng màu cần kiểm tra thêm trên máy in thật.
 
 
 ## Nhiều tem trên một trang
@@ -178,9 +179,9 @@ Kho 60 mẫu tự tạo theo chủ đề đã được gỡ bỏ. Trang chủ ch
 
 ## Khổ thiết kế và khổ in/xuất độc lập
 
-Khổ giấy trên màn hình là khổ thiết kế. Bấm In hoặc PNG/SVG/Word mới chọn khổ đích A5/A4/A3; đầu ra luôn theo chiều ngang, kể cả khi trang thiết kế đang dọc. Toàn bộ đối tượng được đổi tỷ lệ cùng trang, giữ bố cục và không sửa dữ liệu thiết kế. PNG giữ nền ngoài thiết kế trong suốt; Word xuất ảnh đầy đủ chiều cao trang, bỏ chế độ 50% cũ. PNG ghi đúng DPI đã chọn để phần mềm đọc ảnh nhận đúng kích thước in. DPI mặc định 300; 600 DPI chỉ dùng khi không vượt giới hạn 40 triệu pixel.
+Khổ giấy trên màn hình là khổ thiết kế; thiết kế mới mặc định A4 ngang. Bấm In hoặc PNG/SVG/Word để chọn khổ đích A5/A4/A3; đầu ra luôn theo chiều ngang, kể cả khi trang cũ đang dọc. Toàn bộ đối tượng được scale đồng đều, giữ bố cục và không sửa dữ liệu thiết kế. PNG giữ nền ngoài thiết kế trong suốt; Word xuất ảnh đầy đủ chiều cao trang. PNG ghi đúng DPI đã chọn để phần mềm đọc ảnh nhận đúng kích thước in. DPI mặc định 300; 600 DPI chỉ dùng khi không vượt giới hạn 40 triệu pixel.
 
-Bảo vệ mép khi in là tùy chọn riêng, mặc định tắt. Bật có thể thu nhỏ thêm bố cục. Các khổ ISO có sai số do làm tròn kích thước mm; phép fit giữ tỷ lệ, không kéo méo hoặc cắt nội dung. In sát mép thực tế còn phụ thuộc lề phần cứng và Borderless của máy in. Trên Mac, hộp thoại hệ thống cần chọn cùng khổ, tỷ lệ 100%, không header/footer.
+Bảo vệ mép khi in là tùy chọn riêng, mặc định tắt. Bật có thể thu nhỏ thêm bố cục. Các khổ ISO có sai số do làm tròn kích thước mm; phép fit giữ tỷ lệ, không kéo méo hoặc cắt nội dung. In sát mép thực tế còn phụ thuộc lề phần cứng và Borderless của máy in. Trên Mac, CUPS đặt kích thước trang và tắt tự scale; lề không in của máy vẫn có thể cắt nội dung đặt quá sát mép.
 
 ### Kho tài nguyên, mẫu điền nhanh và PDF
 
