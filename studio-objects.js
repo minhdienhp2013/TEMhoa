@@ -79,7 +79,7 @@
  }
  const layerSelect=selectLayerUnit;selectLayerUnit=async function(owner,key,additive=false,preserve=false){
   await layerSelect(owner,key,additive,preserve);
-  if(additive){selectedLabelSet=new Set([...selectedLayerUnits].map(id=>JSON.parse(id)[0]));drawLabelGroupFrame();syncGraphicControls();renderLayersPanel()}
+  if(additive){selectedLabelSet=new Set([...selectedLayerUnits].map(id=>{try{return JSON.parse(id)[0];}catch{return id;}}).filter(Boolean));drawLabelGroupFrame();syncGraphicControls();renderLayersPanel()}
   else if(labelGroupKey(currentLabel()))selectWholeLabel(currentLabel());
  };
  window.addEventListener('contextmenu',event=>{
@@ -110,7 +110,9 @@
  function compact(){
   if(window.TEMHOA_STUDIO_ADDING||!isDesign()||editorText().trim()||!decorations.length||graphicDrag||labelGroupDrag||!$('wordFrame').value)return;
   const L=layout(),b=graphicGroupBounds(decorations),ox=L.graphicOffsetX||0,oy=L.graphicOffsetY||0;
-  const frame=JSON.parse($('wordFrame').value);
+  let frame;
+  try{frame=JSON.parse($('wordFrame').value);}catch{return;}
+  if(!frame||typeof frame!=='object')return;
   if(Math.abs(b.x)<.001&&Math.abs(b.y)<.001&&Math.abs(frame.width-b.width)<.001&&Math.abs(frame.height-b.height)<.001)return;
   const r=render(false,1,false);
   const sx=Number($('labelScaleX').value||1),sy=Number($('labelScaleY').value||1),ux=r.cm*sx/L.width,uy=r.heightCm*sy/L.height;

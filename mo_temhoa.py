@@ -101,6 +101,17 @@ class Handler(BaseHTTPRequestHandler):
         elif route.path in ('/studio.css', '/studio-core.js', '/studio.js', '/studio-objects.js', '/image-tools.js', '/image-tools.css', '/clipboard-tools.js', '/shape-tools.js', '/color-tools.js'):
             asset = ROOT / route.path[1:]
             self.reply(200, asset.read_bytes(), 'text/css; charset=utf-8' if asset.suffix == '.css' else 'text/javascript; charset=utf-8')
+        elif route.path == '/favicon.ico' or route.path.startswith('/assets/'):
+            rel = 'assets/temhoa.ico' if route.path == '/favicon.ico' else route.path.lstrip('/')
+            try:
+                asset = (ROOT / rel).resolve()
+                if asset.is_file() and ROOT in asset.parents:
+                    mime = 'image/x-icon' if asset.suffix == '.ico' else ('image/png' if asset.suffix == '.png' else ('image/svg+xml' if asset.suffix == '.svg' else 'application/octet-stream'))
+                    self.reply(200, asset.read_bytes(), mime)
+                else:
+                    self.reply(404, {'error': 'Không tìm thấy.'})
+            except (ValueError, OSError):
+                self.reply(404, {'error': 'Không tìm thấy.'})
         elif route.path == '/api/background':
             if not self.api_allowed():
                 self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return

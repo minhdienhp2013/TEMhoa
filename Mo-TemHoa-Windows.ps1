@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $taskRoot 'Background-TemHoa-Windows.ps1')
 $taskHtml = Join-Path $taskRoot 'TemHoa-MinhDien.html'
@@ -32,7 +32,8 @@ $taskBrowsers = @(
     "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe",
     "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
     "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
-    "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe"
+    "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe",
+    "${env:LOCALAPPDATA}\Microsoft\Edge\Application\msedge.exe"
 )
 $taskBrowser = $taskBrowsers | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if ($env:TEMHOA_DESKTOP -ne '1') {
@@ -73,6 +74,20 @@ try {
             } elseif ($taskParts[0] -eq 'GET' -and $taskRoute -in @('/studio.css','/studio-core.js','/studio.js','/studio-objects.js', '/image-tools.js', '/image-tools.css', '/clipboard-tools.js', '/shape-tools.js', '/color-tools.js')) {
                 $taskBody = [System.IO.File]::ReadAllBytes((Join-Path $taskRoot $taskRoute.Substring(1)))
                 $taskMime = if ($taskRoute.EndsWith('.css')) { 'text/css; charset=utf-8' } else { 'text/javascript; charset=utf-8' }
+            } elseif ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/favicon.ico' -or $taskRoute.StartsWith('/assets/'))) {
+                $taskRel = if ($taskRoute -eq '/favicon.ico') { 'assets\temhoa.ico' } else { $taskRoute.Substring(1).Replace('/', '\') }
+                $taskAssetPath = [System.IO.Path]::GetFullPath((Join-Path $taskRoot $taskRel))
+                if ((Test-Path -LiteralPath $taskAssetPath -PathType Leaf) -and $taskAssetPath.StartsWith($taskRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $taskBody = [System.IO.File]::ReadAllBytes($taskAssetPath)
+                    $taskMime = switch -Wildcard ($taskAssetPath) {
+                        '*.ico' { 'image/x-icon' }
+                        '*.png' { 'image/png' }
+                        '*.svg' { 'image/svg+xml' }
+                        Default { 'application/octet-stream' }
+                    }
+                } else {
+                    $taskStatus = '404 Not Found'; $taskBody = [System.Text.Encoding]::UTF8.GetBytes('{"error":"Asset not found."}')
+                }
             } elseif ($taskRoute -eq '/api/background' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     $taskRequest = $null
@@ -116,7 +131,7 @@ try {
                             # Same native Printing Preferences command used by cat_mdco.
                             Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\rundll32.exe') -ArgumentList @('printui.dll,PrintUIEntry','/e','/n',('"' + [string]$taskRequest.printer + '"')) | Out-Null
                         } else {
-                            $taskAllowedPapers = @('29.7x21','21x29.7','42x29.7','29.7x42','21x14.8')
+                            $taskAllowedPapers = @('29.7x21','21x29.7','42x29.7','29.7x42','21x14.8','14.8x21')
                             $taskPaperKey = ([double]$taskRequest.widthCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture) + 'x' + ([double]$taskRequest.heightCm).ToString('0.###',[System.Globalization.CultureInfo]::InvariantCulture)
                             if ($taskAllowedPapers -notcontains $taskPaperKey) { throw 'Invalid print paper size.' }
                             if ($taskRequest.color -isnot [bool] -or $taskRequest.png -isnot [string] -or !$taskRequest.png.StartsWith('iVBORw0KGgo')) { throw 'Invalid print image.' }
