@@ -805,10 +805,15 @@
       case 'artcut-cartesian':
         return { x: cleanZero(dx), y: cleanZero(-dy) };
       case 'screen-down':
-      case 'mh721-direct-180':
         return { x: cleanZero(dx), y: cleanZero(dy) };
-      case 'mh721-direct-90cw':
+      case 'mh721-direct-180':
+        // MH721 roll cutter: HP-GL X = paper feed (roller), Y = carriage moving across the paper.
+        // With the printed sheet rotated 180°, page width (horizontal) must drive the carriage (Y)
+        // and page height must drive the roller (X).
         return { x: cleanZero(dy), y: cleanZero(dx) };
+      case 'mh721-direct-90cw':
+        // Swapped fallback: page width drives the roller, page height drives the carriage.
+        return { x: cleanZero(dx), y: cleanZero(dy) };
       case 'mh721-direct-xy':
         return { x: cleanZero(-dx), y: cleanZero(dy) };
     }

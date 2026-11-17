@@ -339,11 +339,11 @@ function polylineLength(pts) {
   );
   assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-180' }),
-    { x: 15, y: 20 }
+    { x: 20, y: 15 }
   );
   assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-90cw' }),
-    { x: 20, y: 15 }
+    { x: 15, y: 20 }
   );
   assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-xy' }),
@@ -401,7 +401,7 @@ function polylineLength(pts) {
   assert.ok(!testBox.includes('IN;'), 'Direct MH721 HP-GL must not send IN; which wipes manual ORIGIN');
   assert.ok(testBox.endsWith('PU0,0;'));
   assert.ok(!testBox.includes('PD'), 'Test box HPGL must never lower the blade (no PD)');
-  assert.equal(testBox, 'SP1;PA;PU0,0;PU120,120;PU520,120;PU520,520;PU120,520;PU120,120;PU0,0;');
+  assert.equal(testBox, 'SP1;PA;PU0,0;PU120,120;PU120,520;PU520,520;PU520,120;PU120,120;PU0,0;');
 
   const hpglDirect = C.generateHPGL({ contours: [square], ref, pageMm, axisMode: 'mh721-direct-180' });
   assert.ok(hpglDirect.startsWith('SP1;PA;'));

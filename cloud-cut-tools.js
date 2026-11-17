@@ -14,8 +14,8 @@
   ]);
 
   const AXIS_OPTIONS = [
-    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Xoay giấy 180° (trục +X/+Y dương)'],
-    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Xoay 90° theo chiều kim đồng hồ (trục +X/+Y dương)'],
+    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Xoay giấy 180° · chiều ngang trang = dao chạy ngang'],
+    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Đổi trục · chiều ngang trang = lăn giấy'],
     ['mh721-direct-xy', 'Cắt thẳng MH721 · Gốc trên-trái (-X sang phải, +Y xuống)'],
     ['artcut-cartesian', 'Phần mềm cắt ngoài (Artcut / SignMaster / Corel) · Gốc + trên-trái'],
     ['screen-down', 'Tọa độ màn hình (+X phải, +Y xuống)']
