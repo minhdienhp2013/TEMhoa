@@ -888,11 +888,17 @@
         coords.push(`${hpglPts[j].x},${hpglPts[j].y}`);
       }
       if (coords.length) {
-        cmds.push(`PU${start.x},${start.y};PD${coords.join(',')};`);
+        if (isDirect) {
+          // One short command per line so the serial sender can pace motion and the cutter buffer never overflows.
+          cmds.push(`PU${start.x},${start.y};\r\n`);
+          for (const c of coords) cmds.push(`PD${c};\r\n`);
+        } else {
+          cmds.push(`PU${start.x},${start.y};PD${coords.join(',')};`);
+        }
       }
     }
 
-    cmds.push('PU;PU0,0;');
+    cmds.push(isDirect ? 'PU;PU0,0;\r\n' : 'PU;PU0,0;');
     return cmds.join('');
   }
 

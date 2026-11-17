@@ -120,13 +120,25 @@ function Send-HpglJob {
         [System.Threading.Thread]::Sleep(80)
 
         # Pace writes in small chunks so CH340 USB-Serial and cutter buffers do not overflow.
-        $chunkSize = 512
-        for ($offset = 0; $offset -lt $bytes.Length; $offset += $chunkSize) {
-            $count = [Math]::Min($chunkSize, $bytes.Length - $offset)
-            $serial.Write($bytes, $offset, $count)
-            if ($offset + $count -lt $bytes.Length) {
-                [System.Threading.Thread]::Sleep(10)
+        # Send line by line and wait roughly as long as the cutter needs to move, because
+        # without hardware flow control the small cutter buffer overflows and the cut stops early.
+        $assumedMmPerSec = 40.0
+        $lastX = 0.0; $lastY = 0.0
+        $lines = $wireHpgl -split "`n"
+        foreach ($line in $lines) {
+            $text = $line.Trim()
+            if ($text.Length -eq 0) { continue }
+            $lineBytes = [System.Text.Encoding]::ASCII.GetBytes($text + "`r`n")
+            $serial.Write($lineBytes, 0, $lineBytes.Length)
+            $delayMs = 15.0
+            $m = [regex]::Match($text, '^P[UD](-?\d+),(-?\d+);?$')
+            if ($m.Success) {
+                $x = [double]$m.Groups[1].Value; $y = [double]$m.Groups[2].Value
+                $distMm = [Math]::Sqrt(($x - $lastX) * ($x - $lastX) + ($y - $lastY) * ($y - $lastY)) / 40.0
+                $lastX = $x; $lastY = $y
+                $delayMs = [Math]::Min(3000.0, 15.0 + ($distMm / $assumedMmPerSec) * 1000.0)
             }
+            [System.Threading.Thread]::Sleep([int]$delayMs)
         }
         $serial.BaseStream.Flush()
         $drainDeadline = [DateTime]::UtcNow.AddSeconds(30)
