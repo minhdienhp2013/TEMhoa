@@ -866,7 +866,7 @@
     const job = resolveCutJob(cutJob);
     const txOpts = { scaleX: job.scaleX, scaleY: job.scaleY, axisMode: job.axisMode };
     const isDirect = job.axisMode.startsWith('mh721-direct');
-    const cmds = [isDirect ? 'SP1;PA;' : 'IN;SP1;'];
+    const cmds = [isDirect ? 'IN;SP1;PA;' : 'IN;SP1;'];
 
     if (job.includeRefMark) {
       const half = (Number.isFinite(job.ref.crossSizeMm) && job.ref.crossSizeMm > 0 ? job.ref.crossSizeMm : 8) / 2;
@@ -894,16 +894,18 @@
       }
       if (coords.length) {
         if (isDirect) {
-          // One short command per line so the serial sender can pace motion and the cutter buffer never overflows.
-          cmds.push(`PU${start.x},${start.y};\r\n`);
-          for (const c of coords) cmds.push(`PD${c};\r\n`);
+          // Emit pure semicolon-delimited HP-GL commands (no CRLF between points) with explicit pen-down at start
+          // and pen-up at contour end so the MH721 parser and blade solenoid actuate reliably on every contour.
+          cmds.push(`PU${start.x},${start.y};PD${start.x},${start.y};`);
+          for (const c of coords) cmds.push(`PD${c};`);
+          cmds.push('PU;');
         } else {
           cmds.push(`PU${start.x},${start.y};PD${coords.join(',')};`);
         }
       }
     }
 
-    cmds.push(isDirect ? 'PU;PU0,0;\r\n' : 'PU;PU0,0;');
+    cmds.push('PU;PU0,0;');
     return cmds.join('');
   }
 
@@ -927,7 +929,7 @@
       return `${toHpglUnit(mapped.x)},${toHpglUnit(mapped.y)}`;
     });
 
-    const header = job.axisMode.startsWith('mh721-direct') ? 'SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
+    const header = job.axisMode.startsWith('mh721-direct') ? 'IN;SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
     return header + corners.map(c => `PU${c};`).join('') + 'PU0,0;';
   }
 

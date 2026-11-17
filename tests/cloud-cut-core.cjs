@@ -395,17 +395,16 @@ function polylineLength(pts) {
   const hpglFallback = C.generateHPGL({ contours: [noCutPtsContour], ref, pageMm, axisMode: 'screen-down' });
   assert.ok(hpglFallback.includes('PU120,120;PD520,120,520,520,120,520,120,120;'));
 
-  // TestBoxHPGL: pen-up only, zero PD commands; direct MH721 mode preserves manual ORIGIN (SP1;PA; without IN;)
+  // TestBoxHPGL: pen-up only, zero PD commands; direct MH721 mode starts with IN;SP1;PA;PU0,0;
   const testBox = C.generateTestBoxHPGL({ contours: [square], ref, pageMm, axisMode: 'mh721-direct-180' });
-  assert.ok(testBox.startsWith('SP1;PA;PU0,0;'));
-  assert.ok(!testBox.includes('IN;'), 'Direct MH721 HP-GL must not send IN; which wipes manual ORIGIN');
+  assert.ok(testBox.startsWith('IN;SP1;PA;PU0,0;'));
   assert.ok(testBox.endsWith('PU0,0;'));
   assert.ok(!testBox.includes('PD'), 'Test box HPGL must never lower the blade (no PD)');
-  assert.equal(testBox, 'SP1;PA;PU0,0;PU120,120;PU120,520;PU520,520;PU520,120;PU120,120;PU0,0;');
+  assert.equal(testBox, 'IN;SP1;PA;PU0,0;PU120,120;PU120,520;PU520,520;PU520,120;PU120,120;PU0,0;');
 
   const hpglDirect = C.generateHPGL({ contours: [square], ref, pageMm, axisMode: 'mh721-direct-180' });
-  assert.ok(hpglDirect.startsWith('SP1;PA;'));
-  assert.ok(!hpglDirect.includes('IN;'));
+  assert.ok(hpglDirect.startsWith('IN;SP1;PA;PU120,120;PD120,120;'));
+  assert.ok(!hpglDirect.includes('\r') && !hpglDirect.includes('\n'), 'Direct HP-GL must not contain CRLF between PD commands');
 
   // generateCutSVG: flat single <svg>, registration marks (#0055cc), closedPoints only (#ff0000), scaled around ref
   const svg = C.generateCutSVG({ contours: [square], ref, pageMm, scaleX: 1.05, scaleY: 1.0 });

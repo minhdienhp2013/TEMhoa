@@ -132,13 +132,14 @@ function Invoke-TemHoaCutterJob($request) {
         $baud = $parsedBaud
     }
 
-    $flow = 'RequestToSend'
+    $flow = 'None'
     if ($null -ne $request.flowControl) {
         if ($request.flowControl -isnot [string]) { throw 'Invalid flow control.' }
         switch ($request.flowControl.Trim().ToLowerInvariant()) {
-            '' { $flow = 'RequestToSend' }
+            '' { $flow = 'None' }
             'requesttosend' { $flow = 'RequestToSend' }
             'rts' { $flow = 'RequestToSend' }
+            'xonxoff' { $flow = 'XOnXOff' }
             'none' { $flow = 'None' }
             default { throw 'Unsupported flow control.' }
         }
@@ -230,7 +231,7 @@ function Set-TemHoaCutControl($request) {
         [System.IO.File]::WriteAllText($cut.control, $value, [System.Text.Encoding]::ASCII)
         if ($action -eq 'cancel') {
             $exited = $false
-            try { $exited = $cut.proc.WaitForExit(1500) } catch {}
+            try { $exited = $cut.proc.WaitForExit(4500) } catch {}
             if (-not $exited) {
                 try { $cut.proc.Kill() } catch {}
             }
@@ -244,9 +245,13 @@ function Set-TemHoaCutControl($request) {
             port = $request.port
             baudRate = if ($null -ne $request.baudRate) { $request.baudRate } else { 9600 }
             flowControl = if ($request.flowControl -is [string] -and $request.flowControl) { $request.flowControl } else { 'None' }
-            hpgl = 'SP1;PA;PU;PU0,0;'
+            hpgl = 'IN;SP1;PA;PU;PU0,0;'
         }
         $outcome = Invoke-TemHoaCutterJob $resetReq
+        if ($null -ne $script:TemHoaCut) {
+            try { $script:TemHoaCut.proc.WaitForExit(2000) | Out-Null } catch {}
+            $null = Get-TemHoaCutStatus
+        }
         return @{ running = $false; stopped = $true; action = 'cancel'; port = $request.port.Trim().ToUpperInvariant() }
     }
     return @{ running = $false; error = 'No cut job is running.' }

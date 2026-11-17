@@ -1026,7 +1026,7 @@
     '<p class="cloudCutHint">Lưu ý cáp USB: Cắm cáp USB từ MH721 vào Windows sẽ tạo cổng COM ảo (vd: USB-SERIAL CH340 (COM3)).</p>' +
     '<div class="cloudCutGrid2">' +
     '<div><label for="cutComBaud">Tốc độ Baud</label><select id="cutComBaud"><option value="4800">4800</option><option value="9600" selected>9600</option><option value="19200">19200</option><option value="38400">38400</option><option value="57600">57600</option><option value="115200">115200</option></select></div>' +
-    '<div><label for="cutComFlow">Điều khiển luồng</label><select id="cutComFlow"><option value="None" selected>None (khuyên dùng CH340)</option><option value="RequestToSend">RequestToSend (RS232)</option></select></div>' +
+    '<div><label for="cutComFlow">Điều khiển luồng</label><select id="cutComFlow"><option value="None" selected>None (khuyên dùng CH340)</option><option value="RequestToSend">RequestToSend (RTS/CTS)</option><option value="XOnXOff">XOnXOff (Mềm)</option></select></div>' +
     '</div>' +
     '<div class="cloudCutComButtons">' +
     '<button id="cutSendDirect" type="button" class="primary" disabled>✂ Cắt trực tiếp ngay</button>' +
@@ -1351,8 +1351,16 @@
         throw Error(data.error || 'Không đọc được danh sách cổng COM.');
       }
 
-      const rawDetails = Array.isArray(data.portDetails) ? data.portDetails : [];
-      const ports = Array.isArray(data.ports) ? data.ports : [];
+      const rawDetails = Array.isArray(data.portDetails)
+        ? data.portDetails
+        : data.portDetails && typeof data.portDetails === 'object'
+          ? [data.portDetails]
+          : [];
+      const ports = Array.isArray(data.ports)
+        ? data.ports
+        : typeof data.ports === 'string' && data.ports
+          ? [data.ports]
+          : [];
       const details = rawDetails.length
         ? rawDetails.filter(d => d && typeof d.port === 'string')
         : ports.map(p => ({ port: p, label: p, usb: false }));

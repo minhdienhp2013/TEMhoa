@@ -67,9 +67,10 @@ function Resolve-FlowControl {
     param([string]$Value)
     $normalized = if ($null -eq $Value) { '' } else { $Value.Trim().ToLowerInvariant() }
     switch ($normalized) {
-        '' { return [System.IO.Ports.Handshake]::RequestToSend }
+        '' { return [System.IO.Ports.Handshake]::None }
         'requesttosend' { return [System.IO.Ports.Handshake]::RequestToSend }
         'rts' { return [System.IO.Ports.Handshake]::RequestToSend }
+        'xonxoff' { return [System.IO.Ports.Handshake]::XOnXOff }
         'none' { return [System.IO.Ports.Handshake]::None }
         default { throw "Unsupported flow control: $Value" }
     }
@@ -115,8 +116,7 @@ function Send-HpglJob {
 
     $hpgl = [System.IO.File]::ReadAllText($SourcePath, [System.Text.Encoding]::UTF8)
     Test-SafeHpgl -Hpgl $hpgl
-    $wireHpgl = if ($hpgl.EndsWith("`n")) { $hpgl } else { $hpgl + "`r`n" }
-    $bytes = [System.Text.Encoding]::ASCII.GetBytes($wireHpgl)
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes($hpgl)
 
     Initialize-SerialPortType
     $serial = $null
@@ -129,64 +129,110 @@ function Send-HpglJob {
         $serial.DtrEnable = $true
         $serial.RtsEnable = $true
         $serial.Open()
-        [System.Threading.Thread]::Sleep(80)
+        [System.Threading.Thread]::Sleep(120)
 
-        # Pace writes in small chunks so CH340 USB-Serial and cutter buffers do not overflow.
-        # Send line by line and wait roughly as long as the cutter needs to move, because
-        # without hardware flow control the small cutter buffer overflows and the cut stops early.
-        $assumedMmPerSec = 40.0
+        # Split by semicolon (HP-GL command terminator) so both single-line jobs (like TestBox)
+        # and multi-contour jobs are parsed command-by-command without injecting CRLF between PD points.
+        # Maintain a 450 ms lookahead window so curves cut smoothly with the blade down while
+        # the cutter hardware FIFO never overflows and long moves complete before closing the port.
+        $assumedMmPerSec = 45.0
+        $maxLookaheadMs = 450.0
         $lastX = 0.0; $lastY = 0.0
+        $penDown = $false
         $stopped = $false
-        $lines = $wireHpgl -split "`n"
-        foreach ($line in $lines) {
-            $text = $line.Trim()
-            if ($text.Length -eq 0) { continue }
+        $virtualFinishUtc = [DateTime]::UtcNow
+        $rawCommands = $hpgl -split ';'
 
-            # Operator controls from the TemHoa UI: pause (lift blade and wait), resume, cancel (lift + return to origin).
+        foreach ($rawCmd in $rawCommands) {
+            $cmd = ($rawCmd -replace '[\r\n\t ]+', '').ToUpperInvariant()
+            if ($cmd.Length -eq 0) { continue }
+
             $control = Get-CutControl -Path $ControlFile
             if ($control -eq 'pause') {
-                $liftBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;`r`n")
-                $serial.Write($liftBytes, 0, $liftBytes.Length)
+                if ($penDown) {
+                    $liftBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;')
+                    $serial.Write($liftBytes, 0, $liftBytes.Length)
+                }
                 while ($control -eq 'pause') {
-                    [System.Threading.Thread]::Sleep(100)
+                    [System.Threading.Thread]::Sleep(80)
                     $control = Get-CutControl -Path $ControlFile
                 }
+                if ($control -ne 'cancel' -and $penDown) {
+                    $resumeCmd = "PU$([int][Math]::Round($lastX)),$([int][Math]::Round($lastY));PD$([int][Math]::Round($lastX)),$([int][Math]::Round($lastY));"
+                    $resumeBytes = [System.Text.Encoding]::ASCII.GetBytes($resumeCmd)
+                    $serial.Write($resumeBytes, 0, $resumeBytes.Length)
+                }
+                $virtualFinishUtc = [DateTime]::UtcNow.AddMilliseconds(60)
             }
             if ($control -eq 'cancel') {
-                $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;PU0,0;`r`n")
+                $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;PU0,0;')
                 $serial.Write($cancelBytes, 0, $cancelBytes.Length)
+                $returnDistMm = [Math]::Sqrt($lastX * $lastX + $lastY * $lastY) / 40.0
+                $returnWaitMs = [Math]::Min(3500.0, 300.0 + ($returnDistMm / $assumedMmPerSec) * 1000.0)
+                [System.Threading.Thread]::Sleep([int]$returnWaitMs)
                 $stopped = $true
                 break
             }
 
-            $lineBytes = [System.Text.Encoding]::ASCII.GetBytes($text + "`r`n")
-            $serial.Write($lineBytes, 0, $lineBytes.Length)
-            $delayMs = 15.0
-            $m = [regex]::Match($text, '^P[UD](-?\d+),(-?\d+);?$')
-            if ($m.Success) {
-                $x = [double]$m.Groups[1].Value; $y = [double]$m.Groups[2].Value
-                $distMm = [Math]::Sqrt(($x - $lastX) * ($x - $lastX) + ($y - $lastY) * ($y - $lastY)) / 40.0
-                $lastX = $x; $lastY = $y
-                $delayMs = [Math]::Min(3000.0, 15.0 + ($distMm / $assumedMmPerSec) * 1000.0)
+            $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes($cmd + ';')
+            $serial.Write($tokenBytes, 0, $tokenBytes.Length)
+
+            $cmdDistMm = 0.0
+            $penToggleMs = 0.0
+            if ($cmd.StartsWith('PU') -or $cmd.StartsWith('PD')) {
+                $isPd = $cmd.StartsWith('PD')
+                if ($isPd -and -not $penDown) { $penToggleMs = 45.0; $penDown = $true }
+                elseif (-not $isPd -and $penDown) { $penToggleMs = 35.0; $penDown = $false }
+
+                $coordMatches = [regex]::Matches($cmd.Substring(2), '(-?\d+),(-?\d+)')
+                foreach ($cm in $coordMatches) {
+                    $nx = [double]$cm.Groups[1].Value
+                    $ny = [double]$cm.Groups[2].Value
+                    $dx = $nx - $lastX
+                    $dy = $ny - $lastY
+                    $cmdDistMm += [Math]::Sqrt($dx * $dx + $dy * $dy) / 40.0
+                    $lastX = $nx
+                    $lastY = $ny
+                }
             }
-            # Sleep in short slices so Pause / Cancel react quickly even during long moves.
-            $waitUntil = [DateTime]::UtcNow.AddMilliseconds($delayMs)
-            while ([DateTime]::UtcNow -lt $waitUntil) {
+
+            $wireMs = ($tokenBytes.Length * 10.0 / [double]$TargetBaud) * 1000.0
+            $moveMs = ($cmdDistMm / $assumedMmPerSec) * 1000.0 + $penToggleMs
+            $stepMs = [Math]::Max($wireMs, $moveMs)
+            $nowUtc = [DateTime]::UtcNow
+            if ($virtualFinishUtc -lt $nowUtc) { $virtualFinishUtc = $nowUtc }
+            $virtualFinishUtc = $virtualFinishUtc.AddMilliseconds($stepMs)
+
+            while (($virtualFinishUtc - [DateTime]::UtcNow).TotalMilliseconds -gt $maxLookaheadMs) {
                 [System.Threading.Thread]::Sleep(20)
                 if ($ControlFile -and (Get-CutControl -Path $ControlFile) -in @('pause', 'cancel')) { break }
             }
         }
-        if (-not $stopped -and $ControlFile -and (Get-CutControl -Path $ControlFile) -eq 'cancel') {
-            $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;PU0,0;`r`n")
-            $serial.Write($cancelBytes, 0, $cancelBytes.Length)
-            $stopped = $true
+
+        # Wait for the cutter to physically finish all buffered movements before closing the port.
+        $finishDeadline = $virtualFinishUtc.AddMilliseconds(400)
+        while (-not $stopped -and [DateTime]::UtcNow -lt $finishDeadline) {
+            if ($ControlFile) {
+                $endCtrl = Get-CutControl -Path $ControlFile
+                if ($endCtrl -eq 'cancel') {
+                    $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;PU0,0;')
+                    $serial.Write($cancelBytes, 0, $cancelBytes.Length)
+                    $returnDistMm = [Math]::Sqrt($lastX * $lastX + $lastY * $lastY) / 40.0
+                    $returnWaitMs = [Math]::Min(3500.0, 300.0 + ($returnDistMm / $assumedMmPerSec) * 1000.0)
+                    [System.Threading.Thread]::Sleep([int]$returnWaitMs)
+                    $stopped = $true
+                    break
+                }
+            }
+            [System.Threading.Thread]::Sleep(25)
         }
+
         $serial.BaseStream.Flush()
         $drainDeadline = [DateTime]::UtcNow.AddSeconds(30)
         while ($serial.BytesToWrite -gt 0 -and [DateTime]::UtcNow -lt $drainDeadline) {
             [System.Threading.Thread]::Sleep(25)
         }
-        [System.Threading.Thread]::Sleep(300)
+        [System.Threading.Thread]::Sleep(250)
     } catch [System.TimeoutException] {
         throw "Het thoi gian cho khi gui lenh toi cong $port. Kiem tra may cat dang o che do Online, thu doi Flow Control sang None hoac chon dung Baud Rate (9600/38400)."
     } finally {
