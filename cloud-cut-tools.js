@@ -8,15 +8,17 @@
   const AXIS_MODES = new Set([
     'artcut-cartesian',
     'mh721-direct-180',
+    'mh721-direct-pos',
     'mh721-direct-90cw',
     'mh721-direct-xy',
     'screen-down'
   ]);
 
   const AXIS_OPTIONS = [
-    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Xoay giấy 180° · chiều ngang trang = dao chạy ngang'],
-    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Đổi trục · chiều ngang trang = lăn giấy'],
-    ['mh721-direct-xy', 'Cắt thẳng MH721 · Gốc trên-trái (-X sang phải, +Y xuống)'],
+    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Dao chạy ngang (-Y), lăn giấy (+X)'],
+    ['mh721-direct-pos', 'Cắt thẳng MH721 · Dao chạy ngang (+Y), lăn giấy (+X)'],
+    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Đổi trục (+X lăn ngang, -Y dao dọc)'],
+    ['mh721-direct-xy', 'Cắt thẳng MH721 · Đổi trục (-X, +Y)'],
     ['artcut-cartesian', 'Phần mềm cắt ngoài (Artcut / SignMaster / Corel) · Gốc + trên-trái'],
     ['screen-down', 'Tọa độ màn hình (+X phải, +Y xuống)']
   ];
@@ -1031,6 +1033,7 @@
     '<div class="cloudCutComButtons">' +
     '<button id="cutSendDirect" type="button" class="primary" disabled>✂ Cắt trực tiếp ngay</button>' +
     '<button id="cutTestBox" type="button" disabled>Chạy thử khung (không hạ dao)</button>' +
+    '<button id="cutTestYAxis" type="button" disabled>⇄ Thử dao ngang (Y)</button>' +
     '<button id="cutPauseResume" type="button" class="cloudCutWarnBtn" disabled>⏸ Tạm dừng</button>' +
     '<button id="cutCancelJob" type="button" class="cloudCutDangerBtn" disabled>⏹ Xoá lệnh / Về gốc</button>' +
     '<button id="cutRefreshPorts" type="button">Làm mới COM</button>' +
@@ -1308,6 +1311,9 @@
     const canCut = !cutBusy && hasPort && Boolean(lastCutJob?.contours?.length);
     $('cutTestBox').disabled = !canCut;
     $('cutSendDirect').disabled = !canCut;
+    if ($('cutTestYAxis')) {
+      $('cutTestYAxis').disabled = !(!cutBusy && hasPort);
+    }
     $('cutRefreshPorts').disabled = cutBusy;
     if ($('cutPauseResume')) {
       $('cutPauseResume').disabled = !cutBusy;
@@ -1400,7 +1406,8 @@
   }
 
   async function sendDirectComCut(testBox = false) {
-    if (cutBusy || !lastCutJob?.contours?.length) return;
+    const isYTest = testBox === 'yaxis';
+    if (cutBusy || (!isYTest && !lastCutJob?.contours?.length)) return;
     const port = $('cutComPort').value;
     if (!port) {
       $('cutComStatus').textContent = 'Vui lòng chọn cổng COM.';
@@ -1415,14 +1422,18 @@
     cutPaused = false;
     cutCancelled = false;
     syncCutterActionButtons();
-    $('cutComStatus').textContent = testBox
-      ? `Đang gửi khung chạy thử (không hạ dao) tới ${port} (${baudRate} bps, ${flowControl})…`
-      : `Đang gửi lệnh cắt trực tiếp MH721 tới ${port} (${baudRate} bps, ${flowControl})…`;
+    $('cutComStatus').textContent = isYTest
+      ? `Đang thử cụm dao chạy ngang (trục Y: -4cm / +4cm) tới ${port}…`
+      : testBox
+        ? `Đang gửi khung chạy thử (không hạ dao) tới ${port} (${baudRate} bps, ${flowControl})…`
+        : `Đang gửi lệnh cắt trực tiếp MH721 tới ${port} (${baudRate} bps, ${flowControl})…`;
 
     try {
-      const hpgl = testBox
-        ? Core.generateTestBoxHPGL(lastCutJob)
-        : Core.generateHPGL({ ...lastCutJob, includeRefMark: false });
+      const hpgl = isYTest
+        ? 'SP1;PA;PU0,0;PU0,-1600;PU0,0;PU0,1600;PU0,0;'
+        : testBox
+          ? Core.generateTestBoxHPGL(lastCutJob)
+          : Core.generateHPGL({ ...lastCutJob, includeRefMark: false });
       const response = await fetch('/api/cut', {
         method: 'POST',
         headers: {
@@ -1625,6 +1636,7 @@
   $('cutComBaud').onchange = () => saveComPref({ baudRate: $('cutComBaud').value });
   $('cutComFlow').onchange = () => saveComPref({ flowControl: $('cutComFlow').value });
   $('cutTestBox').onclick = () => sendDirectComCut(true);
+  $('cutTestYAxis').onclick = () => sendDirectComCut('yaxis');
   $('cutSendDirect').onclick = () => sendDirectComCut(false);
   $('cutPauseResume').onclick = togglePauseCutJob;
   $('cutCancelJob').onclick = cancelCutJob;

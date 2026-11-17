@@ -11,6 +11,7 @@
     'artcut-cartesian',
     'screen-down',
     'mh721-direct-180',
+    'mh721-direct-pos',
     'mh721-direct-90cw',
     'mh721-direct-xy'
   ]);
@@ -808,12 +809,14 @@
         return { x: cleanZero(dx), y: cleanZero(dy) };
       case 'mh721-direct-180':
         // MH721 roll cutter: HP-GL X = paper feed (roller), Y = carriage moving across the paper.
-        // With the printed sheet rotated 180°, page width (horizontal) must drive the carriage (Y)
-        // and page height must drive the roller (X).
+        // From the right-hand origin on MH721, moving the carriage left across the sheet is -Y
+        // (matching artcut-cartesian's negative Y axis), while feeding paper is +X.
+        return { x: cleanZero(dy), y: cleanZero(-dx) };
+      case 'mh721-direct-pos':
         return { x: cleanZero(dy), y: cleanZero(dx) };
       case 'mh721-direct-90cw':
-        // Swapped fallback: page width drives the roller, page height drives the carriage.
-        return { x: cleanZero(dx), y: cleanZero(dy) };
+        // Swapped fallback: page width drives the roller (+X), page height drives the carriage (-Y).
+        return { x: cleanZero(dx), y: cleanZero(-dy) };
       case 'mh721-direct-xy':
         return { x: cleanZero(-dx), y: cleanZero(dy) };
     }
@@ -866,7 +869,8 @@
     const job = resolveCutJob(cutJob);
     const txOpts = { scaleX: job.scaleX, scaleY: job.scaleY, axisMode: job.axisMode };
     const isDirect = job.axisMode.startsWith('mh721-direct');
-    const cmds = [isDirect ? 'IN;SP1;PA;' : 'IN;SP1;'];
+    // Do not send IN; in direct MH721 modes because IN; resets the MH721 ROM origin to the right limit switch.
+    const cmds = [isDirect ? 'SP1;PA;' : 'IN;SP1;'];
 
     if (job.includeRefMark) {
       const half = (Number.isFinite(job.ref.crossSizeMm) && job.ref.crossSizeMm > 0 ? job.ref.crossSizeMm : 8) / 2;
@@ -929,7 +933,7 @@
       return `${toHpglUnit(mapped.x)},${toHpglUnit(mapped.y)}`;
     });
 
-    const header = job.axisMode.startsWith('mh721-direct') ? 'IN;SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
+    const header = job.axisMode.startsWith('mh721-direct') ? 'SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
     return header + corners.map(c => `PU${c};`).join('') + 'PU0,0;';
   }
 
