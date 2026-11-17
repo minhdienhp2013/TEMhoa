@@ -1316,7 +1316,7 @@
     }
     $('cutRefreshPorts').disabled = cutBusy;
     if ($('cutPauseResume')) {
-      $('cutPauseResume').disabled = !cutBusy;
+      $('cutPauseResume').disabled = !(cutBusy || hasPort);
       $('cutPauseResume').textContent = cutPaused ? '▶ Tiếp tục cắt' : '⏸ Tạm dừng';
     }
     if ($('cutCancelJob')) {
@@ -1497,8 +1497,22 @@
   }
 
   async function togglePauseCutJob() {
-    if (!cutBusy) return;
-    const action = cutPaused ? 'resume' : 'pause';
+    const port = $('cutComPort')?.value || '';
+    const baudRate = Number($('cutComBaud')?.value) || 9600;
+    const flowControl = $('cutComFlow')?.value || 'None';
+    if (!port) {
+      $('cutComStatus').textContent = 'Vui lòng chọn cổng COM.';
+      return;
+    }
+    const action = cutBusy && cutPaused ? 'resume' : 'pause';
+    if (cutBusy) {
+      cutPaused = action === 'pause';
+      syncCutterActionButtons();
+    }
+    $('cutComStatus').textContent =
+      action === 'pause'
+        ? `Đang tạm dừng và nhấc dao (PU) trên ${port}…`
+        : `Đang tiếp tục chạy lệnh cắt trên ${port}…`;
     try {
       const response = await fetch('/api/cut-control', {
         method: 'POST',
@@ -1506,14 +1520,19 @@
           'X-TemHoa-Token': window.TEMHOA_TOKEN || '',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, port, baudRate, flowControl })
       });
       const data = await response.json();
       if (!response.ok || data.error) throw Error(data.error || 'Không điều khiển được lệnh cắt.');
-      cutPaused = action === 'pause';
-      $('cutComStatus').textContent = cutPaused
-        ? 'Đã tạm dừng và nhấc dao (PU). Bấm "▶ Tiếp tục cắt" để cắt tiếp hoặc "⏹ Xoá lệnh / Về gốc" để huỷ.'
-        : 'Đang tiếp tục chạy lệnh cắt…';
+      if (data.running) {
+        cutPaused = action === 'pause';
+        $('cutComStatus').textContent = cutPaused
+          ? 'Đã tạm dừng và nhấc dao (PU). Bấm "▶ Tiếp tục cắt" để cắt tiếp hoặc "⏹ Xoá lệnh / Về gốc" để huỷ.'
+          : 'Đang tiếp tục chạy lệnh cắt…';
+      } else {
+        cutPaused = false;
+        $('cutComStatus').textContent = `Đã gửi lệnh dừng và nhấc dao (PU) trên ${port}.`;
+      }
       syncCutterActionButtons();
     } catch (error) {
       $('cutComStatus').textContent = error.message;

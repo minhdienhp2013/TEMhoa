@@ -231,7 +231,7 @@ function Set-TemHoaCutControl($request) {
         [System.IO.File]::WriteAllText($cut.control, $value, [System.Text.Encoding]::ASCII)
         if ($action -eq 'cancel') {
             $exited = $false
-            try { $exited = $cut.proc.WaitForExit(4500) } catch {}
+            try { $exited = $cut.proc.WaitForExit(1500) } catch {}
             if (-not $exited) {
                 try { $cut.proc.Kill() } catch {}
             }
@@ -240,21 +240,22 @@ function Set-TemHoaCutControl($request) {
         }
         return @{ running = $true; paused = ($action -eq 'pause'); action = $action; port = $cut.port }
     }
-    if ($action -eq 'cancel' -and $request.port -is [string] -and $request.port.Trim()) {
+    if ($action -in @('cancel', 'pause') -and $request.port -is [string] -and $request.port.Trim()) {
+        $resetHpgl = if ($action -eq 'cancel') { 'IN;SP1;PU;PU0,0;' } else { 'IN;SP1;PU;' }
         $resetReq = [pscustomobject]@{
             port = $request.port
             baudRate = if ($null -ne $request.baudRate) { $request.baudRate } else { 9600 }
             flowControl = if ($request.flowControl -is [string] -and $request.flowControl) { $request.flowControl } else { 'None' }
-            hpgl = 'IN;SP1;PU;PU0,0;'
+            hpgl = $resetHpgl
         }
         $outcome = Invoke-TemHoaCutterJob $resetReq
         if ($null -ne $script:TemHoaCut) {
-            try { $script:TemHoaCut.proc.WaitForExit(2000) | Out-Null } catch {}
+            try { $script:TemHoaCut.proc.WaitForExit(1500) | Out-Null } catch {}
             $null = Get-TemHoaCutStatus
         }
-        return @{ running = $false; stopped = $true; action = 'cancel'; port = $request.port.Trim().ToUpperInvariant() }
+        return @{ running = $false; paused = $false; stopped = $true; action = $action; port = $request.port.Trim().ToUpperInvariant() }
     }
-    return @{ running = $false; error = 'No cut job is running.' }
+    return @{ running = $false; paused = $false; stopped = $true; action = $action }
 }
 $taskListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 8765)
 try { $taskListener.Start() } catch {
@@ -283,11 +284,14 @@ try {
         $taskClient = $taskListener.AcceptTcpClient()
         try {
             $taskStream = $taskClient.GetStream()
-            $taskStream.ReadTimeout = 3000
+            # Use a short 200 ms timeout for the first byte so Chrome speculative preconnect sockets
+            # do not block Pause/Cancel requests for 3 seconds in this single-threaded listener.
+            $taskStream.ReadTimeout = 200
             $taskHeaderBuffer = [System.IO.MemoryStream]::new()
             while ($true) {
                 $taskByte = $taskStream.ReadByte()
                 if ($taskByte -lt 0) { throw 'Incomplete request.' }
+                if ($taskHeaderBuffer.Length -eq 0) { $taskStream.ReadTimeout = 3000 }
                 $taskHeaderBuffer.WriteByte([byte]$taskByte)
                 if ($taskHeaderBuffer.Length -gt 16384) { throw 'Request headers too large.' }
                 if ($taskHeaderBuffer.Length -ge 4) {

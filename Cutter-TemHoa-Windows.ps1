@@ -132,112 +132,153 @@ function Send-HpglJob {
         [System.Threading.Thread]::Sleep(120)
 
         # Split by semicolon (HP-GL command terminator) so both single-line jobs (like TestBox)
-        # and multi-contour jobs are parsed command-by-command without injecting CRLF between PD points.
-        # Maintain a 450 ms lookahead window so curves cut smoothly with the blade down while
-        # the cutter hardware FIFO never overflows and long moves complete before closing the port.
-        $assumedMmPerSec = 45.0
-        $maxLookaheadMs = 450.0
+        # Subdivide every PU/PD move into <= 160-unit (4 mm) sub-steps and keep lookahead <= 50 ms
+        # so at most ONE 4 mm step is buffered in the cutter at any moment. This makes Pause and Cancel
+        # stop the physical cutter within ~0.15 seconds (<= 4 mm) instead of running through a large buffer.
+        $assumedMmPerSec = 26.0
+        $perStepOverheadMs = 10.0
+        $maxLookaheadMs = 50.0
+        $maxSubStepUnits = 160.0
         $lastX = 0.0; $lastY = 0.0
         $penDown = $false
         $stopped = $false
         $virtualFinishUtc = [DateTime]::UtcNow
         $rawCommands = $hpgl -split ';'
 
+        function Invoke-HandlePauseOrCancel {
+            $ctrl = Get-CutControl -Path $ControlFile
+            if ($ctrl -eq 'pause') {
+                try { $serial.DiscardOutBuffer() } catch {}
+                $liftBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;')
+                $serial.Write($liftBytes, 0, $liftBytes.Length)
+                $serial.BaseStream.Flush()
+                while ($ctrl -eq 'pause') {
+                    [System.Threading.Thread]::Sleep(50)
+                    $ctrl = Get-CutControl -Path $ControlFile
+                }
+                if ($ctrl -ne 'cancel' -and $penDown) {
+                    $rx = [int][Math]::Round($lastX)
+                    $ry = [int][Math]::Round($lastY)
+                    $resumeBytes = [System.Text.Encoding]::ASCII.GetBytes("PU$rx,$ry;PD$rx,$ry;")
+                    $serial.Write($resumeBytes, 0, $resumeBytes.Length)
+                    $serial.BaseStream.Flush()
+                    [System.Threading.Thread]::Sleep(45)
+                }
+                $script:virtualFinishUtc = [DateTime]::UtcNow
+            }
+            if ($ctrl -eq 'cancel') {
+                try { $serial.DiscardOutBuffer() } catch {}
+                $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes('IN;SP1;PU;PU0,0;')
+                $serial.Write($cancelBytes, 0, $cancelBytes.Length)
+                $serial.BaseStream.Flush()
+                [System.Threading.Thread]::Sleep(350)
+                return $true
+            }
+            return $false
+        }
+
         foreach ($rawCmd in $rawCommands) {
             $cmd = ($rawCmd -replace '[\r\n\t ]+', '').ToUpperInvariant()
             if ($cmd.Length -eq 0) { continue }
 
-            $control = Get-CutControl -Path $ControlFile
-            if ($control -eq 'pause') {
-                if ($penDown) {
-                    $liftBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;')
-                    $serial.Write($liftBytes, 0, $liftBytes.Length)
-                }
-                while ($control -eq 'pause') {
-                    [System.Threading.Thread]::Sleep(80)
-                    $control = Get-CutControl -Path $ControlFile
-                }
-                if ($control -ne 'cancel' -and $penDown) {
-                    $resumeCmd = "PU$([int][Math]::Round($lastX)),$([int][Math]::Round($lastY));PD$([int][Math]::Round($lastX)),$([int][Math]::Round($lastY));"
-                    $resumeBytes = [System.Text.Encoding]::ASCII.GetBytes($resumeCmd)
-                    $serial.Write($resumeBytes, 0, $resumeBytes.Length)
-                }
-                $virtualFinishUtc = [DateTime]::UtcNow.AddMilliseconds(60)
-            }
-            if ($control -eq 'cancel') {
-                $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;PU0,0;')
-                $serial.Write($cancelBytes, 0, $cancelBytes.Length)
-                $returnDistMm = [Math]::Sqrt($lastX * $lastX + $lastY * $lastY) / 40.0
-                $returnWaitMs = [Math]::Min(3500.0, 300.0 + ($returnDistMm / $assumedMmPerSec) * 1000.0)
-                [System.Threading.Thread]::Sleep([int]$returnWaitMs)
-                $stopped = $true
-                break
-            }
-
-            $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes($cmd + ';')
-            $serial.Write($tokenBytes, 0, $tokenBytes.Length)
+            if (Invoke-HandlePauseOrCancel) { $stopped = $true; break }
 
             if ($cmd -eq 'IN') {
+                $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes('IN;')
+                $serial.Write($tokenBytes, 0, $tokenBytes.Length)
                 $serial.BaseStream.Flush()
                 [System.Threading.Thread]::Sleep(250)
                 $virtualFinishUtc = [DateTime]::UtcNow
                 continue
             }
             if ($cmd.StartsWith('SP')) {
+                $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes($cmd + ';')
+                $serial.Write($tokenBytes, 0, $tokenBytes.Length)
                 $serial.BaseStream.Flush()
                 [System.Threading.Thread]::Sleep(80)
                 $virtualFinishUtc = [DateTime]::UtcNow
                 continue
             }
 
-            $cmdDistMm = 0.0
-            $penToggleMs = 0.0
             if ($cmd.StartsWith('PU') -or $cmd.StartsWith('PD')) {
-                $isPd = $cmd.StartsWith('PD')
-                if ($isPd -and -not $penDown) { $penToggleMs = 45.0; $penDown = $true }
-                elseif (-not $isPd -and $penDown) { $penToggleMs = 35.0; $penDown = $false }
-
+                $prefix = $cmd.Substring(0, 2)
+                $isPd = ($prefix -eq 'PD')
                 $coordMatches = [regex]::Matches($cmd.Substring(2), '(-?\d+),(-?\d+)')
-                foreach ($cm in $coordMatches) {
-                    $nx = [double]$cm.Groups[1].Value
-                    $ny = [double]$cm.Groups[2].Value
-                    $dx = $nx - $lastX
-                    $dy = $ny - $lastY
-                    $cmdDistMm += [Math]::Sqrt($dx * $dx + $dy * $dy) / 40.0
-                    $lastX = $nx
-                    $lastY = $ny
+
+                if ($coordMatches.Count -eq 0) {
+                    $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes($prefix + ';')
+                    $serial.Write($tokenBytes, 0, $tokenBytes.Length)
+                    $serial.BaseStream.Flush()
+                    if ($isPd -and -not $penDown) { [System.Threading.Thread]::Sleep(45); $penDown = $true }
+                    elseif (-not $isPd -and $penDown) { [System.Threading.Thread]::Sleep(35); $penDown = $false }
+                    continue
                 }
+
+                foreach ($cm in $coordMatches) {
+                    $targetX = [double]$cm.Groups[1].Value
+                    $targetY = [double]$cm.Groups[2].Value
+                    $startX = $lastX
+                    $startY = $lastY
+                    $totalDx = $targetX - $startX
+                    $totalDy = $targetY - $startY
+                    $totalUnits = [Math]::Sqrt($totalDx * $totalDx + $totalDy * $totalDy)
+                    $subSteps = [Math]::Max(1, [int][Math]::Ceiling($totalUnits / $maxSubStepUnits))
+
+                    for ($s = 1; $s -le $subSteps; $s++) {
+                        if (Invoke-HandlePauseOrCancel) { $stopped = $true; break }
+
+                        $ratio = [double]$s / [double]$subSteps
+                        $sx = [int][Math]::Round($startX + $totalDx * $ratio)
+                        $sy = [int][Math]::Round($startY + $totalDy * $ratio)
+                        $stepDx = [double]$sx - $lastX
+                        $stepDy = [double]$sy - $lastY
+                        $stepMm = [Math]::Sqrt($stepDx * $stepDx + $stepDy * $stepDy) / 40.0
+                        $lastX = [double]$sx
+                        $lastY = [double]$sy
+
+                        $penToggleMs = 0.0
+                        if ($isPd -and -not $penDown) { $penToggleMs = 45.0; $penDown = $true }
+                        elseif (-not $isPd -and $penDown) { $penToggleMs = 35.0; $penDown = $false }
+
+                        $subToken = "$prefix$sx,$sy;"
+                        $subBytes = [System.Text.Encoding]::ASCII.GetBytes($subToken)
+                        while ($serial.BytesToWrite -gt 0) {
+                            [System.Threading.Thread]::Sleep(5)
+                        }
+                        $serial.Write($subBytes, 0, $subBytes.Length)
+                        $serial.BaseStream.Flush()
+
+                        $wireMs = ($subBytes.Length * 10.0 / [double]$TargetBaud) * 1000.0
+                        $moveMs = ($stepMm / $assumedMmPerSec) * 1000.0 + $penToggleMs + $perStepOverheadMs
+                        $stepMs = [Math]::Max($wireMs, $moveMs)
+                        $nowUtc = [DateTime]::UtcNow
+                        if ($virtualFinishUtc -lt $nowUtc) { $virtualFinishUtc = $nowUtc }
+                        $virtualFinishUtc = $virtualFinishUtc.AddMilliseconds($stepMs)
+
+                        while (($virtualFinishUtc - [DateTime]::UtcNow).TotalMilliseconds -gt $maxLookaheadMs) {
+                            [System.Threading.Thread]::Sleep(15)
+                            if ($ControlFile -and (Get-CutControl -Path $ControlFile) -in @('pause', 'cancel')) { break }
+                        }
+                    }
+                    if ($stopped) { break }
+                }
+                if ($stopped) { break }
+                continue
             }
 
-            $wireMs = ($tokenBytes.Length * 10.0 / [double]$TargetBaud) * 1000.0
-            $moveMs = ($cmdDistMm / $assumedMmPerSec) * 1000.0 + $penToggleMs
-            $stepMs = [Math]::Max($wireMs, $moveMs)
-            $nowUtc = [DateTime]::UtcNow
-            if ($virtualFinishUtc -lt $nowUtc) { $virtualFinishUtc = $nowUtc }
-            $virtualFinishUtc = $virtualFinishUtc.AddMilliseconds($stepMs)
-
-            while (($virtualFinishUtc - [DateTime]::UtcNow).TotalMilliseconds -gt $maxLookaheadMs) {
-                [System.Threading.Thread]::Sleep(20)
-                if ($ControlFile -and (Get-CutControl -Path $ControlFile) -in @('pause', 'cancel')) { break }
-            }
+            $otherBytes = [System.Text.Encoding]::ASCII.GetBytes($cmd + ';')
+            $serial.Write($otherBytes, 0, $otherBytes.Length)
+            $serial.BaseStream.Flush()
         }
 
-        # Wait for the cutter to physically finish all buffered movements before closing the port.
-        $finishDeadline = $virtualFinishUtc.AddMilliseconds(400)
+        # Wait for the cutter to physically finish the last buffered step before closing the port.
+        $finishDeadline = $virtualFinishUtc.AddMilliseconds(250)
         while (-not $stopped -and [DateTime]::UtcNow -lt $finishDeadline) {
-            if ($ControlFile) {
-                $endCtrl = Get-CutControl -Path $ControlFile
-                if ($endCtrl -eq 'cancel') {
-                    $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes('PU;PU0,0;')
-                    $serial.Write($cancelBytes, 0, $cancelBytes.Length)
-                    $returnDistMm = [Math]::Sqrt($lastX * $lastX + $lastY * $lastY) / 40.0
-                    $returnWaitMs = [Math]::Min(3500.0, 300.0 + ($returnDistMm / $assumedMmPerSec) * 1000.0)
-                    [System.Threading.Thread]::Sleep([int]$returnWaitMs)
-                    $stopped = $true
-                    break
-                }
+            if ($ControlFile -and (Invoke-HandlePauseOrCancel)) {
+                $stopped = $true
+                break
             }
-            [System.Threading.Thread]::Sleep(25)
+            [System.Threading.Thread]::Sleep(20)
         }
 
         $serial.BaseStream.Flush()
