@@ -36,16 +36,16 @@ function Test-SafeHpgl {
     if ([string]::IsNullOrWhiteSpace($Hpgl)) {
         throw 'HP-GL job payload is empty.'
     }
-    if ($Hpgl -cmatch '[^INSPUD0-9,; \t\r\n-]') {
+    if ($Hpgl -cmatch '[^INSPUDA0-9,; \t\r\n-]') {
         throw 'HP-GL job contains disallowed characters or commands.'
     }
     if ([System.Text.Encoding]::ASCII.GetByteCount($Hpgl) -gt 8388608) {
         throw 'HP-GL job exceeds 8 MB limit.'
     }
-    if ($Hpgl -cnotmatch '(?:IN|SP|PU|PD)') {
+    if ($Hpgl -cnotmatch '(?:IN|SP|PA|PU|PD)') {
         throw 'HP-GL job contains no cutting commands.'
     }
-    if ($Hpgl -cmatch '(?<![A-Z])(?!(?:IN|SP|PU|PD)(?![A-Z]))[A-Z]+') {
+    if ($Hpgl -cmatch '(?<![A-Z])(?!(?:IN|SP|PA|PU|PD)(?![A-Z]))[A-Z]+') {
         throw 'HP-GL job contains unsupported commands.'
     }
     if ($Hpgl -cmatch '\A[ \t\r\n,;]*[0-9-]') {
@@ -54,10 +54,10 @@ function Test-SafeHpgl {
     if ($Hpgl -cmatch '-(?![0-9])|[0-9]-') {
         throw 'HP-GL job contains invalid negative coordinate syntax.'
     }
-    if ($Hpgl -cmatch '(?:\A|[; \t\r\nINSPUD]),|,[ \t\r\n]*(?:[;INSPUD]|\z)|,[ \t\r\n]*,') {
+    if ($Hpgl -cmatch '(?:\A|[; \t\r\nINSPUDA]),|,[ \t\r\n]*(?:[;INSPUDA]|\z)|,[ \t\r\n]*,') {
         throw 'HP-GL job contains invalid comma syntax.'
     }
-    if ($Hpgl -cmatch 'IN[ \t\r\n]*[0-9,-]|SP[ \t\r\n]*(?:-|,[ \t\r\n]*[0-9]|[0-9]+[ \t\r\n]*,)') {
+    if ($Hpgl -cmatch '(?:IN|PA)[ \t\r\n]*[0-9,-]|SP[ \t\r\n]*(?:-|,[ \t\r\n]*[0-9]|[0-9]+[ \t\r\n]*,)') {
         throw 'HP-GL job contains invalid command arguments.'
     }
 }
@@ -103,21 +103,21 @@ function Send-HpglJob {
 
     $hpgl = [System.IO.File]::ReadAllText($SourcePath, [System.Text.Encoding]::UTF8)
     Test-SafeHpgl -Hpgl $hpgl
-    $bytes = [System.Text.Encoding]::ASCII.GetBytes($hpgl)
+    $wireHpgl = if ($hpgl.EndsWith("`n")) { $hpgl } else { $hpgl + "`r`n" }
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes($wireHpgl)
 
     Initialize-SerialPortType
     $serial = $null
     try {
-        $serial = [System.IO.Ports.SerialPort]::new($port, $TargetBaud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
+        $serial = New-Object System.IO.Ports.SerialPort $port, $TargetBaud, ([System.IO.Ports.Parity]::None), 8, ([System.IO.Ports.StopBits]::One)
         $serial.Handshake = $handshake
         $serial.Encoding = [System.Text.Encoding]::ASCII
         $serial.WriteTimeout = 10000
         $serial.ReadTimeout = 2000
         $serial.DtrEnable = $true
-        if ($handshake -eq [System.IO.Ports.Handshake]::None) {
-            $serial.RtsEnable = $true
-        }
+        $serial.RtsEnable = $true
         $serial.Open()
+        [System.Threading.Thread]::Sleep(80)
 
         # Pace writes in small chunks so CH340 USB-Serial and cutter buffers do not overflow.
         $chunkSize = 512
@@ -129,7 +129,11 @@ function Send-HpglJob {
             }
         }
         $serial.BaseStream.Flush()
-        [System.Threading.Thread]::Sleep(50)
+        $drainDeadline = [DateTime]::UtcNow.AddSeconds(30)
+        while ($serial.BytesToWrite -gt 0 -and [DateTime]::UtcNow -lt $drainDeadline) {
+            [System.Threading.Thread]::Sleep(25)
+        }
+        [System.Threading.Thread]::Sleep(300)
     } catch [System.TimeoutException] {
         throw "Het thoi gian cho khi gui lenh toi cong $port. Kiem tra may cat dang o che do Online, thu doi Flow Control sang None hoac chon dung Baud Rate (9600/38400)."
     } finally {

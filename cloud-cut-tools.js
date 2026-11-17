@@ -1023,9 +1023,10 @@
     '<fieldset class="cloudCutFieldset cloudCutDirectCard"><legend>1. Cắt trực tiếp trên phần mềm (Cổng COM · Windows)</legend>' +
     '<label for="cutComPort">Cổng COM máy cắt MH721</label>' +
     '<select id="cutComPort"><option value="">Chưa có cổng COM</option></select>' +
+    '<p class="cloudCutHint">Lưu ý cáp USB: Cắm cáp USB từ MH721 vào Windows sẽ tạo cổng COM ảo (vd: USB-SERIAL CH340 (COM3)).</p>' +
     '<div class="cloudCutGrid2">' +
     '<div><label for="cutComBaud">Tốc độ Baud</label><select id="cutComBaud"><option value="4800">4800</option><option value="9600" selected>9600</option><option value="19200">19200</option><option value="38400">38400</option><option value="57600">57600</option><option value="115200">115200</option></select></div>' +
-    '<div><label for="cutComFlow">Điều khiển luồng</label><select id="cutComFlow"><option value="RequestToSend" selected>RequestToSend</option><option value="None">None</option></select></div>' +
+    '<div><label for="cutComFlow">Điều khiển luồng</label><select id="cutComFlow"><option value="None" selected>None (khuyên dùng CH340)</option><option value="RequestToSend">RequestToSend (RS232)</option></select></div>' +
     '</div>' +
     '<div class="cloudCutComButtons">' +
     '<button id="cutSendDirect" type="button" class="primary" disabled>✂ Cắt trực tiếp ngay</button>' +
@@ -1363,8 +1364,11 @@
           details.find(d => d.usb)?.port ||
           details[0].port;
         portSelect.value = preferred;
+        const selectedDetail = details.find(d => d.port === preferred);
         const selectedLabel = portSelect.selectedOptions[0]?.textContent || preferred;
-        comStatus.textContent = `Đã kết nối sẵn sàng: ${selectedLabel}. Đặt dao vào tâm (+) rồi bấm ORIGIN trên MH721 trước khi cắt.`;
+        comStatus.textContent = selectedDetail?.usb
+          ? `Đã sẵn sàng cổng USB-Serial: ${selectedLabel}. Đặt dao vào tâm (+) rồi bấm ORIGIN trên MH721 trước khi chạy.`
+          : `Cảnh báo: ${selectedLabel} có thể là cổng mainboard (không phải USB máy cắt). Hãy kiểm tra Device Manager → Ports (COM & LPT) xem có USB-SERIAL CH340 chưa hoặc cài driver CH340.`;
       }
     } catch (error) {
       cutterSupported = false;
@@ -1384,14 +1388,14 @@
     }
 
     const baudRate = Number($('cutComBaud').value) || 9600;
-    const flowControl = $('cutComFlow').value || 'RequestToSend';
+    const flowControl = $('cutComFlow').value || 'None';
     saveComPref({ port, baudRate: String(baudRate), flowControl });
 
     cutBusy = true;
     syncCutterActionButtons();
     $('cutComStatus').textContent = testBox
-      ? `Đang gửi khung chạy thử (không hạ dao) tới ${port}…`
-      : `Đang gửi lệnh cắt trực tiếp MH721 tới ${port}…`;
+      ? `Đang gửi khung chạy thử (không hạ dao) tới ${port} (${baudRate} bps, ${flowControl})…`
+      : `Đang gửi lệnh cắt trực tiếp MH721 tới ${port} (${baudRate} bps, ${flowControl})…`;
 
     try {
       const hpgl = testBox
@@ -1413,8 +1417,8 @@
       const data = await response.json();
       if (!response.ok) throw Error(data.error || 'Không gửi được lệnh cắt.');
       $('cutComStatus').textContent = testBox
-        ? `Đã chạy thử khung trên ${data.port || port} (${data.bytes || hpgl.length} bytes). Nếu đúng chiều và khớp vùng tem, bấm Cắt trực tiếp ngay.`
-        : `Đã gửi lệnh cắt xong (${data.bytes || hpgl.length} bytes) tới ${data.port || port}.`;
+        ? `Đã gửi khung chạy thử (${data.bytes || hpgl.length} bytes) tới ${data.port || port} [${baudRate} bps, ${flowControl}]. Nếu máy chưa chạy: (1) kiểm tra MH721 đang ONLINE (không Pause); (2) thử Baud 38400 / 4800 / 9600; (3) thử đổi Luồng None ↔ RequestToSend.`
+        : `Đã gửi lệnh cắt xong (${data.bytes || hpgl.length} bytes) tới ${data.port || port} [${baudRate} bps, ${flowControl}].`;
     } catch (error) {
       $('cutComStatus').textContent = error.message;
     } finally {

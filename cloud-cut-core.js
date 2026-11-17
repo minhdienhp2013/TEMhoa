@@ -860,7 +860,8 @@
   function generateHPGL(cutJob) {
     const job = resolveCutJob(cutJob);
     const txOpts = { scaleX: job.scaleX, scaleY: job.scaleY, axisMode: job.axisMode };
-    const cmds = ['IN;SP1;'];
+    const isDirect = job.axisMode.startsWith('mh721-direct');
+    const cmds = [isDirect ? 'SP1;PA;' : 'IN;SP1;'];
 
     if (job.includeRefMark) {
       const half = (Number.isFinite(job.ref.crossSizeMm) && job.ref.crossSizeMm > 0 ? job.ref.crossSizeMm : 8) / 2;
@@ -915,7 +916,8 @@
       return `${toHpglUnit(mapped.x)},${toHpglUnit(mapped.y)}`;
     });
 
-    return 'IN;PU0,0;' + corners.map(c => `PU${c};`).join('') + 'PU0,0;';
+    const header = job.axisMode.startsWith('mh721-direct') ? 'SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
+    return header + corners.map(c => `PU${c};`).join('') + 'PU0,0;';
   }
 
   function svgCrosshair(cx, cy, half) {

@@ -55,9 +55,15 @@ function Get-TemHoaCutterPorts {
                     num = [long]$p.Substring(3)
                 }
             }
-        ) | Sort-Object @{ Expression = { if ($_.usb) { 0 } else { 1 } } }, @{ Expression = { $_.num } }
-        $sortedPorts = @($details | ForEach-Object { $_.port })
-        $cleanDetails = @($details | ForEach-Object { @{ port = $_.port; label = $_.label; usb = $_.usb } })
+        ) | Sort-Object @{ Expression = { if ($_.usb) { 0 } else { 1 } } }, @{ Expression = { $_.num } } | Where-Object { $null -ne $_ }
+        $sortedPorts = @()
+        $cleanDetails = @()
+        foreach ($d in @($details)) {
+            if ($null -ne $d -and $d.port) {
+                $sortedPorts += $d.port
+                $cleanDetails += @{ port = $d.port; label = $d.label; usb = [bool]$d.usb }
+            }
+        }
         return @{ ports = $sortedPorts; details = $cleanDetails; available = $true }
     } catch {
         return @{ ports = @(); details = @(); available = $false }
@@ -65,14 +71,14 @@ function Get-TemHoaCutterPorts {
 }
 function Test-TemHoaSafeHpgl([string]$hpgl) {
     if ([string]::IsNullOrWhiteSpace($hpgl)) { throw 'HP-GL job payload is empty.' }
-    if ($hpgl -cmatch '[^INSPUD0-9,; \t\r\n-]') { throw 'HP-GL job contains disallowed characters or commands.' }
+    if ($hpgl -cmatch '[^INSPUDA0-9,; \t\r\n-]') { throw 'HP-GL job contains disallowed characters or commands.' }
     if ([System.Text.Encoding]::ASCII.GetByteCount($hpgl) -gt 8388608) { throw 'HP-GL job exceeds 8 MB limit.' }
-    if ($hpgl -cnotmatch '(?:IN|SP|PU|PD)') { throw 'HP-GL job contains no cutting commands.' }
-    if ($hpgl -cmatch '(?<![A-Z])(?!(?:IN|SP|PU|PD)(?![A-Z]))[A-Z]+') { throw 'HP-GL job contains unsupported commands.' }
+    if ($hpgl -cnotmatch '(?:IN|SP|PA|PU|PD)') { throw 'HP-GL job contains no cutting commands.' }
+    if ($hpgl -cmatch '(?<![A-Z])(?!(?:IN|SP|PA|PU|PD)(?![A-Z]))[A-Z]+') { throw 'HP-GL job contains unsupported commands.' }
     if ($hpgl -cmatch '\A[ \t\r\n,;]*[0-9-]') { throw 'HP-GL job must begin with a valid command.' }
     if ($hpgl -cmatch '-(?![0-9])|[0-9]-') { throw 'HP-GL job contains invalid negative coordinate syntax.' }
-    if ($hpgl -cmatch '(?:\A|[; \t\r\nINSPUD]),|,[ \t\r\n]*(?:[;INSPUD]|\z)|,[ \t\r\n]*,') { throw 'HP-GL job contains invalid comma syntax.' }
-    if ($hpgl -cmatch 'IN[ \t\r\n]*[0-9,-]|SP[ \t\r\n]*(?:-|,[ \t\r\n]*[0-9]|[0-9]+[ \t\r\n]*,)') { throw 'HP-GL job contains invalid command arguments.' }
+    if ($hpgl -cmatch '(?:\A|[; \t\r\nINSPUDA]),|,[ \t\r\n]*(?:[;INSPUDA]|\z)|,[ \t\r\n]*,') { throw 'HP-GL job contains invalid comma syntax.' }
+    if ($hpgl -cmatch '(?:IN|PA)[ \t\r\n]*[0-9,-]|SP[ \t\r\n]*(?:-|,[ \t\r\n]*[0-9]|[0-9]+[ \t\r\n]*,)') { throw 'HP-GL job contains invalid command arguments.' }
 }
 function Read-TemHoaJsonBody($stream, $headers, [int]$maxBytes, [string]$limitError) {
     [long]$length = 0
