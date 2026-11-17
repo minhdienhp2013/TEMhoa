@@ -1031,6 +1031,8 @@
     '<div class="cloudCutComButtons">' +
     '<button id="cutSendDirect" type="button" class="primary" disabled>✂ Cắt trực tiếp ngay</button>' +
     '<button id="cutTestBox" type="button" disabled>Chạy thử khung (không hạ dao)</button>' +
+    '<button id="cutPauseResume" type="button" class="cloudCutWarnBtn" disabled>⏸ Tạm dừng</button>' +
+    '<button id="cutCancelJob" type="button" class="cloudCutDangerBtn" disabled>⏹ Xoá lệnh / Về gốc</button>' +
     '<button id="cutRefreshPorts" type="button">Làm mới COM</button>' +
     '</div>' +
     '<p id="cutComStatus" class="cloudCutComStatus" role="status"></p>' +
@@ -1082,6 +1084,8 @@
   document.body.append(cutDialog);
 
   let cutBusy = false;
+  let cutPaused = false;
+  let cutCancelled = false;
   let lastCutJob = null;
   let cutterSupported = false;
 
@@ -1300,10 +1304,18 @@
 
   function syncCutterActionButtons() {
     const port = $('cutComPort')?.value || '';
-    const canCut = !cutBusy && cutterSupported && Boolean(port) && Boolean(lastCutJob?.contours?.length);
+    const hasPort = cutterSupported && Boolean(port);
+    const canCut = !cutBusy && hasPort && Boolean(lastCutJob?.contours?.length);
     $('cutTestBox').disabled = !canCut;
     $('cutSendDirect').disabled = !canCut;
     $('cutRefreshPorts').disabled = cutBusy;
+    if ($('cutPauseResume')) {
+      $('cutPauseResume').disabled = !cutBusy;
+      $('cutPauseResume').textContent = cutPaused ? '▶ Tiếp tục cắt' : '⏸ Tạm dừng';
+    }
+    if ($('cutCancelJob')) {
+      $('cutCancelJob').disabled = !(cutBusy || hasPort);
+    }
   }
 
   async function refreshCutterPorts() {
@@ -1392,6 +1404,8 @@
     saveComPref({ port, baudRate: String(baudRate), flowControl });
 
     cutBusy = true;
+    cutPaused = false;
+    cutCancelled = false;
     syncCutterActionButtons();
     $('cutComStatus').textContent = testBox
       ? `Đang gửi khung chạy thử (không hạ dao) tới ${port} (${baudRate} bps, ${flowControl})…`
@@ -1416,6 +1430,41 @@
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.error || 'Không gửi được lệnh cắt.');
+
+      if (data.started) {
+        $('cutComStatus').textContent = testBox
+          ? `Đang chạy thử khung trên ${data.port || port} [${baudRate} bps, ${flowControl}]… Bấm "⏸ Tạm dừng" hoặc "⏹ Xoá lệnh / Về gốc" nếu cần dừng ngay.`
+          : `Đang cắt trực tiếp trên ${data.port || port} [${baudRate} bps, ${flowControl}]… Bấm "⏸ Tạm dừng" để nhấc dao tạm nghỉ hoặc "⏹ Xoá lệnh / Về gốc" để huỷ.`;
+        while (cutBusy) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+          if (!cutBusy) break;
+          const statusResp = await fetch('/api/cut-status', {
+            method: 'GET',
+            headers: { 'X-TemHoa-Token': window.TEMHOA_TOKEN || '' }
+          });
+          const statusData = await statusResp.json();
+          if (statusData.running) {
+            const nextPaused = Boolean(statusData.paused);
+            if (nextPaused !== cutPaused) {
+              cutPaused = nextPaused;
+              syncCutterActionButtons();
+            }
+            continue;
+          }
+          if (statusData.ok === false) {
+            throw Error(statusData.error || 'Lỗi khi gửi lệnh cắt.');
+          }
+          if (statusData.stopped || cutCancelled) {
+            $('cutComStatus').textContent = `Đã xoá lệnh cắt và nhấc dao đưa về gốc (0,0) trên ${statusData.port || port}.`;
+            return;
+          }
+          break;
+        }
+        if (cutCancelled) {
+          return;
+        }
+      }
+
       $('cutComStatus').textContent = testBox
         ? `Đã gửi khung chạy thử (${data.bytes || hpgl.length} bytes) tới ${data.port || port} [${baudRate} bps, ${flowControl}]. Nếu máy chưa chạy: (1) kiểm tra MH721 đang ONLINE (không Pause); (2) thử Baud 38400 / 4800 / 9600; (3) thử đổi Luồng None ↔ RequestToSend.`
         : `Đã gửi lệnh cắt xong (${data.bytes || hpgl.length} bytes) tới ${data.port || port} [${baudRate} bps, ${flowControl}].`;
@@ -1423,7 +1472,67 @@
       $('cutComStatus').textContent = error.message;
     } finally {
       cutBusy = false;
+      cutPaused = false;
       syncCutterActionButtons();
+    }
+  }
+
+  async function togglePauseCutJob() {
+    if (!cutBusy) return;
+    const action = cutPaused ? 'resume' : 'pause';
+    try {
+      const response = await fetch('/api/cut-control', {
+        method: 'POST',
+        headers: {
+          'X-TemHoa-Token': window.TEMHOA_TOKEN || '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action })
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) throw Error(data.error || 'Không điều khiển được lệnh cắt.');
+      cutPaused = action === 'pause';
+      $('cutComStatus').textContent = cutPaused
+        ? 'Đã tạm dừng và nhấc dao (PU). Bấm "▶ Tiếp tục cắt" để cắt tiếp hoặc "⏹ Xoá lệnh / Về gốc" để huỷ.'
+        : 'Đang tiếp tục chạy lệnh cắt…';
+      syncCutterActionButtons();
+    } catch (error) {
+      $('cutComStatus').textContent = error.message;
+    }
+  }
+
+  async function cancelCutJob() {
+    const port = $('cutComPort')?.value || '';
+    const baudRate = Number($('cutComBaud')?.value) || 9600;
+    const flowControl = $('cutComFlow')?.value || 'None';
+    if (!port) {
+      $('cutComStatus').textContent = 'Vui lòng chọn cổng COM.';
+      return;
+    }
+    $('cutComStatus').textContent = `Đang xoá lệnh cắt và đưa dao về gốc (0,0) trên ${port}…`;
+    try {
+      const response = await fetch('/api/cut-control', {
+        method: 'POST',
+        headers: {
+          'X-TemHoa-Token': window.TEMHOA_TOKEN || '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'cancel',
+          port,
+          baudRate,
+          flowControl
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error || 'Không xoá được lệnh cắt.');
+      cutCancelled = true;
+      cutBusy = false;
+      cutPaused = false;
+      syncCutterActionButtons();
+      $('cutComStatus').textContent = `Đã xoá lệnh cắt và nhấc dao đưa về gốc (0,0) trên ${data.port || port}.`;
+    } catch (error) {
+      $('cutComStatus').textContent = error.message;
     }
   }
 
@@ -1509,6 +1618,8 @@
   $('cutComFlow').onchange = () => saveComPref({ flowControl: $('cutComFlow').value });
   $('cutTestBox').onclick = () => sendDirectComCut(true);
   $('cutSendDirect').onclick = () => sendDirectComCut(false);
+  $('cutPauseResume').onclick = togglePauseCutJob;
+  $('cutCancelJob').onclick = cancelCutJob;
 
   /* ------------------------------------------------------------------
    * 7. Initial synchronization

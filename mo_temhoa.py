@@ -145,6 +145,10 @@ class Handler(BaseHTTPRequestHandler):
                 'supported': False,
                 'reason': 'Kết nối cổng COM trực tiếp hỗ trợ trên Windows; trên máy này hãy tải file .PLT hoặc .SVG.',
             })
+        elif route.path == '/api/cut-status':
+            if not self.api_allowed():
+                self.reply(403, {'error': 'Không có quyền truy cập máy cắt.'}); return
+            self.reply(200, {'running': False, 'idle': True})
         elif route.path == '/api/templates':
             if not self.api_allowed():
                 self.reply(403, {'error':'Không có quyền truy cập mẫu.'}); return
@@ -181,6 +185,10 @@ class Handler(BaseHTTPRequestHandler):
         route = urlsplit(self.path).path
         if route == '/api/print':
             self.handle_cups_print(); return
+        if route == '/api/cut-control':
+            if not self.api_allowed():
+                self.reply(403, {'error': 'Không có quyền truy cập máy cắt.'}); return
+            self.reply(200, {'running': False, 'stopped': True}); return
         if route == '/api/background':
             if not self.api_allowed():
                 self.reply(403, {'error': 'Không có quyền truy cập AI.'}); return

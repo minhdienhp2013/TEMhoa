@@ -339,6 +339,18 @@
   margin-top: 8px;
 }
 
+.cloudCutComButtons .cloudCutWarnBtn:not(:disabled) {
+  background: #fff4d6;
+  border-color: #d99b26;
+  color: #7a4f00;
+}
+
+.cloudCutComButtons .cloudCutDangerBtn:not(:disabled) {
+  background: #ffe5e5;
+  border-color: #d64545;
+  color: #9b1c1c;
+}
+
 .cloudCutDialog :focus-visible,
 #cloudCutBar :focus-visible,
 #homeCreateCloudCut:focus-visible {

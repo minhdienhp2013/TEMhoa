@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $taskRoot 'Background-TemHoa-Windows.ps1')
 $taskHtml = Join-Path $taskRoot 'TemHoa-MinhDien.html'
@@ -95,8 +95,13 @@ function Read-TemHoaJsonBody($stream, $headers, [int]$maxBytes, [string]$limitEr
     }
     return ([System.Text.Encoding]::UTF8.GetString($payload) | ConvertFrom-Json)
 }
+$script:TemHoaCut = $null
 function Invoke-TemHoaCutterJob($request) {
     if (!$request) { throw 'Invalid cut request.' }
+    $busy = Get-TemHoaCutStatus
+    if ($busy.running) {
+        return @{ status = '409 Conflict'; body = @{ error = 'A cut job is already running. Pause/Cancel it first.' } }
+    }
     if ($request.port -isnot [string]) { throw 'Invalid COM port.' }
     $port = $request.port.Trim().ToUpperInvariant()
     if ($port -cnotmatch '\ACOM[0-9]+\z') { throw 'Invalid COM port name.' }
@@ -149,13 +154,15 @@ function Invoke-TemHoaCutterJob($request) {
     }
 
     $cutJob = Join-Path ([System.IO.Path]::GetTempPath()) ('TemHoa-cut-' + [Guid]::NewGuid().ToString('N') + '.hpgl')
+    $cutControl = [System.IO.Path]::ChangeExtension($cutJob, '.ctl')
     $proc = $null
     try {
         [System.IO.File]::WriteAllText($cutJob, $request.hpgl, [System.Text.Encoding]::ASCII)
+        [System.IO.File]::WriteAllText($cutControl, 'run', [System.Text.Encoding]::ASCII)
         $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
         $psi = [System.Diagnostics.ProcessStartInfo]::new()
         $psi.FileName = $powerShell
-        $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -SendJob -PortName $port -BaudRate $baud -FlowControl $flow -JobPath `"$cutJob`""
+        $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -SendJob -PortName $port -BaudRate $baud -FlowControl $flow -JobPath `"$cutJob`" -ControlPath `"$cutControl`""
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
         $psi.RedirectStandardOutput = $true
@@ -163,27 +170,86 @@ function Invoke-TemHoaCutterJob($request) {
         $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
         $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
         $proc = [System.Diagnostics.Process]::Start($psi)
-        $outTask = $proc.StandardOutput.ReadToEndAsync()
-        $errTask = $proc.StandardError.ReadToEndAsync()
-        $timeoutMs = [int][Math]::Max(60000, [Math]::Min(600000, [Math]::Ceiling(($byteCount / ($baud / 10.0)) * 2000 + 30000)))
-        if (-not $proc.WaitForExit($timeoutMs)) {
-            try { $proc.Kill() } catch {}
-            return @{ status = '503 Service Unavailable'; body = @{ error = 'Timed out sending cut job to COM port.' } }
+        # Run in the background so the UI can poll status and send Pause / Resume / Cancel while cutting.
+        $script:TemHoaCut = @{
+            proc = $proc
+            out = $proc.StandardOutput.ReadToEndAsync()
+            err = $proc.StandardError.ReadToEndAsync()
+            job = $cutJob
+            control = $cutControl
+            port = $port
+            bytes = $byteCount
+            deadline = [DateTime]::UtcNow.AddHours(2)
         }
-        $proc.WaitForExit()
-        $outText = $outTask.GetAwaiter().GetResult()
-        $errText = $errTask.GetAwaiter().GetResult()
-        if ($proc.ExitCode -ne 0) {
-            $errClean = if ($errText -and $errText.Trim()) { $errText.Trim() } elseif ($outText -and $outText.Trim()) { $outText.Trim() } else { "Failed to send job to $port." }
-            return @{ status = '503 Service Unavailable'; body = @{ error = $errClean } }
-        }
-        return @{ status = '200 OK'; body = @{ sent = $true; port = $port; bytes = $byteCount } }
+        $proc = $null
+        return @{ status = '200 OK'; body = @{ started = $true; port = $port; bytes = $byteCount } }
     } catch {
+        if ($null -ne $proc) { try { $proc.Kill() } catch {}; try { $proc.Dispose() } catch {} }
+        foreach ($f in @($cutJob, $cutControl)) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } }
         return @{ status = '503 Service Unavailable'; body = @{ error = $_.Exception.Message } }
-    } finally {
-        if ($null -ne $proc) { try { $proc.Dispose() } catch {} }
-        if (Test-Path -LiteralPath $cutJob) { Remove-Item -LiteralPath $cutJob -Force -ErrorAction SilentlyContinue }
     }
+}
+
+function Get-TemHoaCutStatus {
+    $cut = $script:TemHoaCut
+    if ($null -eq $cut) { return @{ running = $false; idle = $true } }
+    $proc = $cut.proc
+    if (-not $proc.HasExited) {
+        if ([DateTime]::UtcNow -gt $cut.deadline) {
+            try { $proc.Kill() } catch {}
+        } else {
+            $mode = ''
+            try { $mode = ([System.IO.File]::ReadAllText($cut.control)).Trim().ToLowerInvariant() } catch {}
+            return @{ running = $true; paused = ($mode -eq 'pause'); cancelling = ($mode -eq 'cancel'); port = $cut.port; bytes = $cut.bytes }
+        }
+    }
+    try { $proc.WaitForExit() } catch {}
+    $outText = ''; $errText = ''
+    try { $outText = $cut.out.GetAwaiter().GetResult() } catch {}
+    try { $errText = $cut.err.GetAwaiter().GetResult() } catch {}
+    $exitCode = -1
+    try { $exitCode = $proc.ExitCode } catch {}
+    try { $proc.Dispose() } catch {}
+    foreach ($f in @($cut.job, $cut.control)) { if ($f -and (Test-Path -LiteralPath $f)) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue } }
+    $script:TemHoaCut = $null
+    if ($exitCode -ne 0) {
+        $errClean = if ($errText -and $errText.Trim()) { $errText.Trim() } elseif ($outText -and $outText.Trim()) { $outText.Trim() } else { "Failed to send job to $($cut.port)." }
+        return @{ running = $false; done = $true; ok = $false; error = $errClean; port = $cut.port; bytes = $cut.bytes }
+    }
+    $wasStopped = [bool]($outText -match '"stopped"\s*:\s*true')
+    return @{ running = $false; done = $true; ok = $true; stopped = $wasStopped; port = $cut.port; bytes = $cut.bytes }
+}
+
+function Set-TemHoaCutControl($request) {
+    if (!$request -or $request.action -isnot [string]) { throw 'Invalid cut control request.' }
+    $action = $request.action.Trim().ToLowerInvariant()
+    if ($action -notin @('pause', 'resume', 'cancel')) { throw 'Unsupported cut control action.' }
+    $cut = $script:TemHoaCut
+    if ($null -ne $cut -and -not $cut.proc.HasExited) {
+        $value = if ($action -eq 'resume') { 'run' } else { $action }
+        [System.IO.File]::WriteAllText($cut.control, $value, [System.Text.Encoding]::ASCII)
+        if ($action -eq 'cancel') {
+            $exited = $false
+            try { $exited = $cut.proc.WaitForExit(1500) } catch {}
+            if (-not $exited) {
+                try { $cut.proc.Kill() } catch {}
+            }
+            $finalStatus = Get-TemHoaCutStatus
+            return @{ running = $false; stopped = $true; action = 'cancel'; port = $cut.port }
+        }
+        return @{ running = $true; paused = ($action -eq 'pause'); action = $action; port = $cut.port }
+    }
+    if ($action -eq 'cancel' -and $request.port -is [string] -and $request.port.Trim()) {
+        $resetReq = [pscustomobject]@{
+            port = $request.port
+            baudRate = if ($null -ne $request.baudRate) { $request.baudRate } else { 9600 }
+            flowControl = if ($request.flowControl -is [string] -and $request.flowControl) { $request.flowControl } else { 'None' }
+            hpgl = 'SP1;PA;PU;PU0,0;'
+        }
+        $outcome = Invoke-TemHoaCutterJob $resetReq
+        return @{ running = $false; stopped = $true; action = 'cancel'; port = $request.port.Trim().ToUpperInvariant() }
+    }
+    return @{ running = $false; error = 'No cut job is running.' }
 }
 $taskListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 8765)
 try { $taskListener.Start() } catch {
@@ -337,6 +403,25 @@ try {
                     $taskOutcome = Invoke-TemHoaCutterJob $taskRequest
                     $taskStatus = $taskOutcome.status
                     $taskResult = $taskOutcome.body
+                } catch {
+                    $taskStatus = '400 Bad Request'
+                    $taskResult = @{ error = $_.Exception.Message }
+                }
+                $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 10 -Compress))
+            } elseif ($taskRoute -eq '/api/cut-status' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                try {
+                    if ($taskParts[0] -ne 'GET') { throw 'Unsupported cut status method.' }
+                    $taskResult = Get-TemHoaCutStatus
+                } catch {
+                    $taskStatus = '400 Bad Request'
+                    $taskResult = @{ error = $_.Exception.Message }
+                }
+                $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 10 -Compress))
+            } elseif ($taskRoute -eq '/api/cut-control' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                try {
+                    if ($taskParts[0] -ne 'POST') { throw 'Unsupported cut control method.' }
+                    $taskRequest = Read-TemHoaJsonBody $taskStream $taskHeaders 4096 'Cut control request too large or empty.'
+                    $taskResult = Set-TemHoaCutControl $taskRequest
                 } catch {
                     $taskStatus = '400 Bad Request'
                     $taskResult = @{ error = $_.Exception.Message }

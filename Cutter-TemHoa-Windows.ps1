@@ -5,6 +5,7 @@ param(
     [int]$BaudRate = 9600,
     [string]$FlowControl = 'RequestToSend',
     [string]$JobPath = '',
+    [string]$ControlPath = '',
     [switch]$Test
 )
 
@@ -74,12 +75,23 @@ function Resolve-FlowControl {
     }
 }
 
+function Get-CutControl {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return '' }
+    try {
+        return ([System.IO.File]::ReadAllText($Path)).Trim().ToLowerInvariant()
+    } catch {
+        return ''
+    }
+}
+
 function Send-HpglJob {
     param(
         [string]$TargetPort,
         [int]$TargetBaud,
         [string]$TargetFlow,
-        [string]$SourcePath
+        [string]$SourcePath,
+        [string]$ControlFile = ''
     )
     $port = if ($null -eq $TargetPort) { '' } else { $TargetPort.Trim().ToUpperInvariant() }
     if ($port -cnotmatch '\ACOM[0-9]+\z') {
@@ -124,10 +136,29 @@ function Send-HpglJob {
         # without hardware flow control the small cutter buffer overflows and the cut stops early.
         $assumedMmPerSec = 40.0
         $lastX = 0.0; $lastY = 0.0
+        $stopped = $false
         $lines = $wireHpgl -split "`n"
         foreach ($line in $lines) {
             $text = $line.Trim()
             if ($text.Length -eq 0) { continue }
+
+            # Operator controls from the TemHoa UI: pause (lift blade and wait), resume, cancel (lift + return to origin).
+            $control = Get-CutControl -Path $ControlFile
+            if ($control -eq 'pause') {
+                $liftBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;`r`n")
+                $serial.Write($liftBytes, 0, $liftBytes.Length)
+                while ($control -eq 'pause') {
+                    [System.Threading.Thread]::Sleep(100)
+                    $control = Get-CutControl -Path $ControlFile
+                }
+            }
+            if ($control -eq 'cancel') {
+                $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;PU0,0;`r`n")
+                $serial.Write($cancelBytes, 0, $cancelBytes.Length)
+                $stopped = $true
+                break
+            }
+
             $lineBytes = [System.Text.Encoding]::ASCII.GetBytes($text + "`r`n")
             $serial.Write($lineBytes, 0, $lineBytes.Length)
             $delayMs = 15.0
@@ -138,7 +169,17 @@ function Send-HpglJob {
                 $lastX = $x; $lastY = $y
                 $delayMs = [Math]::Min(3000.0, 15.0 + ($distMm / $assumedMmPerSec) * 1000.0)
             }
-            [System.Threading.Thread]::Sleep([int]$delayMs)
+            # Sleep in short slices so Pause / Cancel react quickly even during long moves.
+            $waitUntil = [DateTime]::UtcNow.AddMilliseconds($delayMs)
+            while ([DateTime]::UtcNow -lt $waitUntil) {
+                [System.Threading.Thread]::Sleep(20)
+                if ($ControlFile -and (Get-CutControl -Path $ControlFile) -in @('pause', 'cancel')) { break }
+            }
+        }
+        if (-not $stopped -and $ControlFile -and (Get-CutControl -Path $ControlFile) -eq 'cancel') {
+            $cancelBytes = [System.Text.Encoding]::ASCII.GetBytes("PU;PU0,0;`r`n")
+            $serial.Write($cancelBytes, 0, $cancelBytes.Length)
+            $stopped = $true
         }
         $serial.BaseStream.Flush()
         $drainDeadline = [DateTime]::UtcNow.AddSeconds(30)
@@ -155,7 +196,7 @@ function Send-HpglJob {
         }
     }
 
-    return @{ sent = $true; port = $port; bytes = $bytes.Length }
+    return @{ sent = $true; stopped = $stopped; port = $port; bytes = $bytes.Length }
 }
 
 try {
@@ -171,7 +212,7 @@ try {
         $ports = @(Get-SortedComPorts)
         ConvertTo-Json -InputObject @{ ports = $ports } -Compress
     } else {
-        $result = Send-HpglJob -TargetPort $PortName -TargetBaud $BaudRate -TargetFlow $FlowControl -SourcePath $JobPath
+        $result = Send-HpglJob -TargetPort $PortName -TargetBaud $BaudRate -TargetFlow $FlowControl -SourcePath $JobPath -ControlFile $ControlPath
         ConvertTo-Json -InputObject $result -Compress
     }
 } catch {
