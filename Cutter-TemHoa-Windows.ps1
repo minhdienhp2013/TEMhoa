@@ -177,6 +177,19 @@ function Send-HpglJob {
             $tokenBytes = [System.Text.Encoding]::ASCII.GetBytes($cmd + ';')
             $serial.Write($tokenBytes, 0, $tokenBytes.Length)
 
+            if ($cmd -eq 'IN') {
+                $serial.BaseStream.Flush()
+                [System.Threading.Thread]::Sleep(250)
+                $virtualFinishUtc = [DateTime]::UtcNow
+                continue
+            }
+            if ($cmd.StartsWith('SP')) {
+                $serial.BaseStream.Flush()
+                [System.Threading.Thread]::Sleep(80)
+                $virtualFinishUtc = [DateTime]::UtcNow
+                continue
+            }
+
             $cmdDistMm = 0.0
             $penToggleMs = 0.0
             if ($cmd.StartsWith('PU') -or $cmd.StartsWith('PD')) {

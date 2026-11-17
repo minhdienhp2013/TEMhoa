@@ -339,15 +339,15 @@ function polylineLength(pts) {
   );
   assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-180' }),
-    { x: 20, y: -15 }
-  );
-  assert.deepEqual(
-    C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-pos' }),
     { x: 20, y: 15 }
   );
   assert.deepEqual(
+    C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-pos' }),
+    { x: 20, y: -15 }
+  );
+  assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-90cw' }),
-    { x: 15, y: -20 }
+    { x: 15, y: 20 }
   );
   assert.deepEqual(
     C.transformPointForCut(25, 40, ref, { axisMode: 'mh721-direct-xy' }),
@@ -399,17 +399,17 @@ function polylineLength(pts) {
   const hpglFallback = C.generateHPGL({ contours: [noCutPtsContour], ref, pageMm, axisMode: 'screen-down' });
   assert.ok(hpglFallback.includes('PU120,120;PD520,120,520,520,120,520,120,120;'));
 
-  // TestBoxHPGL: pen-up only, zero PD commands; direct MH721 mode starts with SP1;PA;PU0,0; (no IN;) and negative Y for carriage
+  // TestBoxHPGL: pen-up only, zero PD commands; direct MH721 mode starts with IN;SP1;PU0,0; (no bare PA;) and strictly positive coordinates
   const testBox = C.generateTestBoxHPGL({ contours: [square], ref, pageMm, axisMode: 'mh721-direct-180' });
-  assert.ok(testBox.startsWith('SP1;PA;PU0,0;'));
-  assert.ok(!testBox.includes('IN;'));
+  assert.ok(testBox.startsWith('IN;SP1;PU0,0;'));
+  assert.ok(!testBox.includes('PA;'));
   assert.ok(testBox.endsWith('PU0,0;'));
   assert.ok(!testBox.includes('PD'), 'Test box HPGL must never lower the blade (no PD)');
-  assert.equal(testBox, 'SP1;PA;PU0,0;PU120,-120;PU120,-520;PU520,-520;PU520,-120;PU120,-120;PU0,0;');
+  assert.equal(testBox, 'IN;SP1;PU0,0;PU120,120;PU120,520;PU520,520;PU520,120;PU120,120;PU0,0;');
 
   const hpglDirect = C.generateHPGL({ contours: [square], ref, pageMm, axisMode: 'mh721-direct-180' });
-  assert.ok(hpglDirect.startsWith('SP1;PA;PU120,-120;PD120,-120;'));
-  assert.ok(!hpglDirect.includes('IN;'));
+  assert.ok(hpglDirect.startsWith('IN;SP1;PU120,120;PD120,120;'));
+  assert.ok(!hpglDirect.includes('PA;'));
   assert.ok(!hpglDirect.includes('\r') && !hpglDirect.includes('\n'), 'Direct HP-GL must not contain CRLF between PD commands');
 
   // generateCutSVG: flat single <svg>, registration marks (#0055cc), closedPoints only (#ff0000), scaled around ref

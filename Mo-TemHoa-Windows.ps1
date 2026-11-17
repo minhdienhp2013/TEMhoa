@@ -245,7 +245,7 @@ function Set-TemHoaCutControl($request) {
             port = $request.port
             baudRate = if ($null -ne $request.baudRate) { $request.baudRate } else { 9600 }
             flowControl = if ($request.flowControl -is [string] -and $request.flowControl) { $request.flowControl } else { 'None' }
-            hpgl = 'SP1;PA;PU;PU0,0;'
+            hpgl = 'IN;SP1;PU;PU0,0;'
         }
         $outcome = Invoke-TemHoaCutterJob $resetReq
         if ($null -ne $script:TemHoaCut) {

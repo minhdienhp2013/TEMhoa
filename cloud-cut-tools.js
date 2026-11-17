@@ -15,9 +15,9 @@
   ]);
 
   const AXIS_OPTIONS = [
-    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Dao chạy ngang (-Y), lăn giấy (+X)'],
-    ['mh721-direct-pos', 'Cắt thẳng MH721 · Dao chạy ngang (+Y), lăn giấy (+X)'],
-    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Đổi trục (+X lăn ngang, -Y dao dọc)'],
+    ['mh721-direct-180', 'Cắt thẳng MH721 (mặc định) · Xoay giấy 180° · Dao ngang (+Y), lăn giấy (+X)'],
+    ['mh721-direct-90cw', 'Cắt thẳng MH721 · Đổi trục X/Y (+X ngang, +Y dọc)'],
+    ['mh721-direct-pos', 'Cắt thẳng MH721 · Dao ngang (-Y), lăn giấy (+X)'],
     ['mh721-direct-xy', 'Cắt thẳng MH721 · Đổi trục (-X, +Y)'],
     ['artcut-cartesian', 'Phần mềm cắt ngoài (Artcut / SignMaster / Corel) · Gốc + trên-trái'],
     ['screen-down', 'Tọa độ màn hình (+X phải, +Y xuống)']
@@ -1430,7 +1430,7 @@
 
     try {
       const hpgl = isYTest
-        ? 'SP1;PA;PU0,0;PU0,-1600;PU0,0;PU0,1600;PU0,0;'
+        ? 'IN;SP1;PU0,0;PU0,800;PU0,1600;PU0,800;PU0,0;'
         : testBox
           ? Core.generateTestBoxHPGL(lastCutJob)
           : Core.generateHPGL({ ...lastCutJob, includeRefMark: false });

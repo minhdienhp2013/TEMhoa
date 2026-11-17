@@ -809,14 +809,13 @@
         return { x: cleanZero(dx), y: cleanZero(dy) };
       case 'mh721-direct-180':
         // MH721 roll cutter: HP-GL X = paper feed (roller), Y = carriage moving across the paper.
-        // From the right-hand origin on MH721, moving the carriage left across the sheet is -Y
-        // (matching artcut-cartesian's negative Y axis), while feeding paper is +X.
-        return { x: cleanZero(dy), y: cleanZero(-dx) };
-      case 'mh721-direct-pos':
+        // Strictly positive coordinates (+X, +Y) from the right-side ORIGIN (paper rotated 180°).
         return { x: cleanZero(dy), y: cleanZero(dx) };
+      case 'mh721-direct-pos':
+        return { x: cleanZero(dy), y: cleanZero(-dx) };
       case 'mh721-direct-90cw':
-        // Swapped fallback: page width drives the roller (+X), page height drives the carriage (-Y).
-        return { x: cleanZero(dx), y: cleanZero(-dy) };
+        // Swapped fallback: page width drives the roller (+X), page height drives the carriage (+Y).
+        return { x: cleanZero(dx), y: cleanZero(dy) };
       case 'mh721-direct-xy':
         return { x: cleanZero(-dx), y: cleanZero(dy) };
     }
@@ -861,6 +860,27 @@
   }
 
   /**
+   * Push an HP-GL move (`PU` or `PD`) from `fromPt` to `toPt`, subdividing long moves into
+   * <= 1600-unit (40 mm) collinear steps so 8-bit MH721 16-bit signed Bresenham counters never overflow.
+   */
+  function pushSteppedMove(cmds, prefix, fromPt, toPt, maxStepUnits = 1600) {
+    const dx = toPt.x - fromPt.x;
+    const dy = toPt.y - fromPt.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= maxStepUnits || !(maxStepUnits > 0)) {
+      cmds.push(`${prefix}${toPt.x},${toPt.y};`);
+      return;
+    }
+    const steps = Math.ceil(dist / maxStepUnits);
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const ix = Math.round(fromPt.x + dx * t);
+      const iy = Math.round(fromPt.y + dy * t);
+      cmds.push(`${prefix}${ix},${iy};`);
+    }
+  }
+
+  /**
    * Generate HP-GL cutting command stream at 40 units/mm.
    * @param {object} cutJob
    * @returns {string}
@@ -869,14 +889,14 @@
     const job = resolveCutJob(cutJob);
     const txOpts = { scaleX: job.scaleX, scaleY: job.scaleY, axisMode: job.axisMode };
     const isDirect = job.axisMode.startsWith('mh721-direct');
-    // Do not send IN; in direct MH721 modes because IN; resets the MH721 ROM origin to the right limit switch.
-    const cmds = [isDirect ? 'SP1;PA;' : 'IN;SP1;'];
+    const cmds = ['IN;SP1;'];
 
     if (job.includeRefMark) {
       const half = (Number.isFinite(job.ref.crossSizeMm) && job.ref.crossSizeMm > 0 ? job.ref.crossSizeMm : 8) / 2;
       appendCrosshairHPGL(cmds, job.ref.refX, job.ref.refY, half, job.ref, txOpts);
     }
 
+    let curPt = { x: 0, y: 0 };
     for (let i = 0; i < job.contours.length; i++) {
       const contour = job.contours[i];
       const hasCut = Array.isArray(contour.cutPoints) && contour.cutPoints.length >= 2;
@@ -898,18 +918,27 @@
       }
       if (coords.length) {
         if (isDirect) {
-          // Emit pure semicolon-delimited HP-GL commands (no CRLF between points) with explicit pen-down at start
-          // and pen-up at contour end so the MH721 parser and blade solenoid actuate reliably on every contour.
-          cmds.push(`PU${start.x},${start.y};PD${start.x},${start.y};`);
-          for (const c of coords) cmds.push(`PD${c};`);
+          pushSteppedMove(cmds, 'PU', curPt, start);
+          cmds.push(`PD${start.x},${start.y};`);
+          let prev = start;
+          for (let j = 1; j < hpglPts.length; j++) {
+            pushSteppedMove(cmds, 'PD', prev, hpglPts[j]);
+            prev = hpglPts[j];
+          }
           cmds.push('PU;');
+          curPt = prev;
         } else {
           cmds.push(`PU${start.x},${start.y};PD${coords.join(',')};`);
         }
       }
     }
 
-    cmds.push('PU;PU0,0;');
+    if (isDirect) {
+      cmds.push('PU;');
+      pushSteppedMove(cmds, 'PU', curPt, { x: 0, y: 0 });
+    } else {
+      cmds.push('PU;PU0,0;');
+    }
     return cmds.join('');
   }
 
@@ -922,7 +951,8 @@
     const job = resolveCutJob(cutJob);
     const bounds = computeUnionBounds(job.contours);
     const txOpts = { scaleX: job.scaleX, scaleY: job.scaleY, axisMode: job.axisMode };
-    const corners = [
+    const isDirect = job.axisMode.startsWith('mh721-direct');
+    const cornerPts = [
       [bounds.minX, bounds.minY],
       [bounds.maxX, bounds.minY],
       [bounds.maxX, bounds.maxY],
@@ -930,11 +960,20 @@
       [bounds.minX, bounds.minY]
     ].map(([x, y]) => {
       const mapped = transformPointForCut(x, y, job.ref, txOpts);
-      return `${toHpglUnit(mapped.x)},${toHpglUnit(mapped.y)}`;
+      return { x: toHpglUnit(mapped.x), y: toHpglUnit(mapped.y) };
     });
 
-    const header = job.axisMode.startsWith('mh721-direct') ? 'SP1;PA;PU0,0;' : 'IN;SP1;PU0,0;';
-    return header + corners.map(c => `PU${c};`).join('') + 'PU0,0;';
+    if (isDirect) {
+      const cmds = ['IN;SP1;PU0,0;'];
+      let cur = { x: 0, y: 0 };
+      for (const pt of cornerPts) {
+        pushSteppedMove(cmds, 'PU', cur, pt);
+        cur = pt;
+      }
+      pushSteppedMove(cmds, 'PU', cur, { x: 0, y: 0 });
+      return cmds.join('');
+    }
+    return 'IN;SP1;PU0,0;' + cornerPts.map(p => `PU${p.x},${p.y};`).join('') + 'PU0,0;';
   }
 
   function svgCrosshair(cx, cy, half) {
