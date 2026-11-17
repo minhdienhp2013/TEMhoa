@@ -6,11 +6,11 @@ if (!(Test-Path -LiteralPath $taskHtml)) { throw 'TemHoa-MinhDien.html is missin
 $taskToken = [Guid]::NewGuid().ToString('N')
 $taskTemplateRoot = if ($env:TEMHOA_TEMPLATE_ROOT) { $env:TEMHOA_TEMPLATE_ROOT } else { Join-Path $taskRoot 'Mau-Tem-Hoa' }
 $taskHtmlText = [System.IO.File]::ReadAllText($taskHtml, [System.Text.Encoding]::UTF8)
-$taskHtmlText = $taskHtmlText.Replace('<script>', "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;window.TEMHOA_DESKTOP=$($env:TEMHOA_DESKTOP -eq '1' | ConvertTo-Json -Compress);</script><script>")
+$taskHtmlText = [regex]::new('<script>').Replace($taskHtmlText, "<script>window.TEMHOA_TOKEN='$taskToken';window.TEMHOA_NATIVE_PRINT=true;window.TEMHOA_DESKTOP=$($env:TEMHOA_DESKTOP -eq '1' | ConvertTo-Json -Compress);</script><script>", 1)
 $taskBytes = [System.Text.Encoding]::UTF8.GetBytes($taskHtmlText)
 function Get-TemplatePath([string]$name) {
     $name = $name.Trim()
-    if (!$name -or $name.Length -gt 80 -or $name -match '[\x00-\x1f\\/:*?"<>|]' -or $name.EndsWith('.')) { throw 'Invalid template name (1-80 characters, no file path characters).' }
+    if (!$name -or $name.Length -gt 80 -or $name -match '[\x00-\x1f\\/:*?"<>|]') { throw 'Invalid template name (1-80 characters, no file path characters).' }
     if ($name.Split('.')[0] -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$') { throw 'Reserved template filename.' }
     $path = Join-Path $taskTemplateRoot ($name + '.json')
     if ((Test-Path -LiteralPath $path) -and (([System.IO.File]::GetAttributes($path) -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'Invalid template file.' }
@@ -18,6 +18,166 @@ function Get-TemplatePath([string]$name) {
 }
 function Test-Template($data) {
     if (!$data -or $data.version -ne 1 -or !$data.settings -or $data.settings.text -isnot [string]) { throw 'Invalid template JSON.' }
+}
+function Get-TemHoaCutterPorts {
+    try {
+        if (-not ('System.IO.Ports.SerialPort' -as [type])) {
+            Add-Type -AssemblyName System.IO.Ports -ErrorAction Stop
+        }
+        $rawPorts = @(
+            [System.IO.Ports.SerialPort]::GetPortNames() |
+            Where-Object { $_ } |
+            ForEach-Object { $_.Split([char]0)[0].Trim().ToUpperInvariant() } |
+            Where-Object { $_ -cmatch '\ACOM[0-9]+\z' } |
+            Select-Object -Unique |
+            Sort-Object { [long]$_.Substring(3) }
+        )
+        $pnpLabels = @{}
+        try {
+            $pnpItems = @(Get-CimInstance -ClassName Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -ErrorAction Stop)
+            foreach ($item in $pnpItems) {
+                if ($item.Name -match '\((COM[0-9]+)\)') {
+                    $comKey = $matches[1].ToUpperInvariant()
+                    if (-not $pnpLabels.ContainsKey($comKey)) {
+                        $pnpLabels[$comKey] = [string]$item.Name
+                    }
+                }
+            }
+        } catch { }
+        $details = @(
+            foreach ($p in $rawPorts) {
+                $lbl = if ($pnpLabels.ContainsKey($p)) { $pnpLabels[$p] } else { $p }
+                $isUsb = ($lbl -match '(?i)USB|CH340|CH341|FTDI|CP210|PL2303|Serial|Arduino|Cutter|Plotter')
+                [pscustomobject]@{
+                    port = $p
+                    label = $lbl
+                    usb = [bool]$isUsb
+                    num = [long]$p.Substring(3)
+                }
+            }
+        ) | Sort-Object @{ Expression = { if ($_.usb) { 0 } else { 1 } } }, @{ Expression = { $_.num } }
+        $sortedPorts = @($details | ForEach-Object { $_.port })
+        $cleanDetails = @($details | ForEach-Object { @{ port = $_.port; label = $_.label; usb = $_.usb } })
+        return @{ ports = $sortedPorts; details = $cleanDetails; available = $true }
+    } catch {
+        return @{ ports = @(); details = @(); available = $false }
+    }
+}
+function Test-TemHoaSafeHpgl([string]$hpgl) {
+    if ([string]::IsNullOrWhiteSpace($hpgl)) { throw 'HP-GL job payload is empty.' }
+    if ($hpgl -cmatch '[^INSPUD0-9,; \t\r\n-]') { throw 'HP-GL job contains disallowed characters or commands.' }
+    if ([System.Text.Encoding]::ASCII.GetByteCount($hpgl) -gt 8388608) { throw 'HP-GL job exceeds 8 MB limit.' }
+    if ($hpgl -cnotmatch '(?:IN|SP|PU|PD)') { throw 'HP-GL job contains no cutting commands.' }
+    if ($hpgl -cmatch '(?<![A-Z])(?!(?:IN|SP|PU|PD)(?![A-Z]))[A-Z]+') { throw 'HP-GL job contains unsupported commands.' }
+    if ($hpgl -cmatch '\A[ \t\r\n,;]*[0-9-]') { throw 'HP-GL job must begin with a valid command.' }
+    if ($hpgl -cmatch '-(?![0-9])|[0-9]-') { throw 'HP-GL job contains invalid negative coordinate syntax.' }
+    if ($hpgl -cmatch '(?:\A|[; \t\r\nINSPUD]),|,[ \t\r\n]*(?:[;INSPUD]|\z)|,[ \t\r\n]*,') { throw 'HP-GL job contains invalid comma syntax.' }
+    if ($hpgl -cmatch 'IN[ \t\r\n]*[0-9,-]|SP[ \t\r\n]*(?:-|,[ \t\r\n]*[0-9]|[0-9]+[ \t\r\n]*,)') { throw 'HP-GL job contains invalid command arguments.' }
+}
+function Read-TemHoaJsonBody($stream, $headers, [int]$maxBytes, [string]$limitError) {
+    [long]$length = 0
+    if (-not $headers['content-length'] -or -not [long]::TryParse($headers['content-length'], [ref]$length) -or $length -le 0 -or $length -gt $maxBytes) {
+        throw $limitError
+    }
+    $stream.ReadTimeout = 30000
+    $payload = [byte[]]::new([int]$length)
+    $read = 0
+    while ($read -lt $length) {
+        $received = $stream.Read($payload, $read, [int]$length - $read)
+        if ($received -le 0) { throw 'Incomplete request body.' }
+        $read += $received
+    }
+    return ([System.Text.Encoding]::UTF8.GetString($payload) | ConvertFrom-Json)
+}
+function Invoke-TemHoaCutterJob($request) {
+    if (!$request) { throw 'Invalid cut request.' }
+    if ($request.port -isnot [string]) { throw 'Invalid COM port.' }
+    $port = $request.port.Trim().ToUpperInvariant()
+    if ($port -cnotmatch '\ACOM[0-9]+\z') { throw 'Invalid COM port name.' }
+    $cutterInfo = Get-TemHoaCutterPorts
+    if (-not $cutterInfo.available) {
+        return @{ status = '503 Service Unavailable'; body = @{ error = 'Serial port support is unavailable on this system.' } }
+    }
+    if (@($cutterInfo.ports) -notcontains $port) { throw "COM port $port is not available." }
+
+    $allowedBauds = @(4800, 9600, 19200, 38400, 57600, 115200)
+    $baud = 9600
+    if ($null -ne $request.baudRate) {
+        if ($request.baudRate -is [bool]) { throw 'Invalid baud rate.' }
+        $parsedBaud = 0
+        if ($request.baudRate -is [string]) {
+            $trimmedBaud = $request.baudRate.Trim()
+            if ($trimmedBaud -cnotmatch '\A[0-9]+\z' -or -not [int]::TryParse($trimmedBaud, [ref]$parsedBaud)) { throw 'Invalid baud rate.' }
+        } elseif ($request.baudRate -is [ValueType]) {
+            $baudDouble = [double]$request.baudRate
+            if ([double]::IsNaN($baudDouble) -or [double]::IsInfinity($baudDouble) -or $baudDouble -ne [Math]::Floor($baudDouble) -or $baudDouble -lt 1 -or $baudDouble -gt 1000000) {
+                throw 'Invalid baud rate.'
+            }
+            $parsedBaud = [int]$baudDouble
+        } else {
+            throw 'Invalid baud rate.'
+        }
+        if ($allowedBauds -notcontains $parsedBaud) { throw 'Unsupported baud rate.' }
+        $baud = $parsedBaud
+    }
+
+    $flow = 'RequestToSend'
+    if ($null -ne $request.flowControl) {
+        if ($request.flowControl -isnot [string]) { throw 'Invalid flow control.' }
+        switch ($request.flowControl.Trim().ToLowerInvariant()) {
+            '' { $flow = 'RequestToSend' }
+            'requesttosend' { $flow = 'RequestToSend' }
+            'rts' { $flow = 'RequestToSend' }
+            'none' { $flow = 'None' }
+            default { throw 'Unsupported flow control.' }
+        }
+    }
+
+    if ($request.hpgl -isnot [string]) { throw 'Invalid HP-GL payload.' }
+    Test-TemHoaSafeHpgl $request.hpgl
+    $byteCount = [System.Text.Encoding]::ASCII.GetByteCount($request.hpgl)
+
+    $helper = Join-Path $taskRoot 'Cutter-TemHoa-Windows.ps1'
+    if (!(Test-Path -LiteralPath $helper -PathType Leaf)) {
+        return @{ status = '503 Service Unavailable'; body = @{ error = 'Missing Cutter-TemHoa-Windows.ps1. Download the complete update.' } }
+    }
+
+    $cutJob = Join-Path ([System.IO.Path]::GetTempPath()) ('TemHoa-cut-' + [Guid]::NewGuid().ToString('N') + '.hpgl')
+    $proc = $null
+    try {
+        [System.IO.File]::WriteAllText($cutJob, $request.hpgl, [System.Text.Encoding]::ASCII)
+        $powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = $powerShell
+        $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -SendJob -PortName $port -BaudRate $baud -FlowControl $flow -JobPath `"$cutJob`""
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+        $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        $outTask = $proc.StandardOutput.ReadToEndAsync()
+        $errTask = $proc.StandardError.ReadToEndAsync()
+        $timeoutMs = [int][Math]::Max(60000, [Math]::Min(600000, [Math]::Ceiling(($byteCount / ($baud / 10.0)) * 2000 + 30000)))
+        if (-not $proc.WaitForExit($timeoutMs)) {
+            try { $proc.Kill() } catch {}
+            return @{ status = '503 Service Unavailable'; body = @{ error = 'Timed out sending cut job to COM port.' } }
+        }
+        $proc.WaitForExit()
+        $outText = $outTask.GetAwaiter().GetResult()
+        $errText = $errTask.GetAwaiter().GetResult()
+        if ($proc.ExitCode -ne 0) {
+            $errClean = if ($errText -and $errText.Trim()) { $errText.Trim() } elseif ($outText -and $outText.Trim()) { $outText.Trim() } else { "Failed to send job to $port." }
+            return @{ status = '503 Service Unavailable'; body = @{ error = $errClean } }
+        }
+        return @{ status = '200 OK'; body = @{ sent = $true; port = $port; bytes = $byteCount } }
+    } catch {
+        return @{ status = '503 Service Unavailable'; body = @{ error = $_.Exception.Message } }
+    } finally {
+        if ($null -ne $proc) { try { $proc.Dispose() } catch {} }
+        if (Test-Path -LiteralPath $cutJob) { Remove-Item -LiteralPath $cutJob -Force -ErrorAction SilentlyContinue }
+    }
 }
 $taskListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 8765)
 try { $taskListener.Start() } catch {
@@ -71,13 +231,20 @@ try {
             $taskStatus = '200 OK'; $taskMime = 'application/json; charset=utf-8'; $taskResult = $null
             if ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/' -or $taskRoute -eq '/TemHoa-MinhDien.html')) {
                 $taskBody = $taskBytes; $taskMime = 'text/html; charset=utf-8'
-            } elseif ($taskParts[0] -eq 'GET' -and $taskRoute -in @('/studio.css','/studio-core.js','/studio.js','/studio-objects.js', '/image-tools.js', '/image-tools.css', '/clipboard-tools.js', '/shape-tools.js', '/color-tools.js')) {
-                $taskBody = [System.IO.File]::ReadAllBytes((Join-Path $taskRoot $taskRoute.Substring(1)))
-                $taskMime = if ($taskRoute.EndsWith('.css')) { 'text/css; charset=utf-8' } else { 'text/javascript; charset=utf-8' }
+            } elseif ($taskParts[0] -eq 'GET' -and $taskRoute -in @('/studio.css','/studio-core.js','/studio.js','/studio-objects.js', '/image-tools.js', '/image-tools.css', '/clipboard-tools.js', '/shape-tools.js', '/color-tools.js', '/cloud-cut-core.js', '/cloud-cut-tools.js', '/cloud-cut-tools.css')) {
+                $taskStaticPath = Join-Path $taskRoot $taskRoute.Substring(1)
+                if (Test-Path -LiteralPath $taskStaticPath -PathType Leaf) {
+                    $taskBody = [System.IO.File]::ReadAllBytes($taskStaticPath)
+                    $taskMime = if ($taskRoute.EndsWith('.css')) { 'text/css; charset=utf-8' } else { 'text/javascript; charset=utf-8' }
+                } else {
+                    $taskStatus = '404 Not Found'; $taskBody = [System.Text.Encoding]::UTF8.GetBytes('{"error":"File not found."}')
+                }
             } elseif ($taskParts[0] -eq 'GET' -and ($taskRoute -eq '/favicon.ico' -or $taskRoute.StartsWith('/assets/'))) {
                 $taskRel = if ($taskRoute -eq '/favicon.ico') { 'assets\temhoa.ico' } else { $taskRoute.Substring(1).Replace('/', '\') }
-                $taskAssetPath = [System.IO.Path]::GetFullPath((Join-Path $taskRoot $taskRel))
-                if ((Test-Path -LiteralPath $taskAssetPath -PathType Leaf) -and $taskAssetPath.StartsWith($taskRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $taskAssetsRoot = [System.IO.Path]::GetFullPath((Join-Path $taskRoot 'assets')).TrimEnd('\') + '\'
+                $taskAssetPath = ''
+                try { $taskAssetPath = [System.IO.Path]::GetFullPath((Join-Path $taskRoot $taskRel)) } catch { $taskAssetPath = '' }
+                if ($taskAssetPath -and (Test-Path -LiteralPath $taskAssetPath -PathType Leaf) -and $taskAssetPath.StartsWith($taskAssetsRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
                     $taskBody = [System.IO.File]::ReadAllBytes($taskAssetPath)
                     $taskMime = switch -Wildcard ($taskAssetPath) {
                         '*.ico' { 'image/x-icon' }
@@ -149,6 +316,26 @@ try {
                     } else { throw 'Unsupported print method.' }
                 } catch { $taskStatus = '400 Bad Request'; $taskResult = @{ error = $_.Exception.Message } }
                 $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 20 -Compress))
+            } elseif ($taskRoute -eq '/api/cutters' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                if ($taskParts[0] -eq 'GET') {
+                    $taskCutterInfo = Get-TemHoaCutterPorts
+                    $taskResult = @{ ports = @($taskCutterInfo.ports); portDetails = @($taskCutterInfo.details); supported = [bool]$taskCutterInfo.available }
+                } else {
+                    $taskStatus = '400 Bad Request'; $taskResult = @{ error = 'Unsupported cutter method.' }
+                }
+                $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 10 -Compress))
+            } elseif ($taskRoute -eq '/api/cut' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
+                try {
+                    if ($taskParts[0] -ne 'POST') { throw 'Unsupported cut method.' }
+                    $taskRequest = Read-TemHoaJsonBody $taskStream $taskHeaders 10485760 'Cut request too large or empty.'
+                    $taskOutcome = Invoke-TemHoaCutterJob $taskRequest
+                    $taskStatus = $taskOutcome.status
+                    $taskResult = $taskOutcome.body
+                } catch {
+                    $taskStatus = '400 Bad Request'
+                    $taskResult = @{ error = $_.Exception.Message }
+                }
+                $taskBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $taskResult -Depth 10 -Compress))
             } elseif ($taskRoute -eq '/api/templates' -and $taskHeaders['x-temhoa-token'] -eq $taskToken) {
                 try {
                     New-Item -ItemType Directory -Force -Path $taskTemplateRoot | Out-Null

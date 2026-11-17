@@ -1,0 +1,391 @@
+/* Separate Tem May · Cat may MH721 UI styles aligned with artDirection tokens. */
+.homeNav {
+  flex-wrap: wrap;
+}
+
+#homeCreateCloudCut {
+  margin-left: auto;
+  border: 1px solid var(--ui-brand, #B92C3B);
+  color: var(--ui-brand, #B92C3B);
+  background: var(--ui-surface, #fff);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#homeCreateCloudCut:hover {
+  background: var(--ui-tint, #F8E9EC);
+  border-color: var(--ui-brand-hover, #9F2331);
+  color: var(--ui-brand-hover, #9F2331);
+}
+
+/* Ribbon contextual controls (only shown for Tem May · Cat may MH721 documents). */
+#cloudCutBar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--ui-line, #E3E1DA);
+  height: 34px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#cloudCutBar[hidden] {
+  display: none !important;
+}
+
+.cloudCutToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ui-ink, #25262B);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cloudCutToggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--ui-brand, #B92C3B);
+  cursor: pointer;
+}
+
+#openCloudCutDialog {
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--ui-radius, 6px);
+}
+
+/* On-screen preview stage registration crosshair & mode badge overlay. */
+#cloudCutStageOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  overflow: visible;
+}
+
+#cloudCutStageOverlay[hidden] {
+  display: none !important;
+}
+
+.cloudCutStageSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.cloudCutOriginTag {
+  position: absolute;
+  font: 700 10px/1.1 var(--ui-font, Arial, sans-serif);
+  color: #0055cc;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 85, 204, 0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  transform: translate(6px, 5px);
+  white-space: nowrap;
+}
+
+.cloudCutOriginTag[hidden] {
+  display: none !important;
+}
+
+.cloudCutStageBadge {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--ui-line, #E3E1DA);
+  color: var(--ui-brand, #B92C3B);
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(37, 38, 43, 0.08);
+  white-space: nowrap;
+}
+
+.cloudCutStageBadge[hidden] {
+  display: none !important;
+}
+
+/* Export & Cut MH721 Dialog */
+.cloudCutDialog {
+  width: min(1040px, 95vw);
+  max-height: 92dvh;
+  overflow: auto;
+  border: 1px solid var(--ui-line, #E3E1DA);
+  border-radius: 10px;
+  padding: 20px;
+  background: var(--ui-surface, #fff);
+  color: var(--ui-ink, #25262B);
+  box-shadow: var(--ui-shadow, 0 4px 18px #25262b14);
+}
+
+.cloudCutDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ui-line, #E3E1DA);
+}
+
+.cloudCutDialogHeader h2 {
+  margin: 0;
+  font-size: 19px;
+  color: var(--ui-ink, #25262B);
+}
+
+.cloudCutCloseBtn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ui-muted, #686B73);
+}
+
+.cloudCutLayout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cloudCutControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cloudCutFieldset {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--ui-line, #E3E1DA);
+  border-radius: 8px;
+  background: var(--ui-paper, #F4F3EF);
+}
+
+.cloudCutDirectCard {
+  background: var(--ui-surface, #fff);
+  border-color: #d9b6bb;
+  box-shadow: 0 2px 8px rgba(185, 44, 59, 0.06);
+}
+
+.cloudCutDirectCard legend {
+  color: var(--ui-brand, #B92C3B);
+}
+
+.cloudCutFieldset legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ui-ink, #25262B);
+}
+
+.cloudCutFieldset label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-ink, #25262B);
+}
+
+.cloudCutFieldset label.cloudCutCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 7px 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cloudCutCheckRow input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ui-brand, #B92C3B);
+}
+
+.cloudCutGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cloudCutHint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ui-muted, #686B73);
+}
+
+.cloudCutPreviewPane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cloudCutPreviewBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  min-height: 310px;
+  background: var(--ui-paper, #F4F3EF);
+  border: 1px solid var(--ui-line, #E3E1DA);
+  border-radius: 8px;
+}
+
+#cloudCutPreviewCanvas {
+  display: block;
+  max-width: 100%;
+  max-height: 410px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(37, 38, 43, 0.14);
+}
+
+.cloudCutLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--ui-muted, #686B73);
+}
+
+.cloudCutLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cloudCutSwatch {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.cloudCutSwatch--cut {
+  background: #ff0000;
+}
+
+.cloudCutSwatch--ref {
+  background: #0055cc;
+}
+
+.cloudCutSwatch--ghost {
+  background: #9aa0aa;
+}
+
+.cloudCutSummary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ui-ink, #25262B);
+  font-weight: 500;
+}
+
+.cloudCutStatus,
+.cloudCutComStatus {
+  margin: 0;
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ui-brand, #B92C3B);
+}
+
+.cloudCutComStatus {
+  color: var(--ui-muted, #686B73);
+  margin-top: 6px;
+}
+
+.cloudCutActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cloudCutActions button,
+.cloudCutComButtons button {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cloudCutComButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cloudCutDialog :focus-visible,
+#cloudCutBar :focus-visible,
+#homeCreateCloudCut:focus-visible {
+  outline: 2px solid var(--ui-selection, #4967C9);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1320px) {
+  body.cloudCutDocument #homeRibbon {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  body.cloudCutDocument #cloudCutBar {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .cloudCutLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  #homeCreateCloudCut {
+    margin-left: 0;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .cloudCutDialog {
+    padding: 14px;
+  }
+  .cloudCutGrid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloudCutDialog,
+  #homeCreateCloudCut,
+  #cloudCutBar button {
+    transition: none !important;
+  }
+}

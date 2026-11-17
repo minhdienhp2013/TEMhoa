@@ -78,6 +78,8 @@ def validate_template(data):
         raise ValueError('Tệp mẫu không hợp lệ.')
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+
     def reply(self, status, value, mime='application/json; charset=utf-8'):
         payload = value if isinstance(value, bytes) else json.dumps(value, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
@@ -98,14 +100,21 @@ class Handler(BaseHTTPRequestHandler):
             flags = 'window.TEMHOA_NATIVE_PRINT=true;window.TEMHOA_CUPS_PRINT=true;' if CUPS_PRINT_ENABLED else ''
             html = html.replace('<script>', '<script>window.TEMHOA_TOKEN=' + json.dumps(TOKEN) + ';' + flags + '</script><script>', 1)
             self.reply(200, html.encode('utf-8'), 'text/html; charset=utf-8')
-        elif route.path in ('/studio.css', '/studio-core.js', '/studio.js', '/studio-objects.js', '/image-tools.js', '/image-tools.css', '/clipboard-tools.js', '/shape-tools.js', '/color-tools.js'):
+        elif route.path in (
+            '/studio.css', '/studio-core.js', '/studio.js', '/studio-objects.js',
+            '/image-tools.js', '/image-tools.css', '/clipboard-tools.js',
+            '/shape-tools.js', '/color-tools.js',
+            '/cloud-cut-core.js', '/cloud-cut-tools.js', '/cloud-cut-tools.css',
+        ):
             asset = ROOT / route.path[1:]
+            if not asset.is_file():
+                self.reply(404, {'error': 'Không tìm thấy.'}); return
             self.reply(200, asset.read_bytes(), 'text/css; charset=utf-8' if asset.suffix == '.css' else 'text/javascript; charset=utf-8')
         elif route.path == '/favicon.ico' or route.path.startswith('/assets/'):
             rel = 'assets/temhoa.ico' if route.path == '/favicon.ico' else route.path.lstrip('/')
             try:
                 asset = (ROOT / rel).resolve()
-                if asset.is_file() and ROOT in asset.parents:
+                if asset.is_file() and (ROOT / 'assets') in asset.parents:
                     mime = 'image/x-icon' if asset.suffix == '.ico' else ('image/png' if asset.suffix == '.png' else ('image/svg+xml' if asset.suffix == '.svg' else 'application/octet-stream'))
                     self.reply(200, asset.read_bytes(), mime)
                 else:
@@ -128,6 +137,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, cups_printers())
             except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
                 self.reply(503, {'error': str(error) or 'Không đọc được danh sách máy in.'})
+        elif route.path == '/api/cutters':
+            if not self.api_allowed():
+                self.reply(403, {'error': 'Không có quyền truy cập máy cắt.'}); return
+            self.reply(200, {
+                'ports': [],
+                'supported': False,
+                'reason': 'Kết nối cổng COM trực tiếp hỗ trợ trên Windows; trên máy này hãy tải file .PLT hoặc .SVG.',
+            })
         elif route.path == '/api/templates':
             if not self.api_allowed():
                 self.reply(403, {'error':'Không có quyền truy cập mẫu.'}); return
@@ -251,9 +268,15 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+class TemHoaHTTPServer(ThreadingHTTPServer):
+    request_queue_size = 64
+    daemon_threads = True
+
+ThreadingHTTPServer.request_queue_size = max(ThreadingHTTPServer.request_queue_size, 64)
+
 def make_server():
-    try: return ThreadingHTTPServer(('127.0.0.1', 8765), Handler)
-    except OSError: return ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    try: return TemHoaHTTPServer(('127.0.0.1', 8765), Handler)
+    except OSError: return TemHoaHTTPServer(('127.0.0.1', 0), Handler)
 
 def open_browser(url):
     for name in ('Google Chrome', 'Microsoft Edge'):

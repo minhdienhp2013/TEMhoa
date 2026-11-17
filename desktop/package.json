@@ -45,6 +45,10 @@
         "to": "app/Print-TemHoa-Windows.ps1"
       },
       {
+        "from": "../Cutter-TemHoa-Windows.ps1",
+        "to": "app/Cutter-TemHoa-Windows.ps1"
+      },
+      {
         "from": "../Mau-Tem-Hoa",
         "to": "app/Mau-Tem-Hoa"
       },
@@ -95,6 +99,18 @@
       {
         "from": "../color-tools.js",
         "to": "app/color-tools.js"
+      },
+      {
+        "from": "../cloud-cut-core.js",
+        "to": "app/cloud-cut-core.js"
+      },
+      {
+        "from": "../cloud-cut-tools.js",
+        "to": "app/cloud-cut-tools.js"
+      },
+      {
+        "from": "../cloud-cut-tools.css",
+        "to": "app/cloud-cut-tools.css"
       }
     ],
     "win": {

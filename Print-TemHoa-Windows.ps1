@@ -27,6 +27,61 @@ public static class TemHoaPrinter {
     [DllImport("kernel32.dll")] private static extern bool GlobalUnlock(IntPtr memory);
     [DllImport("kernel32.dll")] private static extern IntPtr GlobalFree(IntPtr memory);
     [DllImport("gdi32.dll")] private static extern int GetDeviceCaps(IntPtr dc,int index);
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DevModeHeader {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public short dmOrientation;
+        public short dmPaperSize;
+        public short dmPaperLength;
+        public short dmPaperWidth;
+    }
+    private const int DmOrientationFlag = 0x00000001;
+    private const int DmPaperSizeFlag = 0x00000002;
+    private const int DmPaperLengthFlag = 0x00000004;
+    private const int DmPaperWidthFlag = 0x00000008;
+    private static readonly int OffSize = Marshal.OffsetOf(typeof(DevModeHeader), "dmSize").ToInt32();
+    private static readonly int OffFields = Marshal.OffsetOf(typeof(DevModeHeader), "dmFields").ToInt32();
+    private static readonly int OffOrient = Marshal.OffsetOf(typeof(DevModeHeader), "dmOrientation").ToInt32();
+    private static readonly int OffPaper = Marshal.OffsetOf(typeof(DevModeHeader), "dmPaperSize").ToInt32();
+    private static readonly int OffLen = Marshal.OffsetOf(typeof(DevModeHeader), "dmPaperLength").ToInt32();
+    private static readonly int OffWid = Marshal.OffsetOf(typeof(DevModeHeader), "dmPaperWidth").ToInt32();
+    private static bool IsA5Landscape(double width, double height) {
+        return Math.Abs(width - 21.0) <= 0.15 && Math.Abs(height - 14.8) <= 0.15;
+    }
+    private static void WriteA5DevModeFields(IntPtr data, short paperRawKind, bool desiredLandscape, bool useCustomDims) {
+        if (Marshal.ReadInt16(data, OffSize) < 84) return;
+        int fields = Marshal.ReadInt32(data, OffFields);
+        Marshal.WriteInt16(data, OffOrient, (short)(desiredLandscape ? 2 : 1));
+        fields |= DmOrientationFlag;
+        if (useCustomDims) {
+            Marshal.WriteInt16(data, OffPaper, 0);
+            Marshal.WriteInt16(data, OffWid, (short)(desiredLandscape ? 1480 : 2100));
+            Marshal.WriteInt16(data, OffLen, (short)(desiredLandscape ? 2100 : 1480));
+            fields |= DmPaperSizeFlag | DmPaperLengthFlag | DmPaperWidthFlag;
+        } else if (paperRawKind > 0) {
+            Marshal.WriteInt16(data, OffPaper, paperRawKind);
+            fields = (fields & ~(DmPaperLengthFlag | DmPaperWidthFlag)) | DmPaperSizeFlag;
+        }
+        Marshal.WriteInt32(data, OffFields, fields);
+    }
+    private static bool IsDevModeA5Landscape(IntPtr data, short expectedRawKind, bool expectedLandscape) {
+        if (Marshal.ReadInt16(data, OffSize) < 84) return false;
+        int fields = Marshal.ReadInt32(data, OffFields);
+        short orient = Marshal.ReadInt16(data, OffOrient);
+        short paper = Marshal.ReadInt16(data, OffPaper);
+        short len = Marshal.ReadInt16(data, OffLen);
+        short wid = Marshal.ReadInt16(data, OffWid);
+        bool orientOk = orient == (short)(expectedLandscape ? 2 : 1);
+        bool paperOk = (expectedRawKind > 0 && paper == expectedRawKind) || paper == 11 ||
+            ((fields & (DmPaperLengthFlag | DmPaperWidthFlag)) == (DmPaperLengthFlag | DmPaperWidthFlag) &&
+            ((Math.Abs(wid - 1480) <= 25 && Math.Abs(len - 2100) <= 25) || (Math.Abs(wid - 2100) <= 25 && Math.Abs(len - 1480) <= 25)));
+        return orientOk && paperOk;
+    }
     private static void LoadDriverSettings(PrintDocument doc,string name) {
         IntPtr printer;
         if(!OpenPrinter(name,out printer,IntPtr.Zero)) throw new Exception("Khong doc duoc cau hinh may in.");
@@ -65,6 +120,59 @@ public static class TemHoaPrinter {
             doc.DefaultPageSettings.SetHdevmode(memory);
         } finally { if(memory!=IntPtr.Zero) GlobalFree(memory); ClosePrinter(printer); }
     }
+    private static void ValidateDriverSettingsForA5(PrintDocument doc, string name, PaperSize chosen, bool desiredLandscape) {
+        IntPtr printer;
+        if (!OpenPrinter(name, out printer, IntPtr.Zero)) throw new Exception("Khong truy cap duoc driver.");
+        IntPtr memory = IntPtr.Zero;
+        try {
+            short rawKind = (short)(chosen.RawKind > 0 ? chosen.RawKind : 11);
+            memory = doc.PrinterSettings.GetHdevmode(doc.DefaultPageSettings);
+            IntPtr data = GlobalLock(memory);
+            if (data == IntPtr.Zero) throw new Exception("Cau hinh in khong hop le.");
+            int result;
+            bool accepted = false;
+            try {
+                WriteA5DevModeFields(data, rawKind, desiredLandscape, false);
+                result = DocumentProperties(IntPtr.Zero, printer, name, data, data, 10);
+                accepted = (result == 1) && IsDevModeA5Landscape(data, rawKind, desiredLandscape);
+            } finally { GlobalUnlock(memory); }
+            if (accepted) {
+                doc.PrinterSettings.SetHdevmode(memory);
+                doc.DefaultPageSettings.SetHdevmode(memory);
+            } else {
+                // Retry on a clean driver DEVMODE so stored A4/A3 Borderless defaults cannot override A5 landscape.
+                GlobalFree(memory);
+                memory = IntPtr.Zero;
+                PrinterSettings cleanPs = new PrinterSettings();
+                cleanPs.PrinterName = name;
+                cleanPs.DefaultPageSettings.PaperSize = chosen;
+                cleanPs.DefaultPageSettings.Landscape = desiredLandscape;
+                memory = cleanPs.GetHdevmode(cleanPs.DefaultPageSettings);
+                IntPtr cleanData = GlobalLock(memory);
+                if (cleanData != IntPtr.Zero) {
+                    try {
+                        WriteA5DevModeFields(cleanData, rawKind, desiredLandscape, chosen.RawKind <= 0);
+                        result = DocumentProperties(IntPtr.Zero, printer, name, cleanData, cleanData, 10);
+                        accepted = (result == 1) && IsDevModeA5Landscape(cleanData, rawKind, desiredLandscape);
+                        if (!accepted && chosen.RawKind <= 0) {
+                            WriteA5DevModeFields(cleanData, 11, desiredLandscape, false);
+                            result = DocumentProperties(IntPtr.Zero, printer, name, cleanData, cleanData, 10);
+                            accepted = (result == 1) && IsDevModeA5Landscape(cleanData, 11, desiredLandscape);
+                        }
+                    } finally { GlobalUnlock(memory); }
+                }
+                if (accepted) {
+                    doc.PrinterSettings.SetHdevmode(memory);
+                    doc.DefaultPageSettings.SetHdevmode(memory);
+                } else {
+                    doc.DefaultPageSettings.PaperSize = chosen;
+                    doc.DefaultPageSettings.Landscape = desiredLandscape;
+                    doc.PrinterSettings.DefaultPageSettings.PaperSize = chosen;
+                    doc.PrinterSettings.DefaultPageSettings.Landscape = desiredLandscape;
+                }
+            }
+        } finally { if (memory != IntPtr.Zero) GlobalFree(memory); ClosePrinter(printer); }
+    }
     public static float[] CalculatePlacement(float pageW,float pageH,int dpiX,int dpiY,int offsetX,int offsetY,int printableW,int printableH,float imageW,float imageH,float inkX,float inkY,float inkW,float inkH) {
         if(dpiX<=0 || dpiY<=0 || printableW<=0 || printableH<=0) throw new Exception("Driver bao vung in khong hop le.");
         float left=Math.Max(0,(float)offsetX/dpiX)+SafeLeft,top=Math.Max(0,(float)offsetY/dpiY)+SafeTop;
@@ -77,24 +185,49 @@ public static class TemHoaPrinter {
         return new float[]{x-(float)offsetX/dpiX,y-(float)offsetY/dpiY,w,h,scale};
     }
     private static void SetPaper(PrintDocument doc, double width, double height) {
+        bool isA5 = IsA5Landscape(width, height);
         bool landscape = width > height;
         int pw = (int)Math.Round(Math.Min(width,height) / 2.54 * 100);
         int ph = (int)Math.Round(Math.Max(width,height) / 2.54 * 100);
         PaperSize chosen = null;
-        // Keep a matching driver paper (including its borderless variant).
-        PaperSize current = doc.DefaultPageSettings.PaperSize;
-        if (Math.Abs(current.Width-pw)<=2 && Math.Abs(current.Height-ph)<=2) chosen=current;
-        if (chosen==null) foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
-            if(Math.Abs(paper.Width-pw)<=2 && Math.Abs(paper.Height-ph)<=2) { chosen=paper; break; }
+        if (isA5) {
+            foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
+                string pname = paper.PaperName ?? "";
+                bool isBorderlessName = pname.IndexOf("Borderless", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!isBorderlessName && paper.Kind == PaperKind.A5 && Math.Abs(paper.Width-pw)<=3 && Math.Abs(paper.Height-ph)<=3) { chosen=paper; break; }
+            }
+            if (chosen==null) foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
+                if (paper.Kind == PaperKind.A5) { chosen=paper; break; }
+            }
+            if (chosen==null) foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
+                if (Math.Abs(paper.Width-pw)<=3 && Math.Abs(paper.Height-ph)<=3) { chosen=paper; break; }
+            }
+            if (chosen==null) foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
+                if (Math.Abs(paper.Width-ph)<=3 && Math.Abs(paper.Height-pw)<=3) { chosen=paper; break; }
+            }
+            if (chosen==null) chosen=new PaperSize("A5",pw,ph);
+            if (chosen.Width > chosen.Height) landscape = false;
+        } else {
+            // Keep a matching driver paper (including its borderless variant).
+            PaperSize current = doc.DefaultPageSettings.PaperSize;
+            if (Math.Abs(current.Width-pw)<=2 && Math.Abs(current.Height-ph)<=2) chosen=current;
+            if (chosen==null) foreach(PaperSize paper in doc.PrinterSettings.PaperSizes) {
+                if(Math.Abs(paper.Width-pw)<=2 && Math.Abs(paper.Height-ph)<=2) { chosen=paper; break; }
+            }
+            if(chosen==null) chosen=new PaperSize("Tem Hoa",pw,ph);
         }
-        if(chosen==null) chosen=new PaperSize("Tem Hoa",pw,ph);
         doc.DefaultPageSettings.PaperSize=chosen;
         doc.DefaultPageSettings.Landscape=landscape;
         doc.DefaultPageSettings.Margins=new Margins(0,0,0,0);
         doc.OriginAtMargins=false;
+        if (isA5) {
+            doc.PrinterSettings.DefaultPageSettings.PaperSize=chosen;
+            doc.PrinterSettings.DefaultPageSettings.Landscape=landscape;
+        }
     }
     public static void Run(byte[] bytes, string printer, double width, double height, bool color, int copies, double inkX, double inkY, double inkWidth, double inkHeight, float topMm, float rightMm, float bottomMm, float leftMm) {
         SafeTop=topMm/25.4f; SafeRight=rightMm/25.4f; SafeBottom=bottomMm/25.4f; SafeLeft=leftMm/25.4f;
+        bool isA5 = IsA5Landscape(width, height);
         using(MemoryStream stream=new MemoryStream(bytes))
         using(Image image=Image.FromStream(stream))
         using(PrintDocument doc=new PrintDocument()) {
@@ -105,7 +238,18 @@ public static class TemHoaPrinter {
             SetPaper(doc,width,height);
             doc.DefaultPageSettings.Color=color && doc.PrinterSettings.SupportsColor;
             doc.PrinterSettings.Copies=(short)Math.Max(1,Math.Min(99,copies));
-            ValidateDriverSettings(doc,printer);
+            if (isA5) {
+                ValidateDriverSettingsForA5(doc, printer, doc.DefaultPageSettings.PaperSize, doc.DefaultPageSettings.Landscape);
+                PaperSize a5Paper = doc.DefaultPageSettings.PaperSize;
+                bool a5Landscape = doc.DefaultPageSettings.Landscape;
+                doc.QueryPageSettings += (sender, qe) => {
+                    qe.PageSettings.PaperSize = a5Paper;
+                    qe.PageSettings.Landscape = a5Landscape;
+                    qe.PageSettings.Margins = new Margins(0,0,0,0);
+                };
+            } else {
+                ValidateDriverSettings(doc,printer);
+            }
             doc.PrintController=new StandardPrintController();
             doc.PrintPage+=(sender,e)=> {
                 // Query the live landscape/portrait print DC after the Canon driver has applied DEVMODE.
@@ -128,11 +272,38 @@ public static class TemHoaPrinter {
                         throw new Exception("Khung vien ban in khong hop le.");
                     source=new RectangleF((float)inkX,(float)inkY,(float)inkWidth,(float)inkHeight);
                 }
-                float[] placement=CalculatePlacement(pageW,pageH,dpiX,dpiY,offsetX,offsetY,printableW,printableH,image.Width,image.Height,source.X,source.Y,source.Width,source.Height);
+                if (isA5 && printableW < printableH) {
+                    // Fallback if a Windows driver refuses A5 landscape orientation on the HDC: rotate to portrait paper feed.
+                    float savedTop = SafeTop, savedRight = SafeRight, savedBottom = SafeBottom, savedLeft = SafeLeft;
+                    SafeLeft = savedTop; SafeTop = savedRight; SafeRight = savedBottom; SafeBottom = savedLeft;
+                    try {
+                        using(Bitmap rotated = new Bitmap(image)) {
+                            rotated.RotateFlip(RotateFlipType.Rotate270FlipNone);
+                            RectangleF rotSource = new RectangleF(
+                                source.Top,
+                                image.Width - source.Right,
+                                source.Height,
+                                source.Width
+                            );
+                            float[] placement = CalculatePlacement(pageH, pageW, dpiX, dpiY, offsetX, offsetY, printableW, printableH, rotated.Width, rotated.Height, rotSource.X, rotSource.Y, rotSource.Width, rotSource.Height);
+                            using(System.Drawing.Imaging.ImageAttributes attributes=new System.Drawing.Imaging.ImageAttributes()) {
+                                attributes.SetWrapMode(WrapMode.TileFlipXY);
+                                RectangleF target=new RectangleF(placement[0],placement[1],placement[2],placement[3]);
+                                PointF[] corners={new PointF(target.Left,target.Top),new PointF(target.Right,target.Top),new PointF(target.Left,target.Bottom)};
+                                e.Graphics.DrawImage(rotated,corners,rotSource,GraphicsUnit.Pixel,attributes);
+                            }
+                        }
+                    } finally {
+                        SafeTop = savedTop; SafeRight = savedRight; SafeBottom = savedBottom; SafeLeft = savedLeft;
+                    }
+                    e.HasMorePages=false;
+                    return;
+                }
+                float[] placementNormal=CalculatePlacement(pageW,pageH,dpiX,dpiY,offsetX,offsetY,printableW,printableH,image.Width,image.Height,source.X,source.Y,source.Width,source.Height);
                 // Clamp sampling at the bitmap boundary so interpolation cannot erase the outer outline.
                 using(System.Drawing.Imaging.ImageAttributes attributes=new System.Drawing.Imaging.ImageAttributes()) {
                     attributes.SetWrapMode(WrapMode.TileFlipXY);
-                    RectangleF target=new RectangleF(placement[0],placement[1],placement[2],placement[3]);
+                    RectangleF target=new RectangleF(placementNormal[0],placementNormal[1],placementNormal[2],placementNormal[3]);
                     PointF[] corners={new PointF(target.Left,target.Top),new PointF(target.Right,target.Top),new PointF(target.Left,target.Bottom)};
                     e.Graphics.DrawImage(image,corners,source,GraphicsUnit.Pixel,attributes);
                 }

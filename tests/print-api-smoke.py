@@ -143,6 +143,43 @@ class PrintApiSmoke(unittest.TestCase):
                 saved = Path(directory) / 'Windows template.json'
                 self.assertEqual(json.loads(saved.read_text(encoding='utf-8')), template)
 
+    def test_serves_cloud_cut_static_allowlist(self):
+        cloud_cut = mo_temhoa.ROOT / 'cloud-cut-core.js'
+        status, body = self.request('GET', '/cloud-cut-core.js')
+        if cloud_cut.is_file():
+            self.assertEqual(status, 200)
+            self.assertEqual(body, cloud_cut.read_bytes())
+        else:
+            self.assertEqual(status, 404)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('cloud-cut-core.js', 'cloud-cut-tools.js', 'cloud-cut-tools.css'):
+                (root / name).write_text(f'/* {name} */', encoding='utf-8')
+            with patch.object(mo_temhoa, 'ROOT', root):
+                for name in ('cloud-cut-core.js', 'cloud-cut-tools.js', 'cloud-cut-tools.css'):
+                    status, body = self.request('GET', '/' + name)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(body.decode('utf-8'), f'/* {name} */')
+
+    def test_blocks_assets_directory_traversal(self):
+        status, _ = self.request('GET', '/assets/../mo_temhoa.py')
+        self.assertEqual(status, 404)
+        favicon_status, _ = self.request('GET', '/favicon.ico')
+        self.assertEqual(favicon_status, 200)
+
+    def test_cutters_requires_token_and_reports_non_windows_status(self):
+        status, _ = self.request('GET', '/api/cutters')
+        self.assertEqual(status, 403)
+        status, _ = self.request('GET', '/api/cutters', token='invalid-token')
+        self.assertEqual(status, 403)
+        status, body = self.request('GET', '/api/cutters', token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {
+            'ports': [],
+            'supported': False,
+            'reason': 'Kết nối cổng COM trực tiếp hỗ trợ trên Windows; trên máy này hãy tải file .PLT hoặc .SVG.',
+        })
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
